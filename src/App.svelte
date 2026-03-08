@@ -26,6 +26,7 @@
   import { theme } from "./lib/states/theme.svelte";
   import { background } from "./lib/states/background.svelte";
   import { language } from "./lib/i18n/language.svelte";
+  import { initUrlSync, restoreTabFromUrl } from "./lib/services/urlSync.svelte";
   import { t } from "./lib/i18n";
   import { Sun, Moon, Layers, Layout, Monitor } from "lucide-svelte";
 
@@ -35,6 +36,11 @@
   let isDraggingScale = $state(false);
   let startDragX = $state(0);
   let startScale = $state(1.0);
+
+  async function handleRefreshTabs() {
+    await refreshTabs();
+    restoreTabFromUrl();
+  }
 
   function handleScaleMouseDown(e: MouseEvent) {
     isDraggingScale = true;
@@ -88,7 +94,8 @@
     theme.init();
     language.init();
     background.init();
-    refreshTabs();
+    initUrlSync();
+    handleRefreshTabs();
 
     document.addEventListener("keydown", onKeydown);
     document.addEventListener("wheel", onWheel, { passive: false });
@@ -231,7 +238,7 @@
           <!-- Refresh button -->
           <button
             class="icon-btn"
-            onclick={() => refreshTabs()}
+            onclick={() => handleRefreshTabs()}
             title={t.app.refresh}
             aria-label={t.app.refresh}
             data-testid="btn-refresh"
