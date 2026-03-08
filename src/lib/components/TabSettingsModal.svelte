@@ -62,16 +62,16 @@
   testId="tab-settings-modal"
 >
   {#snippet header()}
-    <div class="header-title-inner">
+    <div class="header-title-inner" data-testid="modal-header-inner">
       <Layout size={20} class="header-icon" />
-      <h2 class="modal-title-text">{t.tabs.settings}</h2>
+      <h2 class="modal-title-text" data-testid="modal-title">{t.tabs.settings}</h2>
     </div>
   {/snippet}
 
   {#if tab}
     <!-- Display Name -->
-    <div class="form-group">
-      <label for="tab-display-name">{t.tabs.displayName}</label>
+    <div class="form-group" data-testid="form-group-tab-display-name">
+      <label for="tab-display-name" data-testid="label-tab-display-name">{t.tabs.displayName}</label>
       <input
         id="tab-display-name"
         type="text"
@@ -79,14 +79,15 @@
         onkeydown={(e) => { e.stopPropagation(); handleKeydown(e); }}
         placeholder={tab.path === '__root__' ? '📄 Файли' : tab.path}
         autocomplete="off"
+        data-testid="input-tab-display-name"
       />
-      <p class="field-hint">{t.tabs.displayName} ({t.common.edit})</p>
+      <p class="field-hint" data-testid="hint-tab-display-name">{t.tabs.displayName} ({t.common.edit})</p>
     </div>
 
     <!-- Directory Name (Physical) -->
     {#if tab.path !== '__root__'}
-      <div class="form-group">
-        <label for="tab-path">{t.tabs.dirName}</label>
+      <div class="form-group" data-testid="form-group-tab-path">
+        <label for="tab-path" data-testid="label-tab-path">{t.tabs.dirName}</label>
         <input
           id="tab-path"
           type="text"
@@ -94,27 +95,29 @@
           onkeydown={(e) => { e.stopPropagation(); handleKeydown(e); }}
           placeholder="folder_name"
           autocomplete="off"
+          data-testid="input-tab-path"
         />
-        <p class="field-hint">{t.tabs.dirName} (Warning: renames physical directory)</p>
+        <p class="field-hint" data-testid="hint-tab-path">{t.tabs.dirName} (Warning: renames physical directory)</p>
       </div>
     {/if}
 
     <!-- Icon -->
-    <div class="form-group">
-      <label for="tab-icon">{t.tabs.icon} (Lucide/Emoji)</label>
+    <div class="form-group" data-testid="form-group-tab-icon">
+      <label for="tab-icon" data-testid="label-tab-icon">{t.tabs.icon} (Lucide/Emoji)</label>
       <input
         id="tab-icon"
         type="text"
         bind:value={icon}
         onkeydown={(e) => { e.stopPropagation(); handleKeydown(e); }}
         placeholder="Folder, Star, 📁, 🚀..."
+        data-testid="input-tab-icon"
       />
     </div>
 
     <!-- Color Picker -->
-    <div class="form-group">
-      <label for="tab-color-custom">{t.tabs.color}</label>
-      <div class="color-grid">
+    <div class="form-group" data-testid="form-group-tab-color">
+      <label for="tab-color-custom" data-testid="label-tab-color">{t.tabs.color}</label>
+      <div class="color-grid" data-testid="tab-color-grid">
         {#each colorPresets as preset}
           <button
             class="color-swatch"
@@ -122,19 +125,31 @@
             style="background-color: {preset.value || 'rgba(255,255,255,0.05)'}"
             onclick={() => (color = preset.value)}
             title={preset.name}
+            data-testid="tab-color-preset-{preset.name.toLowerCase()}"
           ></button>
         {/each}
-        <input id="tab-color-custom" type="color" bind:value={color} class="custom-color-picker" />
+        <input 
+          id="tab-color-custom" 
+          type="color" 
+          bind:value={color} 
+          class="custom-color-picker" 
+          data-testid="input-tab-custom-color"
+        />
       </div>
     </div>
   {/if}
 
   {#snippet footer()}
-    <div class="footer-inner">
-      <span class="edit-hint">Ctrl+Enter — {t.common.save}</span>
+    <div class="footer-inner" data-testid="modal-footer-inner">
+      <span class="edit-hint" data-testid="edit-hint">Ctrl+Enter — {t.common.save}</span>
       <div class="footer-btns">
-        <button class="btn-secondary" onclick={closeTabSettings}>{t.common.cancel}</button>
-        <button class="btn-primary" onclick={handleSave}>{t.common.save}</button>
+        <button 
+          class="btn-primary" 
+          onclick={handleSave}
+          data-testid="btn-modal-save"
+        >
+          {t.common.save}
+        </button>
       </div>
     </div>
   {/snippet}
@@ -249,7 +264,7 @@
     gap: 12px;
   }
 
-  .btn-primary, .btn-secondary {
+  .btn-primary {
     padding: 10px 18px;
     border-radius: 8px;
     font-size: 0.85rem;
@@ -269,15 +284,5 @@
     opacity: 0.9;
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(123, 97, 255, 0.3);
-  }
-
-  .btn-secondary {
-    background: transparent;
-    border: 1px solid var(--color-border);
-    color: var(--color-text-primary);
-  }
-
-  .btn-secondary:hover {
-    background: var(--color-surface-2);
   }
 </style>

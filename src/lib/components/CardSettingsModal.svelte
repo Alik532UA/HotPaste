@@ -104,16 +104,16 @@
   testId="card-settings-modal"
 >
   {#snippet header()}
-    <div class="header-title-inner">
+    <div class="header-title-inner" data-testid="modal-header-inner">
       <Settings size={20} class="header-icon" />
-      <h2 class="modal-title-text">{t.cards.settings}</h2>
+      <h2 class="modal-title-text" data-testid="modal-title">{t.cards.settings}</h2>
     </div>
   {/snippet}
 
   {#if card}
     <!-- Display Name -->
     <div class="form-group" data-testid="form-group-display-name">
-      <label for="display-name">{t.cards.displayName}</label>
+      <label for="display-name" data-testid="label-display-name">{t.cards.displayName}</label>
       <input
         id="display-name"
         type="text"
@@ -123,12 +123,12 @@
         autocomplete="off"
         data-testid="input-display-name"
       />
-      <p class="field-hint">{t.cards.displayName} ({t.common.edit})</p>
+      <p class="field-hint" data-testid="hint-display-name">{t.cards.displayName} ({t.common.edit})</p>
     </div>
 
     <!-- File Name (Physical) -->
     <div class="form-group" data-testid="form-group-file-name">
-      <label for="file-name">{t.cards.fileName}</label>
+      <label for="file-name" data-testid="label-file-name">{t.cards.fileName}</label>
       <input
         id="file-name"
         type="text"
@@ -138,13 +138,13 @@
         autocomplete="off"
         data-testid="input-file-name"
       />
-      <p class="field-hint">{t.cards.fileName} (Warning: renames physical file)</p>
+      <p class="field-hint" data-testid="hint-file-name">{t.cards.fileName} (Warning: renames physical file)</p>
     </div>
 
-    <div class="form-row">
+    <div class="form-row" data-testid="form-row-hotkey-icon">
       <!-- Hotkey -->
       <div class="form-group flex-1" data-testid="form-group-hotkey">
-        <label for="hotkey-cap">{t.cards.hotkey}</label>
+        <label for="hotkey-cap" data-testid="label-hotkey">{t.cards.hotkey}</label>
         <input
           id="hotkey-cap"
           type="text"
@@ -156,12 +156,12 @@
           title={t.cards.hotkeyChange}
           data-testid="input-card-hotkey"
         />
-        <p class="field-hint">{t.cards.hotkey} (Physical code)</p>
+        <p class="field-hint" data-testid="hint-hotkey">{t.cards.hotkey} (Physical code)</p>
       </div>
 
       <!-- Icon -->
       <div class="form-group flex-2" data-testid="form-group-icon">
-        <label for="icon-name">{t.cards.icon} (Lucide/Emoji)</label>
+        <label for="icon-name" data-testid="label-icon">{t.cards.icon} (Lucide/Emoji)</label>
         <input
           id="icon-name"
           type="text"
@@ -174,9 +174,9 @@
     </div>
 
     <!-- Color Picker -->
-    <div class="form-group">
-      <label for="bg-color-custom">{t.cards.color}</label>
-      <div class="color-grid">
+    <div class="form-group" data-testid="form-group-color">
+      <label for="bg-color-custom" data-testid="label-color">{t.cards.color}</label>
+      <div class="color-grid" data-testid="color-grid">
         {#each colorPresets as preset}
           <button
             class="color-swatch"
@@ -184,17 +184,23 @@
             style="background-color: {preset.value || 'rgba(255,255,255,0.05)'}"
             onclick={() => (color = preset.value)}
             title={preset.name}
-            data-testid="color-preset"
+            data-testid="color-preset-{preset.name.toLowerCase()}"
           ></button>
         {/each}
-        <input id="bg-color-custom" type="color" bind:value={color} class="custom-color-picker" />
+        <input 
+          id="bg-color-custom" 
+          type="color" 
+          bind:value={color} 
+          class="custom-color-picker" 
+          data-testid="input-custom-color"
+        />
       </div>
     </div>
 
     <!-- Border Picker -->
-    <div class="form-group">
-      <label for="border-color-custom">{t.cards.border}</label>
-      <div class="color-grid">
+    <div class="form-group" data-testid="form-group-border">
+      <label for="border-color-custom" data-testid="label-border">{t.cards.border}</label>
+      <div class="color-grid" data-testid="border-grid">
         {#each borderPresets as preset}
           <button
             class="color-swatch"
@@ -202,20 +208,31 @@
             style="background-color: {preset.value || 'rgba(255,255,255,0.05)'}; border: 1px solid {preset.value || 'var(--color-border)'}"
             onclick={() => (borderColor = preset.value)}
             title={preset.name}
-            data-testid="border-preset"
+            data-testid="border-preset-{preset.name.toLowerCase()}"
           ></button>
         {/each}
-        <input id="border-color-custom" type="color" bind:value={borderColor} class="custom-color-picker" />
+        <input 
+          id="border-color-custom" 
+          type="color" 
+          bind:value={borderColor} 
+          class="custom-color-picker" 
+          data-testid="input-custom-border"
+        />
       </div>
     </div>
   {/if}
 
   {#snippet footer()}
-    <div class="footer-inner">
-      <span class="edit-hint">Ctrl+Enter — {t.common.save}</span>
+    <div class="footer-inner" data-testid="modal-footer-inner">
+      <span class="edit-hint" data-testid="edit-hint">Ctrl+Enter — {t.common.save}</span>
       <div class="footer-btns">
-        <button class="btn-secondary" onclick={closeSettings}>{t.common.cancel}</button>
-        <button class="btn-primary" onclick={handleSave}>{t.common.save}</button>
+        <button 
+          class="btn-primary" 
+          onclick={handleSave}
+          data-testid="btn-modal-save"
+        >
+          {t.common.save}
+        </button>
       </div>
     </div>
   {/snippet}
@@ -348,7 +365,7 @@
     gap: 12px;
   }
 
-  .btn-primary, .btn-secondary {
+  .btn-primary {
     padding: 10px 18px;
     border-radius: 8px;
     font-size: 0.85rem;
@@ -368,15 +385,5 @@
     opacity: 0.9;
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(123, 97, 255, 0.3);
-  }
-
-  .btn-secondary {
-    background: transparent;
-    border: 1px solid var(--color-border);
-    color: var(--color-text-primary);
-  }
-
-  .btn-secondary:hover {
-    background: var(--color-surface-2);
   }
 </style>

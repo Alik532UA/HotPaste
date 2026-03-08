@@ -8,6 +8,7 @@ import { logService } from '../services/logService.svelte';
 import { uiState } from './uiState.svelte';
 import { hotkeyState } from './hotkeyState.svelte';
 import { HotPasteConfigSchema } from '../schemas/config';
+import { QWERTY_CODES } from '../utils/keyboardLayout';
 
 // --- Singleton state ---
 
@@ -74,6 +75,7 @@ async function refreshTabs(): Promise<void> {
 
     for (const tab of loadedTabs) {
         await reconcileTabMetadata(tab);
+        autoAssignHotkeys(tab);
     }
 
     tabs = loadedTabs;
@@ -524,16 +526,16 @@ async function linkFileManually(ghostCard: Card, realFileName: string): Promise<
 
 async function updateCardHotkey(card: Card, newHotkey: string): Promise<void> {
     card.hotkey = newHotkey;
-    card.isCustomHotkey = true;
+    card.isCustomHotkey = true; // Forcing it to be custom even if empty (Disabled mode)
     card.isHotkeyConflicting = false;
     await saveCurrentTabConfig();
     await refreshTabs();
-    uiState.showToast(`Гарячу клавішу оновлено`);
+    uiState.showToast(newHotkey ? `Гарячу клавішу оновлено` : `Гарячу клавішу вимкнено`);
 }
 
 async function resetCardHotkeyToDefault(card: Card): Promise<void> {
     card.hotkey = '';
-    card.isCustomHotkey = false;
+    card.isCustomHotkey = false; // System will auto-assign
     await saveCurrentTabConfig();
     await refreshTabs();
     uiState.showToast(`Повернуто до автоматичного призначення`);
@@ -577,5 +579,37 @@ async function copyCard(card: Card): Promise<void> {
     } catch (err) {
         logService.log('error', 'Failed to copy card', err);
         uiState.showToast('Помилка копіювання!');
+    }
+}
+
+/**
+ * Automatically assign hotkeys to cards that don't have a custom one.
+ */
+function autoAssignHotkeys(tab: Tab): void {
+    // 1. Collect all explicitly assigned hotkeys to avoid them
+    const takenKeys = new Set<string>();
+    for (const card of tab.cards) {
+        if (card.isCustomHotkey && card.hotkey) {
+            takenKeys.add(card.hotkey.toLowerCase());
+        }
+    }
+
+    // 2. Assign first available QWERTY keys to cards without custom hotkeys
+    let qwertyIndex = 0;
+    for (const card of tab.cards) {
+        if (!card.isCustomHotkey) {
+            // Find next free key in QWERTY layout
+            while (qwertyIndex < QWERTY_CODES.length && takenKeys.has(QWERTY_CODES[qwertyIndex].toLowerCase())) {
+                qwertyIndex++;
+            }
+
+            if (qwertyIndex < QWERTY_CODES.length) {
+                card.hotkey = QWERTY_CODES[qwertyIndex];
+                takenKeys.add(card.hotkey.toLowerCase());
+                qwertyIndex++;
+            } else {
+                card.hotkey = ''; // No keys left
+            }
+        }
     }
 }

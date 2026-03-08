@@ -501,42 +501,8 @@
         </div>
 
         <!-- Hotkey (inside header) -->
-        {#if (card.hotkey || card.isCustomHotkey) && !isMissing}
-          <button
-            class="card-hotkey"
-            class:conflict={card.isHotkeyConflicting}
-            class:custom={card.isCustomHotkey && card.hotkey}
-            class:disabled={card.isCustomHotkey && !card.hotkey}
-            class:auto={!card.isCustomHotkey}
-            onclick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              logService.log(
-                "ui",
-                `HOTKEY BUTTON CLICKED (STOPPED) for ${card.name}`,
-              );
-              openHotkeyPicker(card);
-            }}
-            title={card.isCustomHotkey && card.hotkey
-              ? t.cards.hotkeyFixed
-              : card.isCustomHotkey
-                ? t.cards.hotkeyDisabled
-                : t.cards.hotkeyChange}
-            data-testid="card-hotkey"
-          >
-            {#if card.hotkey}
-              {appState.getHotkeyLabel(card.hotkey)}
-            {:else}
-              <Keyboard size={14} />
-            {/if}
-          </button>
-        {/if}
-      </div>
-    {:else}
-      <!-- Hotkey badge (absolute position for compact mode) -->
-      {#if (card.hotkey || card.isCustomHotkey) && !isMissing}
         <button
-          class="card-hotkey absolute"
+          class="card-hotkey"
           class:conflict={card.isHotkeyConflicting}
           class:custom={card.isCustomHotkey && card.hotkey}
           class:disabled={card.isCustomHotkey && !card.hotkey}
@@ -546,7 +512,7 @@
             e.stopPropagation();
             logService.log(
               "ui",
-              `HOTKEY BUTTON CLICKED COMPACT (STOPPED) for ${card.name}`,
+              `HOTKEY BUTTON CLICKED (STOPPED) for ${card.name}`,
             );
             openHotkeyPicker(card);
           }}
@@ -563,7 +529,37 @@
             <Keyboard size={14} />
           {/if}
         </button>
-      {/if}
+      </div>
+    {:else}
+      <!-- Hotkey badge (absolute position for compact mode) -->
+      <button
+        class="card-hotkey absolute"
+        class:conflict={card.isHotkeyConflicting}
+        class:custom={card.isCustomHotkey && card.hotkey}
+        class:disabled={card.isCustomHotkey && !card.hotkey}
+        class:auto={!card.isCustomHotkey}
+        onclick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          logService.log(
+            "ui",
+            `HOTKEY BUTTON CLICKED COMPACT (STOPPED) for ${card.name}`,
+          );
+          openHotkeyPicker(card);
+        }}
+        title={card.isCustomHotkey && card.hotkey
+          ? t.cards.hotkeyFixed
+          : card.isCustomHotkey
+            ? t.cards.hotkeyDisabled
+            : t.cards.hotkeyChange}
+        data-testid="card-hotkey"
+      >
+        {#if card.hotkey}
+          {appState.getHotkeyLabel(card.hotkey)}
+        {:else}
+          <Keyboard size={14} />
+        {/if}
+      </button>
     {/if}
 
     {#if isMissing}

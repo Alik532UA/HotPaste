@@ -101,7 +101,7 @@ export class BrowserFileSystemService implements IFileSystemService {
                         name: cardConfig.displayName || this.cleanName(name),
                         displayName: cardConfig.displayName || null,
                         content,
-                        hotkey: (cardConfig.hotkey !== undefined ? cardConfig.hotkey : '') as string,
+                        hotkey: cardConfig.hotkey || '',
                         isCustomHotkey: cardConfig.hotkey !== undefined,
                         filePath: `__root__/${name}`,
                         fileName: name,
@@ -330,7 +330,7 @@ export class BrowserFileSystemService implements IFileSystemService {
                     cards.push({
                         id: `${dirPath}/${name}`, name: cardConfig.displayName || this.cleanName(name),
                         displayName: cardConfig.displayName || null, content,
-                        hotkey: (cardConfig.hotkey !== undefined ? cardConfig.hotkey : '') as string,
+                        hotkey: cardConfig.hotkey || '',
                         isCustomHotkey: cardConfig.hotkey !== undefined,
                         filePath: `${dirPath}/${name}`, fileName: name, extension: ext,
                         icon: cardConfig.icon || null, color: cardConfig.color || null,

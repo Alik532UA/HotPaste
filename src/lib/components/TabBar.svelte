@@ -118,9 +118,9 @@
         data-testid="tab-button"
         data-tab-path={tab.path}
       >
-        {#if tab.hotkey}
-          <span class="tab-hotkey" data-testid="tab-hotkey">{appState.getHotkeyLabel(tab.hotkey)}</span>
-        {/if}
+        <span class="tab-hotkey" data-testid="tab-hotkey">
+          {tab.hotkey ? appState.getHotkeyLabel(tab.hotkey) : (i + 1)}
+        </span>
 
         {#if LucideIcon}
           <span class="tab-icon" data-testid="tab-icon"><LucideIcon size={14} /></span>

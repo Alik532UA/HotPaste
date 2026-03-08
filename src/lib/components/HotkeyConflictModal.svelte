@@ -22,42 +22,53 @@
 {#if conflict}
   <!-- svelte-ignore a11y_click_events_have_key_events -->
   <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="modal-backdrop" onmousedown={handleClose} transition:fade={{ duration: 200 }}>
+  <div 
+    class="modal-backdrop" 
+    onmousedown={handleClose} 
+    transition:fade={{ duration: 200 }}
+    data-testid="modal-overlay"
+  >
     <div 
         class="modal-content" 
         onmousedown={(e) => e.stopPropagation()} 
         transition:scale={{ duration: 300, start: 0.95 }}
+        data-testid="hotkey-conflict-modal"
     >
-      <div class="modal-header">
+      <div class="modal-header" data-testid="modal-header">
         <div class="header-title">
           <AlertTriangle color="#ff9f0a" size={20} />
-          <h2>{t.modals.conflictTitle} {appState.getHotkeyLabel(conflict.code)}</h2>
+          <h2 data-testid="modal-title">{t.modals.conflictTitle} {appState.getHotkeyLabel(conflict.code)}</h2>
         </div>
-        <button class="btn-close" onclick={handleClose} aria-label={t.common.cancel}>
+        <button 
+          class="btn-close" 
+          onclick={handleClose} 
+          aria-label={t.common.cancel}
+          data-testid="btn-modal-close"
+        >
           <X size={20} />
         </button>
       </div>
 
-      <div class="modal-body">
-        <p class="description">
+      <div class="modal-body" data-testid="modal-body">
+        <p class="description" data-testid="conflict-description">
           {t.modals.conflictDesc}
         </p>
 
-        <div class="conflict-list">
+        <div class="conflict-list" data-testid="conflict-list">
           {#each conflictCards as card}
-            <button class="conflict-item" onclick={() => handleSelect(card)}>
+            <button 
+              class="conflict-item" 
+              onclick={() => handleSelect(card)}
+              data-testid="conflict-item-{card.id}"
+            >
               <div class="card-info">
-                <span class="card-name">{card.name}</span>
-                <span class="card-path">{card.fileName}</span>
+                <span class="card-name" data-testid="conflict-card-name">{card.name}</span>
+                <span class="card-path" data-testid="conflict-card-path">{card.fileName}</span>
               </div>
-              <div class="action-hint">{t.common.default}</div>
+              <div class="action-hint" data-testid="conflict-action-hint">{t.common.default}</div>
             </button>
           {/each}
         </div>
-      </div>
-
-      <div class="modal-footer">
-        <button class="btn-secondary" onclick={handleClose}>{t.common.cancel}</button>
       </div>
     </div>
   </div>
@@ -189,28 +200,5 @@
 
   .conflict-item:hover .action-hint {
     opacity: 1;
-  }
-
-  .modal-footer {
-    padding: 16px 24px;
-    background: var(--color-bg-primary);
-    border-top: 1px solid var(--color-border);
-    display: flex;
-    justify-content: flex-end;
-  }
-
-  .btn-secondary {
-    padding: 8px 16px;
-    background: transparent;
-    border: 1px solid var(--color-border);
-    border-radius: 10px;
-    color: var(--color-text-primary);
-    font-size: 0.9rem;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .btn-secondary:hover {
-    background: var(--color-surface-2);
   }
 </style>

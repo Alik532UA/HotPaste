@@ -18,18 +18,21 @@
   function handleSelect(code: string) {
     if (card) {
       updateCardHotkey(card, code);
+      handleClose();
     }
   }
 
   function handleClear() {
     if (card) {
       updateCardHotkey(card, "");
+      handleClose();
     }
   }
 
   function handleReset() {
     if (card) {
       resetCardHotkeyToDefault(card);
+      handleClose();
     }
   }
 
@@ -55,35 +58,50 @@
 {#if card}
   <!-- svelte-ignore a11y_click_events_have_key_events -->
   <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="modal-backdrop" onmousedown={handleClose} transition:fade={{ duration: 200 }}>
+  <div 
+    class="modal-backdrop" 
+    onmousedown={handleClose} 
+    transition:fade={{ duration: 200 }}
+    data-testid="modal-overlay"
+  >
     <div 
         class="modal-content" 
         onmousedown={(e) => e.stopPropagation()} 
         transition:scale={{ duration: 300, start: 0.95 }}
+        data-testid="hotkey-picker-modal"
     >
-      <div class="modal-header">
+      <div class="modal-header" data-testid="modal-header">
         <div class="header-title">
           <Keyboard size={20} />
-          <h2>{t.cards.hotkey}: {card.name}</h2>
+          <h2 data-testid="modal-title">{t.cards.hotkey}: {card.name}</h2>
         </div>
-        <button class="btn-close" onclick={handleClose} aria-label={t.common.cancel}>
+        <button 
+          class="btn-close" 
+          onclick={handleClose} 
+          aria-label={t.common.cancel}
+          data-testid="btn-modal-close"
+        >
           <X size={20} />
         </button>
       </div>
 
-      <div class="modal-body">
-        <p class="description">
+      <div class="modal-body" data-testid="modal-body">
+        <p class="description" data-testid="picker-description">
           {t.modals.pickerDesc}
         </p>
 
-        <div class="keyboard-ui">
+        <div class="keyboard-ui" data-testid="keyboard-ui">
           {#each rows as row}
             <div class="keyboard-row">
               {#each row as code}
                 <button 
                   class="key-btn" 
                   class:active={card.hotkey === code}
+                  class:is-custom={card.isCustomHotkey}
                   onclick={() => handleSelect(code)}
+                  data-testid="key-{code}"
+                  data-active={card.hotkey === code}
+                  data-custom={card.isCustomHotkey}
                 >
                   <span class="key-label">{getHotkeyLabel(code)}</span>
                 </button>
@@ -93,17 +111,21 @@
         </div>
 
         <div class="actions-row">
-          <button class="btn-reset" onclick={handleReset}>
+          <button 
+            class="btn-reset" 
+            onclick={handleReset}
+            data-testid="btn-hotkey-reset"
+          >
             {t.common.default}
           </button>
-          <button class="btn-clear" onclick={handleClear}>
+          <button 
+            class="btn-clear" 
+            onclick={handleClear}
+            data-testid="btn-hotkey-clear"
+          >
             {t.common.disable}
           </button>
         </div>
-      </div>
-
-      <div class="modal-footer">
-        <button class="btn-secondary" onclick={handleClose}>{t.common.cancel}</button>
       </div>
     </div>
   </div>
@@ -226,10 +248,18 @@
     color: white;
   }
 
+  /* Automatic hotkey (not custom) — show only border and text color, no fill */
+  .key-btn.active:not(.is-custom) {
+    background: transparent;
+    border: 2px dashed var(--color-accent-violet);
+    color: var(--color-accent-violet);
+  }
+
   .key-label {
     font-size: 1.1rem;
     font-weight: 600;
     text-transform: uppercase;
+    color: var(--color-text-primary);
   }
 
   .actions-row {
@@ -270,29 +300,6 @@
   .btn-clear:hover {
     background: rgba(255, 75, 75, 0.2);
     border-color: #ff4b4b;
-  }
-
-  .modal-footer {
-    padding: 16px 24px;
-    background: var(--color-bg-primary);
-    border-top: 1px solid var(--color-border);
-    display: flex;
-    justify-content: flex-end;
-  }
-
-  .btn-secondary {
-    padding: 8px 16px;
-    background: transparent;
-    border: 1px solid var(--color-border);
-    border-radius: 10px;
-    color: var(--color-text-primary);
-    font-size: 0.9rem;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .btn-secondary:hover {
-    background: var(--color-surface-2);
   }
 
   /* Responsive adjustments */
