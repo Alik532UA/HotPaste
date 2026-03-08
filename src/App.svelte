@@ -7,6 +7,7 @@
     adjustScale,
     refreshTabs,
     setCardView,
+    setCardDensity,
   } from "./lib/stores/appState.svelte";
   import TabBar from "./lib/components/TabBar.svelte";
   import CardGrid from "./lib/components/CardGrid.svelte";
@@ -53,20 +54,26 @@
   <div class="app-shell" data-testid="app-shell">
     <!-- Top Header -->
     <header class="app-header" data-testid="app-header">
-      <div class="header-left">
+      <div class="header-left" data-testid="header-left">
         <h1 class="app-logo" data-testid="app-logo">
           <span class="logo-gradient">Hot</span>Paste
         </h1>
         <div class="header-divider"></div>
-        <span class="root-name" title={appState.rootName} data-testid="root-name-label"
-          >📂 {appState.rootName}</span
+        <span
+          class="root-name"
+          title={appState.rootName}
+          data-testid="root-name-label">📂 {appState.rootName}</span
         >
       </div>
 
       <!-- View toggles (center) -->
-      <div class="header-center">
+      <div class="header-center" data-testid="header-center">
         <!-- Card view: short / full -->
-        <div class="toggle-group" id="view-toggle" data-testid="view-toggle-group">
+        <div
+          class="toggle-group"
+          id="view-toggle"
+          data-testid="view-toggle-group"
+        >
           <button
             class="toggle-btn"
             class:active={appState.cardView === "short"}
@@ -86,9 +93,44 @@
             Повний
           </button>
         </div>
+
+        <!-- Card density: expanded / normal / compact -->
+        <div
+          class="toggle-group"
+          id="density-toggle"
+          data-testid="density-toggle-group"
+        >
+          <button
+            class="toggle-btn"
+            class:active={appState.cardDensity === "expanded"}
+            onclick={() => setCardDensity("expanded")}
+            title="Розширений вигляд: кнопки завжди видимі"
+            data-testid="btn-density-expanded"
+          >
+            Розширений
+          </button>
+          <button
+            class="toggle-btn"
+            class:active={appState.cardDensity === "normal"}
+            onclick={() => setCardDensity("normal")}
+            title="Звичайний вигляд"
+            data-testid="btn-density-normal"
+          >
+            Звичайний
+          </button>
+          <button
+            class="toggle-btn"
+            class:active={appState.cardDensity === "compact"}
+            onclick={() => setCardDensity("compact")}
+            title="Компактний вигляд"
+            data-testid="btn-density-compact"
+          >
+            Компактний
+          </button>
+        </div>
       </div>
 
-      <div class="header-right">
+      <div class="header-right" data-testid="header-right">
         <!-- Scale indicator -->
         <div class="scale-control" data-testid="scale-control">
           <button
@@ -97,7 +139,9 @@
             aria-label="Зменшити масштаб"
             data-testid="btn-scale-down">−</button
           >
-          <span class="scale-value" data-testid="scale-value">{Math.round(appState.scale * 100)}%</span>
+          <span class="scale-value" data-testid="scale-value"
+            >{Math.round(appState.scale * 100)}%</span
+          >
           <button
             class="scale-btn"
             onclick={() => adjustScale(0.1)}
@@ -266,7 +310,7 @@
     color: var(--color-text-muted);
     font-size: 1rem;
     cursor: pointer;
-    border-radius: 4px;
+    border-radius: 14px;
     transition: all var(--transition-fast);
     font-family: var(--font-family);
   }

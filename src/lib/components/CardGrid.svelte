@@ -11,23 +11,25 @@
 </script>
 
 {#if appState.activeCards.length > 0}
-  <div class="card-grid" style="--scale: {appState.scale}">
+  <div class="card-grid" style="--scale: {appState.scale}" data-testid="card-grid">
     {#each appState.activeCards as card, index (card.id)}
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div
         class="card-wrapper"
         use:draggable={index}
         use:dropzone={{ index, onDrop: handleDrop }}
+        data-testid="card-wrapper"
+        data-index={index}
       >
         <SnippetCard {card} />
       </div>
     {/each}
   </div>
 {:else if appState.isConnected}
-  <div class="empty-tab">
-    <div class="empty-tab-icon">📂</div>
-    <p class="empty-tab-text">Ця вкладка порожня</p>
-    <p class="empty-tab-hint">Додайте .txt або .md файли в цю папку</p>
+  <div class="empty-tab" data-testid="empty-tab">
+    <div class="empty-tab-icon" data-testid="empty-tab-icon">📂</div>
+    <p class="empty-tab-text" data-testid="empty-tab-text">Ця вкладка порожня</p>
+    <p class="empty-tab-hint" data-testid="empty-tab-hint">Додайте .txt або .md файли в цю папку</p>
   </div>
 {/if}
 

@@ -69,10 +69,10 @@
 {#if tab}
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <!-- svelte-ignore a11y_click_events_have_key_events -->
-  <div class="modal-overlay" onclick={closeTabSettings} onkeydown={handleKeydown}>
+  <div class="modal-overlay" onclick={closeTabSettings} onkeydown={handleKeydown} data-testid="modal-overlay">
     <div class="modal-content" onclick={(e) => e.stopPropagation()} data-testid="tab-settings-modal">
       <header class="modal-header">
-        <div class="header-title">
+        <div class="header-title" data-testid="modal-header-title">
           <icons.FolderCog size={20} class="header-icon" />
           <h2>Налаштувати вкладку</h2>
         </div>
@@ -81,10 +81,10 @@
         </button>
       </header>
 
-      <div class="modal-body">
+      <div class="modal-body" data-testid="modal-body">
         <!-- Display Name -->
-        <div class="form-group">
-          <label for="tab-display-name">Відображувана назва</label>
+        <div class="form-group" data-testid="form-group-tab-display-name">
+          <label for="tab-display-name" data-testid="label-tab-display-name">Відображувана назва</label>
           <input
             id="tab-display-name"
             type="text"
@@ -93,13 +93,13 @@
             autocomplete="off"
             data-testid="input-tab-display-name"
           />
-          <p class="field-hint">Як вкладка підписана в інтерфейсі</p>
+          <p class="field-hint" data-testid="hint-tab-display-name">Як вкладка підписана в інтерфейсі</p>
         </div>
 
         <!-- Directory Name (Physical) - Hide for root -->
         {#if tab.path !== "__root__"}
-          <div class="form-group">
-            <label for="tab-dir-name">Ім'я папки на диску</label>
+          <div class="form-group" data-testid="form-group-tab-dir-name">
+            <label for="tab-dir-name" data-testid="label-tab-dir-name">Ім'я папки на диску</label>
             <input
               id="tab-dir-name"
               type="text"
@@ -108,13 +108,13 @@
               autocomplete="off"
               data-testid="input-tab-dir-name"
             />
-            <p class="field-hint">Увага: це змінить назву фізичної папки</p>
+            <p class="field-hint" data-testid="hint-tab-dir-name">Увага: це змінить назву фізичної папки</p>
           </div>
         {/if}
 
         <!-- Icon -->
-        <div class="form-group">
-          <label for="tab-icon-emoji">Іконка (Emoji)</label>
+        <div class="form-group" data-testid="form-group-tab-icon">
+          <label for="tab-icon-emoji" data-testid="label-tab-icon">Іконка (Emoji)</label>
           <input
             id="tab-icon-emoji"
             type="text"
@@ -125,9 +125,9 @@
         </div>
 
         <!-- Color Picker -->
-        <div class="form-group">
-          <label for="tab-color-custom">Колір вкладки</label>
-          <div class="color-grid">
+        <div class="form-group" data-testid="form-group-tab-color">
+          <label for="tab-color-custom" data-testid="label-tab-color">Колір вкладки</label>
+          <div class="color-grid" data-testid="tab-color-presets-grid">
             {#each colorPresets as preset}
               <button
                 class="color-swatch"
@@ -137,6 +137,7 @@
                 title={preset.name}
                 data-testid="tab-color-preset"
                 data-color={preset.value}
+                data-color-name={preset.name}
               ></button>
             {/each}
             <input id="tab-color-custom" type="color" bind:value={color} class="custom-color-picker" data-testid="input-tab-color-custom" />
@@ -144,9 +145,9 @@
         </div>
       </div>
 
-      <footer class="modal-footer">
-        <span class="edit-hint">Ctrl+Enter — зберегти</span>
-        <div class="footer-btns">
+      <footer class="modal-footer" data-testid="modal-footer">
+        <span class="edit-hint" data-testid="modal-edit-hint">Ctrl+Enter — зберегти</span>
+        <div class="footer-btns" data-testid="modal-footer-btns">
           <button class="btn-secondary" onclick={closeTabSettings} data-testid="btn-settings-cancel">Скасувати</button>
           <button class="btn-primary" onclick={handleSave} data-testid="btn-settings-save">Зберегти зміни</button>
         </div>

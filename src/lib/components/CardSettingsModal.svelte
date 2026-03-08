@@ -101,10 +101,10 @@
 {#if card}
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <!-- svelte-ignore a11y_click_events_have_key_events -->
-  <div class="modal-overlay" onclick={closeSettings} onkeydown={handleKeydown}>
+  <div class="modal-overlay" onclick={closeSettings} onkeydown={handleKeydown} data-testid="modal-overlay">
     <div class="modal-content" onclick={(e) => e.stopPropagation()} data-testid="card-settings-modal">
       <header class="modal-header">
-        <div class="header-title">
+        <div class="header-title" data-testid="modal-header-title">
           <icons.Settings size={20} class="header-icon" />
           <h2>Налаштувати картку</h2>
         </div>
@@ -113,10 +113,10 @@
         </button>
       </header>
 
-      <div class="modal-body">
+      <div class="modal-body" data-testid="modal-body">
         <!-- Display Name -->
-        <div class="form-group">
-          <label for="display-name">Відображувана назва</label>
+        <div class="form-group" data-testid="form-group-display-name">
+          <label for="display-name" data-testid="label-display-name">Відображувана назва</label>
           <input
             id="display-name"
             type="text"
@@ -125,12 +125,12 @@
             autocomplete="off"
             data-testid="input-display-name"
           />
-          <p class="field-hint">Як картка підписана в інтерфейсі</p>
+          <p class="field-hint" data-testid="hint-display-name">Як картка підписана в інтерфейсі</p>
         </div>
 
         <!-- File Name (Physical) -->
-        <div class="form-group">
-          <label for="file-name">Ім'я файлу на диску</label>
+        <div class="form-group" data-testid="form-group-file-name">
+          <label for="file-name" data-testid="label-file-name">Ім'я файлу на диску</label>
           <input
             id="file-name"
             type="text"
@@ -139,13 +139,13 @@
             autocomplete="off"
             data-testid="input-file-name"
           />
-          <p class="field-hint">Увага: це змінить назву фізичного файлу</p>
+          <p class="field-hint" data-testid="hint-file-name">Увага: це змінить назву фізичного файлу</p>
         </div>
 
-        <div class="form-row">
+        <div class="form-row" data-testid="form-row-hotkey-icon">
           <!-- Hotkey -->
-          <div class="form-group flex-1">
-            <label for="hotkey-cap">Гаряча клавіша</label>
+          <div class="form-group flex-1" data-testid="form-group-hotkey">
+            <label for="hotkey-cap" data-testid="label-card-hotkey">Гаряча клавіша</label>
             <input
               id="hotkey-cap"
               type="text"
@@ -157,12 +157,12 @@
               title="Фокус і натискання будь-якої клавіші змінить гарячу клавішу"
               data-testid="input-card-hotkey"
             />
-            <p class="field-hint">Фізична кнопка (не залежить від мови)</p>
+            <p class="field-hint" data-testid="hint-card-hotkey">Фізична кнопка (не залежить від мови)</p>
           </div>
 
           <!-- Icon -->
-          <div class="form-group flex-2">
-            <label for="icon-name">Іконка (Lucide або Emoji)</label>
+          <div class="form-group flex-2" data-testid="form-group-icon">
+            <label for="icon-name" data-testid="label-card-icon">Іконка (Lucide або Emoji)</label>
             <input
               id="icon-name"
               type="text"
@@ -174,9 +174,9 @@
         </div>
 
         <!-- Color Picker -->
-        <div class="form-group">
-          <label for="bg-color-custom">Колір фону</label>
-          <div class="color-grid">
+        <div class="form-group" data-testid="form-group-color">
+          <label for="bg-color-custom" data-testid="label-card-color">Колір фону</label>
+          <div class="color-grid" data-testid="color-presets-grid">
             {#each colorPresets as preset}
               <button
                 class="color-swatch"
@@ -186,6 +186,7 @@
                 title={preset.name}
                 data-testid="color-preset"
                 data-color={preset.value}
+                data-color-name={preset.name}
               ></button>
             {/each}
             <input id="bg-color-custom" type="color" bind:value={color} class="custom-color-picker" data-testid="input-card-color-custom" />
@@ -193,9 +194,9 @@
         </div>
 
         <!-- Border Picker -->
-        <div class="form-group">
-          <label for="border-color-custom">Колір обводки</label>
-          <div class="color-grid">
+        <div class="form-group" data-testid="form-group-border">
+          <label for="border-color-custom" data-testid="label-card-border">Колір обводки</label>
+          <div class="color-grid" data-testid="border-presets-grid">
             {#each borderPresets as preset}
               <button
                 class="color-swatch"
@@ -205,6 +206,7 @@
                 title={preset.name}
                 data-testid="border-preset"
                 data-color={preset.value}
+                data-color-name={preset.name}
               ></button>
             {/each}
             <input id="border-color-custom" type="color" bind:value={borderColor} class="custom-color-picker" data-testid="input-card-border-custom" />
@@ -212,9 +214,9 @@
         </div>
       </div>
 
-      <footer class="modal-footer">
-        <span class="edit-hint">Ctrl+Enter — зберегти</span>
-        <div class="footer-btns">
+      <footer class="modal-footer" data-testid="modal-footer">
+        <span class="edit-hint" data-testid="modal-edit-hint">Ctrl+Enter — зберегти</span>
+        <div class="footer-btns" data-testid="modal-footer-btns">
           <button class="btn-secondary" onclick={closeSettings} data-testid="btn-settings-cancel">Скасувати</button>
           <button class="btn-primary" onclick={handleSave} data-testid="btn-settings-save">Зберегти зміни</button>
         </div>

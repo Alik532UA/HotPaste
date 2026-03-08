@@ -23,10 +23,10 @@
 </script>
 
 {#if import.meta.env.DEV}
-    <button class="debug-copy-btn" onclick={handleCopy} title="Копіювати логи">
+    <button class="debug-copy-btn" onclick={handleCopy} title="Копіювати логи" data-testid="btn-copy-debug-logs">
         <Copy size={16} />
         {#if copied}
-            <span class="status">Скопійовано!</span>
+            <span class="status" data-testid="debug-copy-status">Скопійовано!</span>
         {/if}
     </button>
 {/if}

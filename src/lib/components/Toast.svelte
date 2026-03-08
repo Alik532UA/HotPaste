@@ -5,9 +5,9 @@
 </script>
 
 {#if appState.toastVisible}
-    <div class="toast" class:visible={appState.toastVisible}>
-        <span class="toast-icon">✓</span>
-        <span class="toast-text">{appState.toastMessage}</span>
+    <div class="toast" class:visible={appState.toastVisible} data-testid="toast-notification">
+        <span class="toast-icon" data-testid="toast-icon">✓</span>
+        <span class="toast-text" data-testid="toast-text">{appState.toastMessage}</span>
     </div>
 {/if}
 

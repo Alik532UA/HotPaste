@@ -46,7 +46,10 @@ let flashingCardPath = $state('');
 let configSaveTimeout: ReturnType<typeof setTimeout> | null = null;
 
 /** Card view: 'short' (truncated) or 'full' (full text) */
-let cardView = $state<'short' | 'full'>('short');
+let cardView = $state<'short' | 'full'>((localStorage.getItem('hp_card_view') as any) || 'short');
+
+/** Card density: 'expanded', 'normal' or 'compact' */
+let cardDensity = $state<'expanded' | 'normal' | 'compact'>((localStorage.getItem('hp_card_density') as any) || 'normal');
 
 /** Context menu state */
 let activeContextMenu = $state<{ x: number, y: number, card: Card } | null>(null);
@@ -85,6 +88,7 @@ export function getState() {
         get scale() { return scale; },
         get flashingCardPath() { return flashingCardPath; },
         get cardView() { return cardView; },
+        get cardDensity() { return cardDensity; },
         get config() { return config; },
         get activeContextMenu() { return activeContextMenu; },
         get activeSettingsCard() { return activeSettingsCard; },
@@ -700,6 +704,13 @@ export function toggleCardView(): void {
 /** Set card view explicitly */
 export function setCardView(view: 'short' | 'full'): void {
     cardView = view;
+    localStorage.setItem('hp_card_view', view);
+}
+
+/** Set card density explicitly */
+export function setCardDensity(density: 'expanded' | 'normal' | 'compact'): void {
+    cardDensity = density;
+    localStorage.setItem('hp_card_density', density);
 }
 
 /** Create a new tab (physical directory) */
