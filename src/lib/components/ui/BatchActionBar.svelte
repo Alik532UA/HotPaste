@@ -16,26 +16,35 @@
 </script>
 
 {#if selectedCount > 0}
-  <div class="batch-action-bar" transition:fly={{ y: 100, duration: 300 }}>
-    <div class="selection-info">
+  <div class="batch-action-bar" transition:fly={{ y: 100, duration: 300 }} data-testid="batch-action-bar">
+    <div class="selection-info" data-testid="batch-selection-info">
       <div class="icon-wrapper text-cyan">
         <CheckSquare size={18} />
       </div>
       <span class="count">{selectedCount} {t.common.selected || 'вибрано'}</span>
     </div>
 
-    <div class="actions">
-      <div class="move-wrapper">
-        <button class="action-btn move" onclick={() => showMoveMenu = !showMoveMenu}>
+    <div class="actions" data-testid="batch-actions">
+      <div class="move-wrapper" data-testid="batch-move-wrapper">
+        <button 
+          class="action-btn move" 
+          onclick={() => showMoveMenu = !showMoveMenu}
+          data-testid="btn-batch-move"
+        >
           <MoveRight size={18} />
           <span>{t.common.move || 'Перемістити'}</span>
         </button>
 
         {#if showMoveMenu}
-          <div class="move-menu">
+          <div class="move-menu" data-testid="batch-move-menu">
             {#each appState.tabs as tab}
               {#if tab.path !== appState.activeTab?.path}
-                <button class="menu-item" onclick={() => handleMove(tab.path)}>
+                <button 
+                  class="menu-item" 
+                  onclick={() => handleMove(tab.path)}
+                  data-testid="batch-move-item"
+                  data-tab-path={tab.path}
+                >
                   {tab.name}
                 </button>
               {/if}
@@ -44,14 +53,23 @@
         {/if}
       </div>
 
-      <button class="action-btn delete" onclick={deleteSelectedCards}>
+      <button 
+        class="action-btn delete" 
+        onclick={deleteSelectedCards}
+        data-testid="btn-batch-delete"
+      >
         <Trash2 size={18} />
         <span>{t.common.delete}</span>
       </button>
 
       <div class="divider"></div>
 
-      <button class="action-btn clear" onclick={clearSelection} title={t.common.cancel}>
+      <button 
+        class="action-btn clear" 
+        onclick={clearSelection} 
+        title={t.common.cancel}
+        data-testid="btn-batch-clear"
+      >
         <X size={18} />
       </button>
     </div>
