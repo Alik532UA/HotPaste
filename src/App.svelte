@@ -21,9 +21,13 @@
   import HotkeyConflictModal from "./lib/components/HotkeyConflictModal.svelte";
   import HotkeyPickerModal from "./lib/components/HotkeyPickerModal.svelte";
   import DebugListener from "./lib/components/DebugListener.svelte";
+  import DynamicBackground from "./lib/components/DynamicBackground.svelte";
+  import SegmentedToggle from "./lib/components/ui/SegmentedToggle.svelte";
   import { theme } from "./lib/states/theme.svelte";
+  import { background } from "./lib/states/background.svelte";
   import { language } from "./lib/i18n/language.svelte";
   import { t } from "./lib/i18n";
+  import { Sun, Moon, Layers, Layout, Monitor } from "lucide-svelte";
 
   const appState = getState();
 
@@ -83,6 +87,7 @@
   onMount(() => {
     theme.init();
     language.init();
+    background.init();
     refreshTabs();
 
     document.addEventListener("keydown", onKeydown);
@@ -93,7 +98,27 @@
       document.removeEventListener("wheel", onWheel);
     };
   });
+
+  // Options for Segmented Controls
+  const themeOptions = [
+    { id: "dark", label: "", icon: Moon },
+    { id: "light", label: "", icon: Sun }
+  ];
+
+  const langOptions = [
+    { id: "uk", label: "UK" },
+    { id: "en", label: "EN" }
+  ];
+
+  const bgOptions = [
+    { id: "none", label: "Off" },
+    { id: "waves", label: "", icon: Layers },
+    { id: "particles", label: "", icon: Monitor },
+    { id: "mesh", label: "", icon: Layout }
+  ];
 </script>
+
+<DynamicBackground />
 
 <div class="theme-transition-overlay" class:active={theme.isChanging}></div>
 
@@ -121,98 +146,48 @@
 
         <!-- View toggles (center) -->
         <div class="header-center" data-testid="header-center">
-          <!-- Card view: short / full -->
-          <div
-            class="toggle-group"
-            id="view-toggle"
-            data-testid="view-toggle-group"
-          >
-            <button
-              class="toggle-btn"
-              class:active={appState.cardView === "short"}
-              onclick={() => setCardView("short")}
-              title={t.app.viewShort}
-              data-testid="btn-view-short"
-            >
-              {t.app.viewShort}
-            </button>
-            <button
-              class="toggle-btn"
-              class:active={appState.cardView === "full"}
-              onclick={() => setCardView("full")}
-              title={t.app.viewFull}
-              data-testid="btn-view-full"
-            >
-              {t.app.viewFull}
-            </button>
-          </div>
+          <SegmentedToggle 
+            options={[
+              { id: "short", label: t.app.viewShort },
+              { id: "full", label: t.app.viewFull }
+            ]}
+            value={appState.cardView}
+            onSelect={(id) => setCardView(id)}
+          />
 
           <div class="header-divider"></div>
 
-          <!-- Density toggle: compact / normal / expanded -->
-          <div
-            class="toggle-group"
-            id="density-toggle"
-            data-testid="density-toggle-group"
-          >
-            <button
-              class="toggle-btn"
-              class:active={appState.cardDensity === "compact"}
-              onclick={() => setCardDensity("compact")}
-              title={t.app.densityCompact}
-              data-testid="btn-density-compact"
-            >
-              {t.app.densityCompact}
-            </button>
-            <button
-              class="toggle-btn"
-              class:active={appState.cardDensity === "normal"}
-              onclick={() => setCardDensity("normal")}
-              title={t.app.densityNormal}
-              data-testid="btn-density-normal"
-            >
-              {t.app.densityNormal}
-            </button>
-            <button
-              class="toggle-btn"
-              class:active={appState.cardDensity === "expanded"}
-              onclick={() => setCardDensity("expanded")}
-              title={t.app.densityExpanded}
-              data-testid="btn-density-expanded"
-            >
-              {t.app.densityExpanded}
-            </button>
-          </div>
+          <SegmentedToggle 
+            options={[
+              { id: "compact", label: t.app.densityCompact },
+              { id: "normal", label: t.app.densityNormal },
+              { id: "expanded", label: t.app.densityExpanded }
+            ]}
+            value={appState.cardDensity}
+            onSelect={(id) => setCardDensity(id)}
+          />
         </div>
 
         <!-- Global Actions (right) -->
         <div class="header-right" data-testid="header-right">
-          <!-- Theme Toggle -->
-          <button
-            class="icon-btn theme-toggle"
-            onclick={() => theme.toggle()}
-            title="Змінити тему"
-            data-testid="btn-toggle-theme"
-          >
-            {#if theme.current === "dark"}
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
-              </svg>
-            {:else}
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-              </svg>
-            {/if}
-          </button>
+          
+          <SegmentedToggle 
+            options={themeOptions}
+            value={theme.current}
+            onSelect={() => theme.toggle()}
+          />
 
-          <!-- Language Toggle -->
-          <button
-            class="lang-btn"
-            onclick={() => language.set(language.current === "uk" ? "en" : "uk")}
-            data-testid="btn-toggle-lang"
-          >
-            {language.current.toUpperCase()}
-          </button>
+          <SegmentedToggle 
+            options={langOptions}
+            value={language.current}
+            onSelect={(id) => language.set(id)}
+          />
+
+          <SegmentedToggle 
+            options={bgOptions}
+            value={background.type}
+            onSelect={(id) => background.set(id)}
+          />
 
           <div class="header-divider"></div>
 
@@ -257,8 +232,8 @@
           <button
             class="icon-btn"
             onclick={() => refreshTabs()}
-            title="Оновити"
-            aria-label="Оновити файли"
+            title={t.app.refresh}
+            aria-label={t.app.refresh}
             data-testid="btn-refresh"
           >
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
@@ -282,8 +257,8 @@
           <button
             class="icon-btn"
             onclick={() => connectDirectory()}
-            title="Змінити папку"
-            aria-label="Обрати іншу папку"
+            title={t.app.changeDir}
+            aria-label={t.app.changeDir}
             data-testid="btn-change-directory"
           >
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
@@ -391,38 +366,6 @@
     font-weight: 500;
   }
 
-  /* Toggles */
-  .toggle-group {
-    display: flex;
-    background: var(--color-surface-1);
-    padding: 2px;
-    border-radius: 10px;
-    border: 1px solid var(--color-border);
-  }
-
-  .toggle-btn {
-    padding: 6px 12px;
-    border-radius: 8px;
-    border: none;
-    background: transparent;
-    color: var(--color-text-muted);
-    font-size: 0.75rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all var(--transition-fast);
-    white-space: nowrap;
-  }
-
-  .toggle-btn:hover {
-    color: var(--color-text-secondary);
-    background: var(--color-surface-3);
-  }
-
-  .toggle-btn.active {
-    background: var(--color-surface-3);
-    color: var(--color-accent-cyan);
-  }
-
   /* Scale control */
   .scale-control {
     display: flex;
@@ -503,27 +446,6 @@
     transform: translateY(0);
   }
 
-  /* Language toggle button */
-  .lang-btn {
-    padding: 0 10px;
-    height: 36px;
-    border-radius: 10px;
-    border: 1px solid var(--color-border);
-    background: var(--color-surface-1);
-    color: var(--color-text-muted);
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all var(--transition-fast);
-  }
-
-  .lang-btn:hover {
-    background: var(--color-surface-2);
-    color: var(--color-text-primary);
-    border-color: var(--color-border-hover);
-  }
-
   /* Tab Bar Wrapper */
   .tab-bar-wrapper {
     background: var(--color-bg-secondary);
@@ -534,7 +456,7 @@
   .app-main {
     flex: 1;
     overflow-y: auto;
-    background-color: var(--color-bg-primary);
+    background-color: transparent; /* Changed to show dynamic bg */
     position: relative;
   }
 </style>
