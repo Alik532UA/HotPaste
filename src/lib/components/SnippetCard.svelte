@@ -17,6 +17,7 @@
   import * as icons from "lucide-svelte";
   import type { ComponentType } from "svelte";
   import snarkdown from "snarkdown";
+  import { sanitize } from "../utils/sanitizer";
   import { t } from "../i18n";
 
   interface Props {
@@ -559,7 +560,7 @@
         >
           {#if card.extension === ".md"}
             <div class="markdown-body">
-              {@html snarkdown(card.content)}
+              {@html sanitize(snarkdown(card.content))}
             </div>
           {:else}
             {#each lines as line, i}
