@@ -239,15 +239,6 @@
       {/if}
     </div>
 
-    <!-- Drag handle (dots) -->
-    <div
-      class="drag-handle"
-      title="Затисніть щоб перемістити"
-      aria-label="Перемістити"
-    >
-      <icons.GripVertical size={16} />
-    </div>
-
     <!-- Edit mode indicator / button -->
     <button
       class="edit-indicator"
@@ -293,6 +284,8 @@
 
   .snippet-card.interactive {
     cursor: default;
+    user-select: none;
+    -webkit-user-select: none;
   }
 
   .snippet-card:focus-visible {
@@ -485,10 +478,11 @@
     z-index: 5;
   }
 
-  /* Edit Indicator & Drag Handle (Overlay Buttons) */
-  .edit-indicator,
-  .drag-handle {
+  /* Edit Indicator (Overlay Button) */
+  .edit-indicator {
     position: absolute;
+    bottom: 8px;
+    right: 8px;
     width: 32px;
     height: 32px;
     border-radius: 50%;
@@ -501,26 +495,10 @@
     opacity: 0;
     transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     z-index: 10;
-  }
-
-  .edit-indicator {
-    bottom: 8px;
-    right: 8px;
     cursor: pointer;
   }
 
-  .drag-handle {
-    top: 8px;
-    right: 8px;
-    cursor: grab;
-  }
-
-  .drag-handle:active {
-    cursor: grabbing;
-  }
-
-  .snippet-card:hover .edit-indicator,
-  .snippet-card:hover .drag-handle {
+  .snippet-card:hover .edit-indicator {
     opacity: 1;
     transform: translateY(0);
   }
@@ -529,12 +507,6 @@
     background: var(--color-accent-blue);
     color: var(--color-bg-primary);
     border-color: transparent;
-    transform: scale(1.1);
-  }
-
-  .drag-handle:hover {
-    background: var(--color-surface-3);
-    color: var(--color-text-primary);
     transform: scale(1.1);
   }
 
