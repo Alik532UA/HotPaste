@@ -1,6 +1,7 @@
 <script lang="ts">
   import { getState, closeTabSettings, updateTabSettings, renamePhysicalTab } from "../stores/appState.svelte";
   import * as icons from "lucide-svelte";
+  import { t } from "../i18n";
 
   const appState = getState();
   const tab = $derived(appState.activeSettingsTab);
@@ -74,7 +75,7 @@
       <header class="modal-header">
         <div class="header-title" data-testid="modal-header-title">
           <icons.FolderCog size={20} class="header-icon" />
-          <h2>Налаштувати вкладку</h2>
+          <h2>{t.tabs.settings}</h2>
         </div>
         <button class="close-btn" onclick={closeTabSettings} data-testid="btn-modal-close">
           <icons.X size={20} />
@@ -84,23 +85,23 @@
       <div class="modal-body" data-testid="modal-body">
         <!-- Display Name -->
         <div class="form-group" data-testid="form-group-tab-display-name">
-          <label for="tab-display-name" data-testid="label-tab-display-name">Відображувана назва</label>
+          <label for="tab-display-name" data-testid="label-tab-display-name">{t.cards.displayName}</label>
           <input
             id="tab-display-name"
             type="text"
             bind:value={displayName}
             onkeydown={(e) => { e.stopPropagation(); handleKeydown(e); }}
-            placeholder={tab.path === "__root__" ? "Файли" : tab.path}
+            placeholder={tab.path === "__root__" ? "Files" : tab.path}
             autocomplete="off"
             data-testid="input-tab-display-name"
           />
-          <p class="field-hint" data-testid="hint-tab-display-name">Як вкладка підписана в інтерфейсі</p>
+          <p class="field-hint" data-testid="hint-tab-display-name">{t.cards.displayName} ({t.common.edit})</p>
         </div>
 
         <!-- Directory Name (Physical) - Hide for root -->
         {#if tab.path !== "__root__"}
           <div class="form-group" data-testid="form-group-tab-dir-name">
-            <label for="tab-dir-name" data-testid="label-tab-dir-name">Ім'я папки на диску</label>
+            <label for="tab-dir-name" data-testid="label-tab-dir-name">{t.cards.fileName}</label>
             <input
               id="tab-dir-name"
               type="text"
@@ -110,13 +111,13 @@
               autocomplete="off"
               data-testid="input-tab-dir-name"
             />
-            <p class="field-hint" data-testid="hint-tab-dir-name">Увага: це змінить назву фізичної папки</p>
+            <p class="field-hint" data-testid="hint-tab-dir-name">{t.cards.fileName} (Warning: renames physical folder)</p>
           </div>
         {/if}
 
         <!-- Icon -->
         <div class="form-group" data-testid="form-group-tab-icon">
-          <label for="tab-icon-emoji" data-testid="label-tab-icon">Іконка (Emoji)</label>
+          <label for="tab-icon-emoji" data-testid="label-tab-icon">{t.cards.icon} (Emoji)</label>
           <input
             id="tab-icon-emoji"
             type="text"
@@ -129,7 +130,7 @@
 
         <!-- Color Picker -->
         <div class="form-group" data-testid="form-group-tab-color">
-          <label for="tab-color-custom" data-testid="label-tab-color">Колір вкладки</label>
+          <label for="tab-color-custom" data-testid="label-tab-color">{t.cards.color}</label>
           <div class="color-grid" data-testid="tab-color-presets-grid">
             {#each colorPresets as preset}
               <button
@@ -149,10 +150,10 @@
       </div>
 
       <footer class="modal-footer" data-testid="modal-footer">
-        <span class="edit-hint" data-testid="modal-edit-hint">Ctrl+Enter — зберегти</span>
+        <span class="edit-hint" data-testid="modal-edit-hint">Ctrl+Enter — {t.common.save}</span>
         <div class="footer-btns" data-testid="modal-footer-btns">
-          <button class="btn-secondary" onclick={closeTabSettings} data-testid="btn-settings-cancel">Скасувати</button>
-          <button class="btn-primary" onclick={handleSave} data-testid="btn-settings-save">Зберегти зміни</button>
+          <button class="btn-secondary" onclick={closeTabSettings} data-testid="btn-settings-cancel">{t.common.cancel}</button>
+          <button class="btn-primary" onclick={handleSave} data-testid="btn-settings-save">{t.common.save}</button>
         </div>
       </footer>
     </div>

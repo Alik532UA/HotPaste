@@ -1,6 +1,7 @@
 <script lang="ts">
   import { getState, closeSettings, updateCardSettings, renamePhysicalFile } from "../stores/appState.svelte";
   import * as icons from "lucide-svelte";
+  import { t } from "../i18n";
 
   const appState = getState();
   const card = $derived(appState.activeSettingsCard);
@@ -106,7 +107,7 @@
       <header class="modal-header">
         <div class="header-title" data-testid="modal-header-title">
           <icons.Settings size={20} class="header-icon" />
-          <h2>Налаштувати картку</h2>
+          <h2>{t.cards.settings}</h2>
         </div>
         <button class="close-btn" onclick={closeSettings} data-testid="btn-modal-close">
           <icons.X size={20} />
@@ -116,7 +117,7 @@
       <div class="modal-body" data-testid="modal-body">
         <!-- Display Name -->
         <div class="form-group" data-testid="form-group-display-name">
-          <label for="display-name" data-testid="label-display-name">Відображувана назва</label>
+          <label for="display-name" data-testid="label-display-name">{t.cards.displayName}</label>
           <input
             id="display-name"
             type="text"
@@ -126,12 +127,12 @@
             autocomplete="off"
             data-testid="input-display-name"
           />
-          <p class="field-hint" data-testid="hint-display-name">Як картка підписана в інтерфейсі</p>
+          <p class="field-hint" data-testid="hint-display-name">{t.cards.displayName} ({t.common.edit})</p>
         </div>
 
         <!-- File Name (Physical) -->
         <div class="form-group" data-testid="form-group-file-name">
-          <label for="file-name" data-testid="label-file-name">Ім'я файлу на диску</label>
+          <label for="file-name" data-testid="label-file-name">{t.cards.fileName}</label>
           <input
             id="file-name"
             type="text"
@@ -141,30 +142,30 @@
             autocomplete="off"
             data-testid="input-file-name"
           />
-          <p class="field-hint" data-testid="hint-file-name">Увага: це змінить назву фізичного файлу</p>
+          <p class="field-hint" data-testid="hint-file-name">{t.cards.fileName} (Warning: renames physical file)</p>
         </div>
 
         <div class="form-row" data-testid="form-row-hotkey-icon">
           <!-- Hotkey -->
           <div class="form-group flex-1" data-testid="form-group-hotkey">
-            <label for="hotkey-cap" data-testid="label-card-hotkey">Гаряча клавіша</label>
+            <label for="hotkey-cap" data-testid="label-card-hotkey">{t.cards.hotkey}</label>
             <input
               id="hotkey-cap"
               type="text"
               readonly
               value={appState.getHotkeyLabel(hotkey)}
               onkeydown={(e) => { e.stopPropagation(); handleHotkeyKeydown(e); }}
-              placeholder="Натисніть клавішу"
+              placeholder={t.modals.pickerTitle}
               class="hotkey-input"
-              title="Фокус і натискання будь-якої клавіші змінить гарячу клавішу"
+              title={t.cards.hotkeyChange}
               data-testid="input-card-hotkey"
             />
-            <p class="field-hint" data-testid="hint-card-hotkey">Фізична кнопка (не залежить від мови)</p>
+            <p class="field-hint" data-testid="hint-card-hotkey">{t.cards.hotkey} (Physical code)</p>
           </div>
 
           <!-- Icon -->
           <div class="form-group flex-2" data-testid="form-group-icon">
-            <label for="icon-name" data-testid="label-card-icon">Іконка (Lucide або Emoji)</label>
+            <label for="icon-name" data-testid="label-card-icon">{t.cards.icon} (Lucide/Emoji)</label>
             <input
               id="icon-name"
               type="text"
@@ -178,7 +179,7 @@
 
         <!-- Color Picker -->
         <div class="form-group" data-testid="form-group-color">
-          <label for="bg-color-custom" data-testid="label-card-color">Колір фону</label>
+          <label for="bg-color-custom" data-testid="label-card-color">{t.cards.color}</label>
           <div class="color-grid" data-testid="color-presets-grid">
             {#each colorPresets as preset}
               <button
@@ -198,7 +199,7 @@
 
         <!-- Border Picker -->
         <div class="form-group" data-testid="form-group-border">
-          <label for="border-color-custom" data-testid="label-card-border">Колір обводки</label>
+          <label for="border-color-custom" data-testid="label-card-border">{t.cards.border}</label>
           <div class="color-grid" data-testid="border-presets-grid">
             {#each borderPresets as preset}
               <button
@@ -218,10 +219,10 @@
       </div>
 
       <footer class="modal-footer" data-testid="modal-footer">
-        <span class="edit-hint" data-testid="modal-edit-hint">Ctrl+Enter — зберегти</span>
+        <span class="edit-hint" data-testid="modal-edit-hint">Ctrl+Enter — {t.common.save}</span>
         <div class="footer-btns" data-testid="modal-footer-btns">
-          <button class="btn-secondary" onclick={closeSettings} data-testid="btn-settings-cancel">Скасувати</button>
-          <button class="btn-primary" onclick={handleSave} data-testid="btn-settings-save">Зберегти зміни</button>
+          <button class="btn-secondary" onclick={closeSettings} data-testid="btn-settings-cancel">{t.common.cancel}</button>
+          <button class="btn-primary" onclick={handleSave} data-testid="btn-settings-save">{t.common.save}</button>
         </div>
       </footer>
     </div>

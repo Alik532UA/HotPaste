@@ -1,0 +1,79 @@
+export const en = {
+    common: {
+        save: "Save",
+        cancel: "Cancel",
+        delete: "Delete",
+        edit: "Edit",
+        settings: "Settings",
+        copy: "Copy",
+        search: "Search snippets...",
+        empty: "Nothing found",
+        loading: "Loading...",
+        default: "Default",
+        disable: "Disable"
+    },
+    app: {
+        title: "HotPaste",
+        subtitle: "Lightning-fast snippet manager with keyboard navigation",
+        connected: "Folder connected",
+        notConnected: "Folder not connected",
+        connectBtn: "Choose snippet folder",
+        changeDir: "Change folder",
+        newCard: "New card",
+        refresh: "Refresh",
+        viewShort: "Short",
+        viewFull: "Full",
+        densityCompact: "Compact",
+        densityNormal: "Normal",
+        densityExpanded: "Expanded",
+        connectHint: "Select a local folder with <code>.txt</code> or <code>.md</code> files. Subfolders become tabs, files become cards.",
+        stepTab: "Tab",
+        stepCard: "Card",
+        stepCopied: "Copied!",
+        kbSwitchTab: "switch tab",
+        kbCopyCard: "copy card",
+        kbScale: "scale"
+    },
+    tabs: {
+        add: "Create new tab",
+        settings: "Tab settings",
+        empty: "This tab is empty",
+        emptyHint: "Add .txt or .md files to this folder"
+    },
+    cards: {
+        settings: "Card settings",
+        hotkey: "Hotkey",
+        icon: "Icon",
+        color: "Background color",
+        border: "Border color",
+        displayName: "Display name",
+        fileName: "File name on disk",
+        hotkeyFixed: "Hotkey (pinned)",
+        hotkeyDisabled: "Hotkey (disabled)",
+        hotkeyChange: "Change hotkey",
+        hint: "Ctrl+Enter — save, Esc — cancel"
+    },
+    modals: {
+        conflictTitle: "Hotkey Conflict",
+        conflictDesc: "This hotkey is assigned to multiple cards. Choose which one should keep it:",
+        pickerTitle: "Select Key",
+        pickerDesc: "Press a key on your keyboard or select from the list:"
+    },
+    menu: {
+        copyText: "Copy text",
+        edit: "Edit",
+        settings: "Settings",
+        duplicate: "Duplicate",
+        move: "Move",
+        moveTarget: "No other tabs",
+        nudge: "Nudge",
+        nudgeUp: "Up/Backward",
+        nudgeDown: "Down/Forward",
+        nudgeLeft: "Left/Backward",
+        nudgeRight: "Right/Forward",
+        delete: "Delete",
+        tabSettings: "Tab settings",
+        tabDuplicate: "Duplicate tab",
+        tabDelete: "Delete tab"
+    }
+};

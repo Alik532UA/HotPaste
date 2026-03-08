@@ -68,17 +68,60 @@
   --transition-spring: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
+/* Light Theme Tokens */
+[data-theme="light"] {
+  --color-bg-primary: #f8fafc;
+  --color-bg-secondary: #f1f5f9;
+  --color-surface-1: rgba(0, 0, 0, 0.03);
+  --color-surface-2: rgba(0, 0, 0, 0.05);
+  --color-surface-3: rgba(0, 0, 0, 0.08);
+  --color-card-bg: rgba(255, 255, 255, 0.9);
+  --color-border: rgba(0, 0, 0, 0.1);
+  --color-border-hover: rgba(0, 0, 0, 0.2);
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-muted: #94a3b8;
+  --color-accent-violet: #6366f1;
+}
+
 /* =============================================
-   Reset & Base
+   Transitions & Animations
    ============================================= */
 
-*,
-*::before,
-*::after {
+*, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
+
+body, div, button, span, header, main, footer, section {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.theme-transition-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  backdrop-filter: blur(0px);
+  transition: opacity 0.2s ease, backdrop-filter 0.2s ease;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.theme-transition-overlay.active {
+  opacity: 1;
+  backdrop-filter: blur(12px);
+}
+
+.app-content.language-changing {
+  filter: blur(8px);
+  transition: filter 0.2s ease-in-out;
+}
+
+/* =============================================
+   Reset & Base
+   ============================================= */
 
 html {
   font-size: 16px;

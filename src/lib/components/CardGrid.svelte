@@ -2,6 +2,7 @@
   import { getState, moveCard } from "../stores/appState.svelte";
   import SnippetCard from "./SnippetCard.svelte";
   import { draggable, dropzone } from "../utils/dnd";
+  import { t } from "../i18n";
 
   const appState = getState();
 
@@ -29,12 +30,12 @@
   <div class="empty-tab" data-testid="empty-tab">
     {#if appState.searchQuery}
       <div class="empty-tab-icon" data-testid="empty-tab-icon">🔍</div>
-      <p class="empty-tab-text" data-testid="empty-tab-text">Нічого не знайдено</p>
-      <p class="empty-tab-hint" data-testid="empty-tab-hint">Спробуйте змінити запит: "{appState.searchQuery}"</p>
+      <p class="empty-tab-text" data-testid="empty-tab-text">{t.common.empty}</p>
+      <p class="empty-tab-hint" data-testid="empty-tab-hint">{t.common.search}: "{appState.searchQuery}"</p>
     {:else}
       <div class="empty-tab-icon" data-testid="empty-tab-icon">📂</div>
-      <p class="empty-tab-text" data-testid="empty-tab-text">Ця вкладка порожня</p>
-      <p class="empty-tab-hint" data-testid="empty-tab-hint">Додайте .txt або .md файли в цю папку</p>
+      <p class="empty-tab-text" data-testid="empty-tab-text">{t.tabs.empty}</p>
+      <p class="empty-tab-hint" data-testid="empty-tab-hint">{t.tabs.emptyHint}</p>
     {/if}
   </div>
 {/if}
@@ -54,42 +55,36 @@
   .card-wrapper {
     break-inside: avoid;
     margin-bottom: var(--space-3);
-    border-radius: var(--radius-md);
-    transition:
-      transform 0.2s,
-      opacity 0.2s;
-    user-select: none; /* Prevent text selection to allow drag and drop */
-    -webkit-user-select: none;
-    cursor: grab;
+    transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1);
   }
 
-  .card-wrapper:active {
-    cursor: grabbing;
-  }
-
-  :global(.card-wrapper.dragging) {
-    opacity: 0.5;
-    transform: scale(0.95);
-  }
-
-  :global(.card-wrapper.drag-over) {
-    outline: 2px dashed var(--color-accent-blue);
-    outline-offset: 4px;
-    transform: translateY(4px);
-  }
-
+  /* Empty state for tabs */
   .empty-tab {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: var(--space-8);
-    gap: var(--space-2);
+    min-height: 400px;
+    text-align: center;
+    gap: var(--space-3);
+    animation: fadeIn 0.5s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   .empty-tab-icon {
     font-size: 3rem;
-    opacity: 0.4;
+    opacity: 0.3;
+    margin-bottom: var(--space-2);
   }
 
   .empty-tab-text {

@@ -1,5 +1,6 @@
 <script lang="ts">
     import { connectDirectory } from "../stores/appState.svelte";
+    import { t } from "../i18n";
 
     let isHovering = $state(false);
 
@@ -54,9 +55,9 @@
             </svg>
         </div>
 
-        <h1 class="hero-title">HotPaste</h1>
+        <h1 class="hero-title">{t.app.title}</h1>
         <p class="hero-subtitle">
-            Блискавичний менеджер сніпетів з клавіатурною навігацією
+            {t.app.subtitle}
         </p>
 
         <!-- How it works -->
@@ -64,16 +65,16 @@
             <div class="flow-step">
                 <span class="flow-key">5</span>
                 <span class="flow-arrow">→</span>
-                <span class="flow-label">Вкладка</span>
+                <span class="flow-label">{t.app.stepTab}</span>
             </div>
             <div class="flow-step">
                 <span class="flow-key">j</span>
                 <span class="flow-arrow">→</span>
-                <span class="flow-label">Картка</span>
+                <span class="flow-label">{t.app.stepCard}</span>
             </div>
             <div class="flow-step">
                 <span class="flow-result">📋</span>
-                <span class="flow-label">Скопійовано!</span>
+                <span class="flow-label">{t.app.stepCopied}</span>
             </div>
         </div>
 
@@ -101,13 +102,11 @@
                     fill="none"
                 />
             </svg>
-            Обрати папку зі сніпетами
+            {t.app.connectBtn}
         </button>
 
         <p class="hint">
-            Оберіть локальну папку з <code>.txt</code> або <code>.md</code>
-            файлами.<br />
-            Підпапки стануть вкладками, файли — картками.
+            {@html t.app.connectHint}
         </p>
 
         <!-- Keyboard hints -->
@@ -118,7 +117,7 @@
                         >0</kbd
                     >
                 </span>
-                <span class="hint-desc">переключити вкладку</span>
+                <span class="hint-desc">{t.app.kbSwitchTab}</span>
             </div>
             <div class="hint-row">
                 <span class="hint-keys">
@@ -126,13 +125,13 @@
                         >m</kbd
                     >
                 </span>
-                <span class="hint-desc">скопіювати картку</span>
+                <span class="hint-desc">{t.app.kbCopyCard}</span>
             </div>
             <div class="hint-row">
                 <span class="hint-keys">
                     <kbd>Ctrl</kbd>+<kbd>scroll</kbd>
                 </span>
-                <span class="hint-desc">масштаб</span>
+                <span class="hint-desc">{t.app.kbScale}</span>
             </div>
         </div>
     </div>
@@ -292,7 +291,7 @@
         margin: 0;
     }
 
-    .hint code {
+    .hint :global(code) {
         padding: 2px 6px;
         border-radius: 4px;
         background: var(--color-surface-2);

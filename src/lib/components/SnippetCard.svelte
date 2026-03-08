@@ -13,10 +13,11 @@
     openHotkeyPicker,
   } from "../stores/appState.svelte";
   import { logService } from "../services/logService";
-  import { Edit3, Menu, Copy, FileX, Keyboard } from "lucide-svelte";
+  import { Edit3, Menu, Copy, FileX, Keyboard, Link, Trash2 } from "lucide-svelte";
   import * as icons from "lucide-svelte";
   import type { ComponentType } from "svelte";
   import snarkdown from "snarkdown";
+  import { t } from "../i18n";
 
   interface Props {
     card: Card;
@@ -328,7 +329,7 @@
       role="presentation"
       onclick={(e) => e.stopPropagation()}
     >
-      <span class="edit-hint">Ctrl+Enter — зберегти, Esc — скасувати</span>
+      <span class="edit-hint">{t.cards.hint}</span>
       <div class="edit-buttons">
         <button
           class="edit-btn cancel"
@@ -337,7 +338,7 @@
             cancelEditing();
           }}
           disabled={isSaving}
-          data-testid="btn-edit-cancel">Скасувати</button
+          data-testid="btn-edit-cancel">{t.common.cancel}</button
         >
         <button
           class="edit-btn save"
@@ -348,7 +349,7 @@
           disabled={isSaving}
           data-testid="btn-edit-save"
         >
-          {isSaving ? "Збереження..." : "Зберегти"}
+          {isSaving ? t.common.loading : t.common.save}
         </button>
       </div>
     </div>
@@ -372,10 +373,10 @@
     tabindex="0"
     role="button"
     title={isMissing
-      ? "Файл не знайдено на диску"
+      ? "File not found"
       : hoverZone === "action"
-        ? `Скопіювати: ${card.name}`
-        : "Закреслити рядок"}
+        ? `${t.common.copy}: ${card.name}`
+        : "Strike out line"}
     id="card-{card.filePath.replace(/[^a-zA-Z0-9]/g, '-')}"
     style={getCardStyle()}
     data-testid="snippet-card"
@@ -413,8 +414,8 @@
         >
           <button
             class="action-overlay-btn more-btn"
-            title="Більше дій"
-            aria-label="Контекстне меню"
+            title={t.common.settings}
+            aria-label={t.common.settings}
             onclick={handleMoreClick}
             data-testid="btn-card-more"
           >
@@ -423,8 +424,8 @@
 
           <button
             class="action-overlay-btn edit-btn"
-            title="Редагувати текст"
-            aria-label="Редагувати картку"
+            title={t.common.edit}
+            aria-label={t.common.edit}
             onclick={handleEditClick}
             data-testid="btn-card-edit"
           >
@@ -450,10 +451,10 @@
               openHotkeyPicker(card);
             }}
             title={card.isCustomHotkey && card.hotkey
-              ? "Гаряча клавіша (закріплено)"
+              ? t.cards.hotkeyFixed
               : card.isCustomHotkey
-                ? "Гаряча клавіша (вимкнено)"
-                : "Змінити гарячу клавішу"}
+                ? t.cards.hotkeyDisabled
+                : t.cards.hotkeyChange}
             data-testid="card-hotkey"
           >
             {#if card.hotkey}
@@ -483,10 +484,10 @@
             openHotkeyPicker(card);
           }}
           title={card.isCustomHotkey && card.hotkey
-            ? "Гаряча клавіша (закріплено)"
+            ? t.cards.hotkeyFixed
             : card.isCustomHotkey
-              ? "Гаряча клавіша (вимкнено)"
-              : "Змінити гарячу клавішу"}
+              ? t.cards.hotkeyDisabled
+              : t.cards.hotkeyChange}
           data-testid="card-hotkey"
         >
           {#if card.hotkey}
@@ -500,11 +501,11 @@
 
     {#if isMissing}
       <div class="missing-content">
-        <p class="error-msg">Файл <code>{card.fileName}</code> не знайдено.</p>
+        <p class="error-msg">File <code>{card.fileName}</code> not found.</p>
 
         {#if isLinking}
           <div class="manual-link-area" data-testid="manual-link-area">
-            <p>Прив'язати до файлу:</p>
+            <p>Link to file:</p>
             <div class="unrecognized-list">
               {#each appState.activeCards.filter((c) => !c.isMissing) as realCard}
                 <button
@@ -516,13 +517,13 @@
                 </button>
               {/each}
               {#if appState.activeCards.filter((c) => !c.isMissing).length === 0}
-                <p class="hint">Файли відсутні</p>
+                <p class="hint">No files</p>
               {/if}
             </div>
             <button
               class="btn-cancel-link"
               onclick={() => (isLinking = false)}
-              data-testid="btn-cancel-link">Скасувати</button
+              data-testid="btn-cancel-link">{t.common.cancel}</button
             >
           </div>
         {:else}
@@ -533,7 +534,7 @@
               data-testid="btn-link-manually"
             >
               <icons.Link size={14} />
-              Знайти
+              Find
             </button>
             <button
               class="btn-ghost-action delete"
@@ -541,7 +542,7 @@
               data-testid="btn-remove-config"
             >
               <icons.Trash2 size={14} />
-              Видалити
+              {t.common.delete}
             </button>
           </div>
         {/if}

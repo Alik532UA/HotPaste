@@ -2,6 +2,7 @@
   import { getState, resolveHotkeyConflict, closeHotkeyConflict } from "../stores/appState.svelte";
   import { X, AlertTriangle } from "lucide-svelte";
   import { fade, scale } from "svelte/transition";
+  import { t } from "../i18n";
 
   const appState = getState();
   const conflict = $derived(appState.activeHotkeyConflict);
@@ -30,16 +31,16 @@
       <div class="modal-header">
         <div class="header-title">
           <AlertTriangle color="#ff9f0a" size={20} />
-          <h2>Конфлікт клавіші {appState.getHotkeyLabel(conflict.code)}</h2>
+          <h2>{t.modals.conflictTitle} {appState.getHotkeyLabel(conflict.code)}</h2>
         </div>
-        <button class="btn-close" onclick={handleClose} aria-label="Закрити">
+        <button class="btn-close" onclick={handleClose} aria-label={t.common.cancel}>
           <X size={20} />
         </button>
       </div>
 
       <div class="modal-body">
         <p class="description">
-          Ця гаряча клавіша призначена декільком карткам. Виберіть ту, за якою її потрібно закріпити (інші картки втратять цю клавішу):
+          {t.modals.conflictDesc}
         </p>
 
         <div class="conflict-list">
@@ -49,14 +50,14 @@
                 <span class="card-name">{card.name}</span>
                 <span class="card-path">{card.fileName}</span>
               </div>
-              <div class="action-hint">Вибрати</div>
+              <div class="action-hint">{t.common.default}</div>
             </button>
           {/each}
         </div>
       </div>
 
       <div class="modal-footer">
-        <button class="btn-secondary" onclick={handleClose}>Скасувати</button>
+        <button class="btn-secondary" onclick={handleClose}>{t.common.cancel}</button>
       </div>
     </div>
   </div>

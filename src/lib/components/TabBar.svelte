@@ -14,6 +14,7 @@
   import * as icons from "lucide-svelte";
   import type { ComponentType } from "svelte";
   import type { Tab } from "../types";
+  import { t } from "../i18n";
 
   const appState = getState();
 
@@ -79,16 +80,11 @@
   /** Context Menu for Tab */
   function handleContextMenu(e: MouseEvent, tab: Tab) {
     e.preventDefault();
-    // Custom context menu logic for tabs
-    // For now, we reuse the store's openContextMenu but we need to tell it it's a tab
-    // Or we just call openTabSettings directly if we want simple
-    // But user asked for context menu on tabs.
-    // I will pass the tab as a special object to openContextMenu
     openContextMenu(e.clientX, e.clientY, tab as any); 
   }
 
   function handleAddTab() {
-    const name = prompt("Введіть назву нової вкладки (назва папки):");
+    const name = prompt(t.tabs.add + " (folder name):");
     if (name) {
       createNewTab(name);
     }
@@ -96,7 +92,7 @@
 </script>
 
 <div class="tab-bar-container">
-  <div class="tab-bar" role="tablist" aria-label="Вкладки сніпетів" data-testid="tab-bar">
+  <div class="tab-bar" role="tablist" aria-label={t.app.title} data-testid="tab-bar">
     {#each appState.tabs as tab, i (tab.path)}
       {@const LucideIcon = getLucideIcon(tab.icon)}
       <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -137,7 +133,7 @@
     {/each}
 
     <!-- Add Tab Button -->
-    <button class="add-tab-btn" onclick={handleAddTab} title="Створити нову вкладку" data-testid="btn-add-tab">
+    <button class="add-tab-btn" onclick={handleAddTab} title={t.tabs.add} data-testid="btn-add-tab">
       <Plus size={16} />
     </button>
   </div>
@@ -149,14 +145,14 @@
       <input
         type="text"
         class="search-input"
-        placeholder="Пошук сніпетів..."
+        placeholder={t.common.search}
         value={appState.searchQuery}
         oninput={handleSearchInput}
         onkeydown={(e) => e.stopPropagation()}
         data-testid="search-input"
       />
       {#if appState.searchQuery}
-        <button class="search-clear" onclick={clearSearch} title="Очистити пошук">
+        <button class="search-clear" onclick={clearSearch} title={t.common.cancel}>
           <X size={14} />
         </button>
       {/if}
@@ -184,77 +180,6 @@
     flex: 1;
     align-items: flex-end;
   }
-
-  /* ... existing tab styles ... */
-
-  .search-container {
-    display: flex;
-    align-items: center;
-    height: 100%;
-    padding-bottom: 6px; /* Align with tabs bottom line roughly */
-  }
-
-  .search-wrapper {
-    position: relative;
-    display: flex;
-    align-items: center;
-    background: var(--color-surface-2);
-    border: 1px solid var(--color-border);
-    border-radius: 10px;
-    padding: 0 10px;
-    width: 220px;
-    height: 32px;
-    transition: all 0.2s ease;
-  }
-
-  .search-wrapper:focus-within {
-    border-color: var(--color-accent-cyan);
-    background: var(--color-surface-3);
-    width: 280px;
-    box-shadow: 0 0 0 3px rgba(0, 210, 255, 0.1);
-  }
-
-  .search-wrapper :global(.search-icon) {
-    color: var(--color-text-muted);
-    margin-right: 8px;
-    flex-shrink: 0;
-  }
-
-  .search-input {
-    background: transparent;
-    border: none;
-    color: var(--color-text-primary);
-    font-size: 0.85rem;
-    width: 100%;
-    outline: none;
-    padding: 0;
-  }
-
-  .search-input::placeholder {
-    color: var(--color-text-muted);
-    opacity: 0.6;
-  }
-
-  .search-clear {
-    background: transparent;
-    border: none;
-    color: var(--color-text-muted);
-    cursor: pointer;
-    padding: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    margin-right: -4px;
-    transition: all 0.2s;
-  }
-
-  .search-clear:hover {
-    background: var(--color-surface-1);
-    color: var(--color-text-primary);
-  }
-
-  /* existing styles continued ... */
 
   .tab-bar::-webkit-scrollbar {
     display: none;
@@ -394,5 +319,72 @@
 
   .add-tab-btn:active {
     transform: translateY(0) scale(0.95);
+  }
+
+  .search-container {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    padding-bottom: 6px; /* Align with tabs bottom line roughly */
+  }
+
+  .search-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    padding: 0 10px;
+    width: 220px;
+    height: 32px;
+    transition: all 0.2s ease;
+  }
+
+  .search-wrapper:focus-within {
+    border-color: var(--color-accent-cyan);
+    background: var(--color-surface-3);
+    width: 280px;
+    box-shadow: 0 0 0 3px rgba(0, 210, 255, 0.1);
+  }
+
+  .search-wrapper :global(.search-icon) {
+    color: var(--color-text-muted);
+    margin-right: 8px;
+    flex-shrink: 0;
+  }
+
+  .search-input {
+    background: transparent;
+    border: none;
+    color: var(--color-text-primary);
+    font-size: 0.85rem;
+    width: 100%;
+    outline: none;
+    padding: 0;
+  }
+
+  .search-input::placeholder {
+    color: var(--color-text-muted);
+    opacity: 0.6;
+  }
+
+  .search-clear {
+    background: transparent;
+    border: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    margin-right: -4px;
+    transition: all 0.2s;
+  }
+
+  .search-clear:hover {
+    background: var(--color-surface-1);
+    color: var(--color-text-primary);
   }
 </style>

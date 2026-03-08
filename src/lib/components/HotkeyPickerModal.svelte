@@ -3,6 +3,7 @@
   import { X, Keyboard } from "lucide-svelte";
   import { fade, scale } from "svelte/transition";
   import { CARD_CODES, getHotkeyLabel } from "../utils/keyboardLayout";
+  import { t } from "../i18n";
 
   const appState = getState();
   const card = $derived(appState.activeHotkeyPickerCard);
@@ -63,16 +64,16 @@
       <div class="modal-header">
         <div class="header-title">
           <Keyboard size={20} />
-          <h2>Гаряча клавіша: {card.name}</h2>
+          <h2>{t.cards.hotkey}: {card.name}</h2>
         </div>
-        <button class="btn-close" onclick={handleClose} aria-label="Закрити">
+        <button class="btn-close" onclick={handleClose} aria-label={t.common.cancel}>
           <X size={20} />
         </button>
       </div>
 
       <div class="modal-body">
         <p class="description">
-          Натисніть клавішу на клавіатурі або виберіть зі списку нижче:
+          {t.modals.pickerDesc}
         </p>
 
         <div class="keyboard-ui">
@@ -93,16 +94,16 @@
 
         <div class="actions-row">
           <button class="btn-reset" onclick={handleReset}>
-            За замовчуванням
+            {t.common.default}
           </button>
           <button class="btn-clear" onclick={handleClear}>
-            Вимкнути клавішу
+            {t.common.disable}
           </button>
         </div>
       </div>
 
       <div class="modal-footer">
-        <button class="btn-secondary" onclick={handleClose}>Скасувати</button>
+        <button class="btn-secondary" onclick={handleClose}>{t.common.cancel}</button>
       </div>
     </div>
   </div>
