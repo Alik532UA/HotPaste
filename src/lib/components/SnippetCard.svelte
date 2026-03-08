@@ -5,6 +5,7 @@
     copyCard,
     saveCard,
     toggleStrikethrough,
+    openContextMenu,
   } from "../stores/appState.svelte";
   import * as icons from "lucide-svelte";
   import type { ComponentType } from "svelte";
@@ -137,6 +138,19 @@
       handleSave();
     }
   }
+
+  function handleContextMenu(e: MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    openContextMenu(e.clientX, e.clientY, card);
+  }
+
+  function handleMoreClick(e: MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    openContextMenu(rect.left, rect.bottom + 5, card);
+  }
 </script>
 
 {#if isEditing}
@@ -187,6 +201,7 @@
     class:hover-action={hoverZone === "action"}
     class:hover-strike={hoverZone === "strike"}
     onclick={handleCardClick}
+    oncontextmenu={handleContextMenu}
     onmousemove={handleMouseMove}
     onmouseleave={handleMouseLeave}
     onkeydown={handleKeydown}
@@ -241,15 +256,26 @@
       {/if}
     </div>
 
-    <!-- Edit mode indicator / button -->
-    <button
-      class="edit-indicator"
-      title="Редагувати картку"
-      aria-label="Редагувати картку"
-      onclick={handleEditClick}
-    >
-      <icons.Edit3 size={14} />
-    </button>
+    <!-- Card action buttons (bottom right) -->
+    <div class="card-actions-overlay">
+      <button
+        class="action-overlay-btn more-btn"
+        title="Більше дій"
+        aria-label="Контекстне меню"
+        onclick={handleMoreClick}
+      >
+        <icons.MoreVertical size={14} />
+      </button>
+
+      <button
+        class="action-overlay-btn edit-btn"
+        title="Редагувати текст"
+        aria-label="Редагувати картку"
+        onclick={handleEditClick}
+      >
+        <icons.Edit3 size={14} />
+      </button>
+    </div>
 
     <!-- Copy indicator overlay -->
     {#if isFlashing}
@@ -268,7 +294,7 @@
     display: flex;
     flex-direction: column;
     padding: 0;
-    border: 1px solid var(--color-card-border, var(--card-border-default));
+    border: 1px solid var(--card-border-default);
     border-radius: 14px;
     background: var(--color-card-bg);
     backdrop-filter: blur(12px);
@@ -298,15 +324,13 @@
   /* Hover states based on zone */
   .snippet-card.hover-action {
     cursor: pointer;
-    border-color: var(--color-card-border, var(--color-accent-cyan));
+    border-color: var(--color-accent-cyan);
     transform: translateY(-2px);
-    box-shadow:
-      0 8px 32px rgba(0, 0, 0, 0.3),
-      0 0 0 1px rgba(0, 210, 255, 0.1);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(0, 210, 255, 0.1);
   }
 
   .snippet-card.hover-strike {
-    border-color: var(--color-card-border, var(--color-border-hover));
+    border-color: var(--color-border-hover);
   }
 
   .snippet-card:active {
@@ -320,9 +344,7 @@
 
   .snippet-card.flashing {
     border-color: var(--color-accent-green);
-    box-shadow:
-      0 0 20px rgba(0, 255, 136, 0.2),
-      0 0 0 2px rgba(0, 255, 136, 0.3);
+    box-shadow: 0 0 20px rgba(0, 255, 136, 0.2), 0 0 0 2px rgba(0, 255, 136, 0.3);
     animation: flashPulse 0.4s ease;
   }
 
@@ -331,13 +353,11 @@
       box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.4);
     }
     50% {
-      box-shadow:
-        0 0 30px rgba(0, 255, 136, 0.3),
+      box-shadow: 0 0 30px rgba(0, 255, 136, 0.3),
         0 0 0 3px rgba(0, 255, 136, 0.4);
     }
     100% {
-      box-shadow:
-        0 0 20px rgba(0, 255, 136, 0.2),
+      box-shadow: 0 0 20px rgba(0, 255, 136, 0.2),
         0 0 0 2px rgba(0, 255, 136, 0.3);
     }
   }
@@ -361,9 +381,7 @@
     text-transform: uppercase;
     line-height: 1;
     opacity: 0.7;
-    transition:
-      opacity 0.2s ease,
-      background 0.2s ease;
+    transition: opacity 0.2s ease, background 0.2s ease;
     z-index: 5;
   }
 
@@ -467,9 +485,7 @@
     border-radius: 4px;
     padding: 0 4px;
     margin: 0 -4px; /* offset padding */
-    transition:
-      background 0.15s ease,
-      opacity 0.2s ease;
+    transition: background 0.15s ease, opacity 0.2s ease;
   }
 
   .snippet-card.hover-strike .line:hover {
@@ -491,16 +507,34 @@
     left: 0;
     right: 0;
     height: 48px;
-    background: linear-gradient(to bottom, transparent, var(--color-card-bg) 70%);
+    background: linear-gradient(
+      to bottom,
+      transparent,
+      var(--color-card-bg) 70%
+    );
     pointer-events: none;
     z-index: 5;
   }
 
-  /* Edit Indicator (Overlay Button) */
-  .edit-indicator {
+  /* Card Actions Overlay (Edit & More buttons) */
+  .card-actions-overlay {
     position: absolute;
     bottom: 8px;
     right: 8px;
+    display: flex;
+    gap: 6px;
+    opacity: 0;
+    transform: translateY(4px);
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    z-index: 10;
+  }
+
+  .snippet-card:hover .card-actions-overlay {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .action-overlay-btn {
     width: 32px;
     height: 32px;
     border-radius: 50%;
@@ -510,22 +544,25 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    opacity: 0;
-    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    z-index: 10;
     cursor: pointer;
+    transition: all 0.2s ease;
   }
 
-  .snippet-card:hover .edit-indicator {
-    opacity: 1;
-    transform: translateY(0);
-  }
-
-  .edit-indicator:hover {
-    background: var(--color-accent-blue);
-    color: var(--color-bg-primary);
-    border-color: transparent;
+  .action-overlay-btn:hover {
+    background: var(--color-surface-3);
+    color: var(--color-text-primary);
+    border-color: var(--color-border-hover);
     transform: scale(1.1);
+  }
+
+  .action-overlay-btn.edit-btn:hover {
+    background: var(--color-accent-violet);
+    color: white;
+    border-color: transparent;
+  }
+
+  .action-overlay-btn.more-btn:hover {
+    background: var(--color-surface-3);
   }
 
   /* Edit area */

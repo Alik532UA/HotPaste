@@ -48,6 +48,9 @@ let configSaveTimeout: ReturnType<typeof setTimeout> | null = null;
 /** Card view: 'short' (truncated) or 'full' (full text) */
 let cardView = $state<'short' | 'full'>('short');
 
+/** Context menu state */
+let activeContextMenu = $state<{ x: number, y: number, card: Card } | null>(null);
+
 /** App config (persisted to localStorage) */
 let config = $state<AppConfig>(loadConfig());
 
@@ -79,6 +82,7 @@ export function getState() {
         get flashingCardPath() { return flashingCardPath; },
         get cardView() { return cardView; },
         get config() { return config; },
+        get activeContextMenu() { return activeContextMenu; },
     };
 }
 
@@ -98,8 +102,20 @@ export async function connectDirectory(): Promise<void> {
 export async function refreshTabs(): Promise<void> {
     if (!fileSystemService.hasAccess()) return;
 
+    const oldActivePath = activeTab?.path;
     tabs = await fileSystemService.readDirectory();
-    activeTabIndex = 0;
+
+    // Try to restore active tab by path
+    if (oldActivePath) {
+        const index = tabs.findIndex(t => t.path === oldActivePath);
+        if (index !== -1) {
+            activeTabIndex = index;
+        } else {
+            activeTabIndex = Math.min(activeTabIndex, tabs.length - 1);
+        }
+    } else {
+        activeTabIndex = 0;
+    }
 }
 
 /** Select a tab by index */
@@ -165,12 +181,11 @@ export async function saveCard(card: Card, newContent: string): Promise<void> {
             const timestamp = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}_${String(date.getHours()).padStart(2, '0')}${String(date.getMinutes()).padStart(2, '0')}${String(date.getSeconds()).padStart(2, '0')}`;
             const fileName = `snippet_${timestamp}.txt`;
 
-            // Compute the new file path correctly. Assuming tab.path is the directory path.
-            // Replace backslashes just in case we are mixing separators
-            const separator = tab.path.includes('\\') ? '\\' : '/';
-            // ensure tab.path does not end with separator
-            const basePath = tab.path.replace(/[\\/]$/, '');
-            card.filePath = `${basePath}${separator}${fileName}`;
+            if (tab.path === '__root__') {
+                card.filePath = `__root__/${fileName}`;
+            } else {
+                card.filePath = `${tab.path}/${fileName}`;
+            }
             card.fileName = fileName;
             card.name = fileName.replace(/\.[^/.]+$/, ""); // name without extension
         }
@@ -183,12 +198,10 @@ export async function saveCard(card: Card, newContent: string): Promise<void> {
             const newLines = newContent.split('\n');
 
             // Simple approach: keep strikethroughs for lines that exactly match
-            // A more complex diff algorithm could be used, but this is safer for now
             const newStrikethrough: number[] = [];
             for (const oldIdx of card.strikethrough) {
                 if (oldIdx < oldLines.length) {
                     const lineText = oldLines[oldIdx];
-                    // Find where this line went in the new text
                     const newIdx = newLines.indexOf(lineText);
                     if (newIdx !== -1 && !newStrikethrough.includes(newIdx)) {
                         newStrikethrough.push(newIdx);
@@ -202,8 +215,6 @@ export async function saveCard(card: Card, newContent: string): Promise<void> {
         // Update in-memory data
         card.content = newContent;
 
-        // If it was a mock new card, we need to fully refresh tabs to get the real file handle
-        // and order applied. For now, we just refresh tabs entirely.
         if (isNewCard) {
             await refreshTabs();
         }
@@ -213,6 +224,78 @@ export async function saveCard(card: Card, newContent: string): Promise<void> {
     } catch (err) {
         logService.log('error', 'Failed to save card', err);
         showToast('Помилка збереження!');
+    }
+}
+
+/** Duplicate a card */
+export async function duplicateCard(card: Card): Promise<void> {
+    try {
+        const ext = card.extension;
+        const nameWithoutExt = card.fileName.slice(0, -ext.length);
+        const newFileName = `${nameWithoutExt}_copy${ext}`;
+
+        await fileSystemService.copyFile(card.filePath, newFileName);
+
+        // Copy config if exists
+        const parts = card.filePath.split('/');
+        parts.pop();
+        const tabPath = parts.join('/') || '__root__';
+        const config = await fileSystemService.readConfig(tabPath);
+
+        if (config.cards && config.cards[card.fileName]) {
+            config.cards[newFileName] = JSON.parse(JSON.stringify(config.cards[card.fileName]));
+            await fileSystemService.writeConfig(tabPath, config);
+        }
+
+        await refreshTabs();
+        showToast(`Дубльовано: ${card.name}`);
+    } catch (err) {
+        logService.log('error', 'Failed to duplicate card', err);
+        showToast('Помилка дублювання!');
+    }
+}
+
+/** Delete a card */
+export async function deleteCard(card: Card): Promise<void> {
+    if (!confirm(`Ви впевнені, що хочете видалити сніпет "${card.name}"?`)) return;
+
+    try {
+        await fileSystemService.deleteFile(card.filePath);
+
+        // Remove from config if exists
+        const parts = card.filePath.split('/');
+        parts.pop();
+        const tabPath = parts.join('/') || '__root__';
+        const config = await fileSystemService.readConfig(tabPath);
+
+        if (config.cards && config.cards[card.fileName]) {
+            delete config.cards[card.fileName];
+            // Also remove from order
+            if (config.tab?.order) {
+                config.tab.order = config.tab.order.filter(n => n !== card.fileName);
+            }
+            await fileSystemService.writeConfig(tabPath, config);
+        }
+
+        await refreshTabs();
+        showToast(`Видалено: ${card.name}`);
+    } catch (err) {
+        logService.log('error', 'Failed to delete card', err);
+        showToast('Помилка видалення!');
+    }
+}
+
+/** Move card to another tab */
+export async function moveCardToTab(card: Card, targetTabPath: string): Promise<void> {
+    try {
+        await fileSystemService.moveFile(card.filePath, targetTabPath);
+
+        // Optional: move config too? For now simple move.
+        await refreshTabs();
+        showToast(`Переміщено в іншу вкладку`);
+    } catch (err) {
+        logService.log('error', 'Failed to move card', err);
+        showToast('Помилка переміщення!');
     }
 }
 
@@ -242,6 +325,15 @@ export function startNewCardCreation(): void {
 
     // Prepend to active cards temporarily (we actually modify the reactive array)
     tab.cards = [mockCard, ...tab.cards];
+}
+
+/** Context Menu actions */
+export function openContextMenu(x: number, y: number, card: Card): void {
+    activeContextMenu = { x, y, card };
+}
+
+export function closeContextMenu(): void {
+    activeContextMenu = null;
 }
 
 /** Toggle strikethrough state for a specific line in a card */

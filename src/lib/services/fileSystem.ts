@@ -31,6 +31,12 @@ export interface IFileSystemService {
     readConfig(tabPath: string): Promise<HotPasteConfig>;
     /** Write tab config */
     writeConfig(tabPath: string, config: HotPasteConfig): Promise<void>;
+    /** Delete a file */
+    deleteFile(path: string): Promise<void>;
+    /** Copy a file to the same directory with a new name */
+    copyFile(path: string, newName: string): Promise<string>;
+    /** Move a file to another directory */
+    moveFile(path: string, targetTabPath: string): Promise<string>;
     /** Get the root directory name */
     getRootName(): string;
 }
@@ -86,7 +92,7 @@ export class BrowserFileSystemService implements IFileSystemService {
                 const config = await this.readConfigInternal(dirHandle);
                 const cards = await this.readCardsFromDirectory(dirHandle, name, config);
 
-                if (cards.length > 0) {
+                if (cards.length > 0 || (config.tab && Object.keys(config.tab).length > 0)) {
                     tabs.push({
                         name: config.tab?.displayName || this.cleanName(name),
                         hotkey: '', // will be assigned later
@@ -109,7 +115,7 @@ export class BrowserFileSystemService implements IFileSystemService {
                         name: cardConfig.displayName || this.cleanName(name),
                         content,
                         hotkey: cardConfig.hotkey || '',
-                        filePath: name,
+                        filePath: `__root__/${name}`,
                         fileName: name,
                         extension: ext,
                         icon: cardConfig.icon || null,
@@ -208,6 +214,45 @@ export class BrowserFileSystemService implements IFileSystemService {
         await writable.close();
     }
 
+    async deleteFile(path: string): Promise<void> {
+        if (!this.rootHandle) throw new Error('No directory access.');
+
+        const parts = path.split('/');
+        const fileName = parts.pop()!;
+        const dirPath = parts.join('/');
+
+        let dirHandle = this.rootHandle;
+        if (dirPath !== '' && dirPath !== '__root__') {
+            dirHandle = await this.rootHandle.getDirectoryHandle(dirPath);
+        }
+
+        await dirHandle.removeEntry(fileName);
+    }
+
+    async copyFile(path: string, newName: string): Promise<string> {
+        const content = await this.readFile(path);
+        const parts = path.split('/');
+        parts.pop(); // remove original filename
+        const dirPath = parts.join('/');
+        const newPath = dirPath === '' ? newName : `${dirPath}/${newName}`;
+
+        await this.writeFile(newPath, content);
+        return newPath;
+    }
+
+    async moveFile(path: string, targetTabPath: string): Promise<string> {
+        const content = await this.readFile(path);
+        const parts = path.split('/');
+        const fileName = parts.pop()!;
+
+        const newPath = targetTabPath === '__root__' ? fileName : `${targetTabPath}/${fileName}`;
+
+        await this.writeFile(newPath, content);
+        await this.deleteFile(path);
+
+        return newPath;
+    }
+
     // --- Private helpers ---
 
     private async readConfigInternal(dirHandle: FileSystemDirectoryHandle): Promise<HotPasteConfig> {
@@ -229,16 +274,14 @@ export class BrowserFileSystemService implements IFileSystemService {
     private async getFileHandleFromPath(path: string, create: boolean = false): Promise<FileSystemFileHandle> {
         if (!this.rootHandle) throw new Error('No directory access.');
 
-        const parts = path.split('/');
+        // Normalize path
+        const normalizedPath = path.startsWith('__root__/') ? path.slice(9) : path;
+        const parts = normalizedPath.split('/');
+
         let dirHandle: FileSystemDirectoryHandle = this.rootHandle;
 
-        let startIndex = 0;
-        if (parts[0] === '__root__') {
-            startIndex = 1;
-        }
-
-        for (let i = startIndex; i < parts.length - 1; i++) {
-            dirHandle = await dirHandle.getDirectoryHandle(parts[i]);
+        for (let i = 0; i < parts.length - 1; i++) {
+            dirHandle = await dirHandle.getDirectoryHandle(parts[i], { create });
         }
 
         return await dirHandle.getFileHandle(parts[parts.length - 1], { create });
