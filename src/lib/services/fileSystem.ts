@@ -127,7 +127,8 @@ export class BrowserFileSystemService implements IFileSystemService {
                         name: cardConfig.displayName || this.cleanName(name),
                         displayName: cardConfig.displayName || null,
                         content,
-                        hotkey: cardConfig.hotkey || '',
+                        hotkey: (cardConfig.hotkey !== undefined ? cardConfig.hotkey : '') as string,
+                        isCustomHotkey: cardConfig.hotkey !== undefined,
                         filePath: `__root__/${name}`,
                         fileName: name,
                         extension: ext,
@@ -183,14 +184,18 @@ export class BrowserFileSystemService implements IFileSystemService {
 
             let autoHotkeyIndex = 0;
             tab.cards.forEach(card => {
-                if (!card.hotkey) {
+                // If hotkey was explicitly set (even to ""), do NOT assign an auto-hotkey
+                if (!card.isCustomHotkey) {
                     let nextHotkey = getCardHotkey(autoHotkeyIndex);
-                    while (usedHotkeys.has(nextHotkey) && nextHotkey !== '') {
+                    // Ensure case-insensitive check against used keys
+                    while (nextHotkey !== '' && usedHotkeys.has(nextHotkey.toLowerCase())) {
                         autoHotkeyIndex++;
                         nextHotkey = getCardHotkey(autoHotkeyIndex);
                     }
                     card.hotkey = nextHotkey;
-                    usedHotkeys.add(nextHotkey);
+                    if (nextHotkey) {
+                        usedHotkeys.add(nextHotkey.toLowerCase());
+                    }
                     autoHotkeyIndex++;
                 }
             });
@@ -364,7 +369,8 @@ export class BrowserFileSystemService implements IFileSystemService {
                         name: cardConfig.displayName || this.cleanName(name),
                         displayName: cardConfig.displayName || null,
                         content,
-                        hotkey: cardConfig.hotkey || '',
+                        hotkey: (cardConfig.hotkey !== undefined ? cardConfig.hotkey : '') as string,
+                        isCustomHotkey: cardConfig.hotkey !== undefined,
                         filePath,
                         fileName: name,
                         extension: ext,

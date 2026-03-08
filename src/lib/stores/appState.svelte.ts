@@ -39,6 +39,9 @@ let toastTimeout: ReturnType<typeof setTimeout> | null = null;
 /** Global scale */
 let scale = $state(1.0);
 
+/** Whether a card is currently being edited globally */
+let editingCardPath = $state('');
+
 /** Whether a card is currently "flashing" (just copied) */
 let flashingCardPath = $state('');
 
@@ -57,6 +60,12 @@ let activeContextMenu = $state<{ x: number, y: number, card: Card } | null>(null
 /** Settings modal state */
 let activeSettingsCard = $state<Card | null>(null);
 let activeSettingsTab = $state<Tab | null>(null);
+
+/** Hotkey picker state */
+let activeHotkeyPickerCard = $state<Card | null>(null);
+
+/** Hotkey conflict resolution state */
+let activeHotkeyConflict = $state<{ code: string, cards: Card[] } | null>(null);
 
 /** App config (persisted to localStorage) */
 let config = $state<AppConfig>(loadConfig());
@@ -93,11 +102,108 @@ export function getState() {
         get activeContextMenu() { return activeContextMenu; },
         get activeSettingsCard() { return activeSettingsCard; },
         get activeSettingsTab() { return activeSettingsTab; },
+        get activeHotkeyPickerCard() { return activeHotkeyPickerCard; },
+        get activeHotkeyConflict() { return activeHotkeyConflict; },
+        get editingCardPath() { return editingCardPath; },
         getHotkeyLabel: (code: string) => getHotkeyLabel(code),
     };
 }
 
 // --- Actions ---
+
+/** Open hotkey picker for a card */
+export function openHotkeyPicker(card: Card): void {
+    activeHotkeyPickerCard = card;
+}
+
+/** Close hotkey picker */
+export function closeHotkeyPicker(): void {
+    activeHotkeyPickerCard = null;
+}
+
+/** Update card hotkey and save */
+export async function updateCardHotkey(card: Card, newHotkey: string): Promise<void> {
+    logService.log('appState', `Updating hotkey for ${card.name} to ${newHotkey}`);
+    card.hotkey = newHotkey;
+    card.isCustomHotkey = true; // Fix the hotkey status (even if empty string)
+    card.isHotkeyConflicting = false;
+    
+    activeHotkeyPickerCard = null;
+    await saveCurrentTabConfig();
+    await refreshTabs(); // Re-check conflicts and re-assign auto keys
+    showToast(`Гарячу клавішу оновлено: ${getHotkeyLabel(newHotkey) || 'Вимкнено (жорстко)'}`);
+}
+
+/** Reset card hotkey to automatic assignment */
+export async function resetCardHotkeyToDefault(card: Card): Promise<void> {
+    logService.log('appState', `Resetting hotkey to default for ${card.name}`);
+    card.hotkey = ''; // Clear current
+    card.isCustomHotkey = false; // Allow auto-assignment
+    
+    activeHotkeyPickerCard = null;
+    await saveCurrentTabConfig();
+    await refreshTabs();
+    showToast(`Повернуто до автоматичного призначення`);
+}
+
+/** Resolve hotkey conflict by assigning it to one card and clearing others */
+export async function resolveHotkeyConflict(selectedCard: Card): Promise<void> {
+    const conflict = activeHotkeyConflict;
+    if (!conflict) return;
+
+    const tab = activeTab;
+    if (!tab) return;
+
+    logService.log('appState', `Resolving hotkey ${conflict.code} for card: ${selectedCard.name}`);
+
+    // Update the selected card to HAVE this hotkey explicitly
+    selectedCard.hotkey = conflict.code;
+    selectedCard.isCustomHotkey = true;
+    selectedCard.isHotkeyConflicting = false;
+
+    // Clear the hotkey for all other cards in the same tab that have this code
+    // AND mark them as isCustomHotkey=true to prevent auto-assignment
+    for (const card of tab.cards) {
+        if (card !== selectedCard && card.hotkey.toLowerCase() === conflict.code.toLowerCase()) {
+            card.hotkey = '';
+            card.isCustomHotkey = true; // Hard disable
+            card.isHotkeyConflicting = false;
+        }
+    }
+
+    activeHotkeyConflict = null;
+    await saveCurrentTabConfig();
+    await refreshTabs(); // Re-assign automatic hotkeys and re-check conflicts
+    showToast(`Гарячу клавішу закріплено за: ${selectedCard.name}`);
+}
+
+export function closeHotkeyConflict(): void {
+    activeHotkeyConflict = null;
+}
+
+/** Start editing a card globally */
+export function startEditingCard(card: Card): void {
+    editingCardPath = card.filePath;
+}
+
+/** Stop editing card globally */
+export function stopEditingCard(): void {
+    editingCardPath = '';
+}
+
+/** Move a card relative to its current position */
+export function moveCardRelative(card: Card, delta: number): void {
+    const tab = activeTab;
+    if (!tab) return;
+
+    const fromIndex = tab.cards.findIndex(c => c.filePath === card.filePath);
+    if (fromIndex === -1) return;
+
+    const toIndex = fromIndex + delta;
+    if (toIndex < 0 || toIndex >= tab.cards.length) return;
+
+    moveCard(fromIndex, toIndex);
+}
 
 /** Connect to a local directory */
 export async function connectDirectory(): Promise<void> {
@@ -123,6 +229,23 @@ export async function refreshTabs(): Promise<void> {
     }
 
     tabs = loadedTabs;
+
+    // Detect duplicate hotkeys within each tab
+    tabs.forEach(tab => {
+        const counts = new Map<string, number>();
+        tab.cards.forEach(c => {
+            if (c.hotkey) {
+                const k = c.hotkey.toLowerCase();
+                counts.set(k, (counts.get(k) || 0) + 1);
+            }
+        });
+        tab.cards.forEach(c => {
+            if (c.hotkey) {
+                c.isHotkeyConflicting = (counts.get(c.hotkey.toLowerCase()) || 0) > 1;
+            }
+        });
+    });
+
     logService.log('appState', `Tabs loaded: ${tabs.length}. Restoring active path: ${oldActivePath}`);
 
     // Try to restore active tab by path
@@ -352,9 +475,16 @@ export function selectTabByHotkey(code: string): boolean {
 
 /** Copy a card's content by hotkey (physical code) */
 export async function copyCardByHotkey(code: string): Promise<boolean> {
-    const card = activeCards.find(c => c.hotkey === code);
-    if (!card) return false;
-    await copyCard(card);
+    const cards = activeCards.filter(c => c.hotkey === code);
+    if (cards.length === 0) return false;
+
+    if (cards.length > 1) {
+        logService.log('appState', `Hotkey conflict detected for ${code}. Opening resolution modal.`);
+        activeHotkeyConflict = { code, cards };
+        return true;
+    }
+
+    await copyCard(cards[0]);
     return true;
 }
 
@@ -653,7 +783,7 @@ async function saveCurrentTabConfig() {
 
             // Customization fields
             if (card.displayName) cInfo.displayName = card.displayName; else delete cInfo.displayName;
-            if (card.hotkey) cInfo.hotkey = card.hotkey; else delete cInfo.hotkey;
+            if (card.isCustomHotkey) cInfo.hotkey = card.hotkey; else delete cInfo.hotkey;
             if (card.icon) cInfo.icon = card.icon; else delete cInfo.icon;
             if (card.color) cInfo.color = card.color; else delete cInfo.color;
             if (card.borderColor) cInfo.borderColor = card.borderColor; else delete cInfo.borderColor;

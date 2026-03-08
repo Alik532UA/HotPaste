@@ -10,6 +10,8 @@
     openTabSettings,
     deleteTab,
     duplicateTab,
+    startEditingCard,
+    moveCardRelative,
   } from "../stores/appState.svelte";
   import * as icons from "lucide-svelte";
   import { onMount } from "svelte";
@@ -92,6 +94,16 @@
         <span class="shortcut" data-testid="menu-item-shortcut">{appState.getHotkeyLabel(card.hotkey)}</span>
       </button>
 
+      <button class="menu-item" onclick={() => handleAction(() => startEditingCard(card))} role="menuitem" data-testid="menu-item-edit">
+        <icons.Edit3 size={14} />
+        <span>Редагувати</span>
+      </button>
+
+      <button class="menu-item" onclick={() => handleAction(() => openSettings(card))} role="menuitem" data-testid="menu-item-settings">
+        <icons.Settings size={14} />
+        <span>Налаштувати</span>
+      </button>
+
       <div class="divider" role="separator"></div>
 
       <button class="menu-item" onclick={() => handleAction(() => duplicateCard(card))} role="menuitem" data-testid="menu-item-duplicate">
@@ -118,10 +130,31 @@
         </div>
       </div>
 
-      <button class="menu-item" onclick={() => handleAction(() => openSettings(card))} role="menuitem" data-testid="menu-item-settings">
-        <icons.Settings size={14} />
-        <span>Налаштувати</span>
-      </button>
+      <!-- Nudge / Move around -->
+      <div class="menu-item move-item" role="menuitem" aria-haspopup="true" data-testid="menu-item-nudge">
+        <icons.Move size={14} />
+        <span>Рухати</span>
+        <icons.ChevronRight size={14} class="arrow-icon" />
+        
+        <div class="submenu nudge-submenu" role="menu" data-testid="submenu-nudge">
+          <div class="nudge-grid">
+            <button class="nudge-btn" onclick={() => moveCardRelative(card, -3)} title="Вгору/Назад (3)" data-testid="nudge-up">
+              <icons.ChevronUp size={16} />
+            </button>
+            <div class="nudge-row">
+              <button class="nudge-btn" onclick={() => moveCardRelative(card, -1)} title="Ліворуч/Назад" data-testid="nudge-left">
+                <icons.ChevronLeft size={16} />
+              </button>
+              <button class="nudge-btn" onclick={() => moveCardRelative(card, 1)} title="Праворуч/Вперед" data-testid="nudge-right">
+                <icons.ChevronRight size={16} />
+              </button>
+            </div>
+            <button class="nudge-btn" onclick={() => moveCardRelative(card, 3)} title="Вниз/Вперед (3)" data-testid="nudge-down">
+              <icons.ChevronDown size={16} />
+            </button>
+          </div>
+        </div>
+      </div>
 
       <div class="divider" role="separator"></div>
 
@@ -267,5 +300,41 @@
     border-radius: 12px;
     padding: 6px;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+  }
+
+  /* Nudge controls */
+  .nudge-submenu {
+    width: auto;
+    min-width: 120px;
+  }
+  .nudge-grid {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 4px;
+  }
+  .nudge-row {
+    display: flex;
+    gap: 4px;
+  }
+  .nudge-btn {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    color: var(--color-text-primary);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .nudge-btn:hover {
+    background: var(--color-accent-violet);
+    color: white;
+    border-color: transparent;
+    transform: scale(1.1);
   }
 </style>

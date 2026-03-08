@@ -8,10 +8,15 @@
     openContextMenu,
     removeOrphanedConfig,
     linkFileManually,
+    startEditingCard,
+    stopEditingCard,
+    openHotkeyPicker,
   } from "../stores/appState.svelte";
   import { logService } from "../services/logService";
+  import { Edit3, MoreVertical, Copy, FileX, Keyboard } from "lucide-svelte";
   import * as icons from "lucide-svelte";
   import type { ComponentType } from "svelte";
+  import snarkdown from "snarkdown";
 
   interface Props {
     card: Card;
@@ -34,11 +39,30 @@
   let isSaving = $state(false);
   let editContent = $state("");
   let textareaElement = $state<HTMLTextAreaElement | null>(null);
-  let contentElement = $state<HTMLElement | null>(null);
+  let contentElement = $state<HTMLDivElement | null>(null);
   let isOverflowing = $state(false);
+  let scrollPercentage = $state(0);
+  let thumbHeightPercentage = $state(0);
 
   /** Linking state (manual recovery) */
   let isLinking = $state(false);
+
+  // Sync global editing state
+  $effect(() => {
+    const globalPath = appState.editingCardPath;
+    if (globalPath === card.filePath && !isEditing) {
+      logService.log("ui", `Effect: starting local edit for ${card.name} because global path matches`);
+      startEditing();
+    } else if (globalPath !== card.filePath && isEditing) {
+      // If global state changed to something else, cancel local edit
+      // (Unless it's a new mock, which we handle separately)
+      if (!(card as any).isNewMock) {
+        logService.log("ui", `Effect: cancelling local edit for ${card.name} because global path changed to: ${globalPath}`);
+        isEditing = false;
+        editContent = "";
+      }
+    }
+  });
 
   // Focus textarea when editing starts
   $effect(() => {
@@ -47,24 +71,37 @@
     }
   });
 
-  // Check for overflow to show/hide gradient fade
+  // Check for overflow and sync scroll position
   $effect(() => {
     if (!contentElement || isFull) {
       isOverflowing = false;
       return;
     }
 
-    const checkOverflow = () => {
+    const updateScrollMetrics = () => {
       if (contentElement) {
-        isOverflowing =
-          contentElement.scrollHeight > contentElement.clientHeight;
+        const { scrollTop, scrollHeight, clientHeight } = contentElement;
+        isOverflowing = scrollHeight > clientHeight;
+
+        if (isOverflowing) {
+          scrollPercentage = (scrollTop / (scrollHeight - clientHeight)) * 100;
+          thumbHeightPercentage = (clientHeight / scrollHeight) * 100;
+        }
       }
     };
 
-    checkOverflow();
-    const observer = new ResizeObserver(checkOverflow);
+    updateScrollMetrics();
+
+    const handleScroll = () => updateScrollMetrics();
+    contentElement.addEventListener("scroll", handleScroll, { passive: true });
+
+    const observer = new ResizeObserver(updateScrollMetrics);
     observer.observe(contentElement);
-    return () => observer.disconnect();
+
+    return () => {
+      contentElement?.removeEventListener("scroll", handleScroll);
+      observer.disconnect();
+    };
   });
 
   // Initialize from the prop after mount
@@ -103,8 +140,12 @@
   }
 
   function handleEditClick(e: MouseEvent) {
+    logService.log("ui", `handleEditClick for card: ${card.name}`);
     e.stopPropagation();
-    if (isMissing) return;
+    if (isMissing) {
+      logService.log("ui", "handleEditClick blocked: card is missing");
+      return;
+    }
     startEditing();
   }
 
@@ -117,6 +158,7 @@
   }
 
   function handleCardClick(e: MouseEvent) {
+    logService.log("ui", `handleCardClick for card: ${card.name}, isEditing: ${isEditing}`);
     if (isMissing || isEditing) return;
     const currentTarget = e.currentTarget as HTMLElement;
     const rect = currentTarget.getBoundingClientRect();
@@ -124,8 +166,10 @@
     const isAction = x / rect.width > 0.2;
 
     if (isAction) {
+      logService.log("ui", "handleCardClick: triggered copy action");
       handleAction();
     } else {
+      logService.log("ui", "handleCardClick: triggered line strikethrough check");
       const target = e.target as HTMLElement;
       const lineEl = target.closest(".line");
       if (lineEl) {
@@ -154,15 +198,18 @@
   }
 
   function startEditing() {
-    logService.log("ui", `Starting edit: ${card.name} (${card.filePath})`);
+    logService.log("ui", `Starting edit (local): ${card.name} (${card.filePath})`);
     editContent = card.content;
     isEditing = true;
+    startEditingCard(card); // Sync to global state
   }
 
   function cancelEditing() {
-    logService.log("ui", `Cancelling edit: ${card.name}`);
+    logService.log("ui", `Cancelling edit (local): ${card.name}`);
     isEditing = false;
     editContent = "";
+    stopEditingCard(); // Sync to global state
+    
     if ((card as any).isNewMock) {
       const tab = appState.activeTab;
       if (tab) {
@@ -176,14 +223,15 @@
     if (isSaving) return;
     logService.log(
       "ui",
-      `Saving click for: ${card.name} (path: ${card.filePath})`,
+      `handleSave for: ${card.name} (path: ${card.filePath})`,
     );
     isSaving = true;
     try {
       await saveCard(card, editContent);
-      logService.log("ui", `Save done for: ${card.name}`);
+      logService.log("ui", `Save done (local): ${card.name}`);
       isEditing = false;
       editContent = "";
+      stopEditingCard(); // Sync to global state
     } catch (err) {
       logService.log("error", `Save failed: ${card.name}`, err);
     } finally {
@@ -257,18 +305,24 @@
       ></textarea>
     </div>
 
-    <div class="edit-actions">
+    <div class="edit-actions" role="presentation" onclick={(e) => e.stopPropagation()}>
       <span class="edit-hint">Ctrl+Enter — зберегти, Esc — скасувати</span>
       <div class="edit-buttons">
         <button
           class="edit-btn cancel"
-          onclick={cancelEditing}
+          onclick={(e) => {
+            e.stopPropagation();
+            cancelEditing();
+          }}
           disabled={isSaving}
           data-testid="btn-edit-cancel">Скасувати</button
         >
         <button
           class="edit-btn save"
-          onclick={handleSave}
+          onclick={(e) => {
+            e.stopPropagation();
+            handleSave();
+          }}
           disabled={isSaving}
           data-testid="btn-edit-save"
         >
@@ -285,6 +339,7 @@
     class="snippet-card interactive"
     class:flashing={isFlashing}
     class:missing={isMissing}
+    class:compact={isCompact}
     class:hover-action={hoverZone === "action" && !isMissing}
     class:hover-strike={hoverZone === "strike" && !isMissing}
     onclick={handleCardClick}
@@ -356,18 +411,54 @@
         </div>
 
         <!-- Hotkey (inside header) -->
-        {#if card.hotkey && !isMissing}
-          <div class="card-hotkey" data-testid="card-hotkey">
-            {appState.getHotkeyLabel(card.hotkey)}
-          </div>
+        {#if (card.hotkey || card.isCustomHotkey) && !isMissing}
+          <button 
+            class="card-hotkey" 
+            class:conflict={card.isHotkeyConflicting} 
+            class:custom={card.isCustomHotkey && card.hotkey}
+            class:disabled={card.isCustomHotkey && !card.hotkey}
+            class:auto={!card.isCustomHotkey}
+            onclick={(e) => { 
+              e.preventDefault();
+              e.stopPropagation(); 
+              logService.log("ui", `HOTKEY BUTTON CLICKED (STOPPED) for ${card.name}`);
+              openHotkeyPicker(card); 
+            }}
+            title={card.isCustomHotkey && card.hotkey ? "Гаряча клавіша (закріплено)" : card.isCustomHotkey ? "Гаряча клавіша (вимкнено)" : "Змінити гарячу клавішу"}
+            data-testid="card-hotkey"
+          >
+            {#if card.hotkey}
+              {appState.getHotkeyLabel(card.hotkey)}
+            {:else}
+              <Keyboard size={14} />
+            {/if}
+          </button>
         {/if}
       </div>
     {:else}
       <!-- Hotkey badge (absolute position for compact mode) -->
-      {#if card.hotkey && !isMissing}
-        <div class="card-hotkey absolute" data-testid="card-hotkey">
-          {appState.getHotkeyLabel(card.hotkey)}
-        </div>
+      {#if (card.hotkey || card.isCustomHotkey) && !isMissing}
+        <button 
+          class="card-hotkey absolute" 
+          class:conflict={card.isHotkeyConflicting} 
+          class:custom={card.isCustomHotkey && card.hotkey}
+          class:disabled={card.isCustomHotkey && !card.hotkey}
+          class:auto={!card.isCustomHotkey}
+          onclick={(e) => { 
+            e.preventDefault();
+            e.stopPropagation(); 
+            logService.log("ui", `HOTKEY BUTTON CLICKED COMPACT (STOPPED) for ${card.name}`);
+            openHotkeyPicker(card); 
+          }}
+          title={card.isCustomHotkey && card.hotkey ? "Гаряча клавіша (закріплено)" : card.isCustomHotkey ? "Гаряча клавіша (вимкнено)" : "Змінити гарячу клавішу"}
+          data-testid="card-hotkey"
+        >
+          {#if card.hotkey}
+            {appState.getHotkeyLabel(card.hotkey)}
+          {:else}
+            <Keyboard size={14} />
+          {/if}
+        </button>
       {/if}
     {/if}
 
@@ -425,23 +516,39 @@
         <div
           class="card-content"
           class:full={isFull}
+          class:markdown={card.extension === ".md"}
           bind:this={contentElement}
           data-testid="card-content"
         >
-          {#each lines as line, i}
-            <div
-              class="line"
-              data-index={i}
-              class:strikethrough={card.strikethrough.includes(i)}
-              data-testid="content-line"
-            >
-              {line || " "}
+          {#if card.extension === ".md"}
+            <div class="markdown-body">
+              {@html snarkdown(card.content)}
             </div>
-          {/each}
+          {:else}
+            {#each lines as line, i}
+              <div
+                class="line"
+                data-index={i}
+                class:strikethrough={card.strikethrough.includes(i)}
+                data-testid="content-line"
+              >
+                {line || " "}
+              </div>
+            {/each}
+          {/if}
         </div>
 
         {#if !isFull && isOverflowing}
           <div class="card-fade"></div>
+
+          <!-- Custom Scrollbar Thumb -->
+          <div class="custom-scrollbar-track">
+            <div
+              class="custom-scrollbar-thumb"
+              style="height: {thumbHeightPercentage}%; top: {scrollPercentage *
+                (1 - thumbHeightPercentage / 100)}%;"
+            ></div>
+          </div>
         {/if}
       </div>
     {/if}
@@ -549,8 +656,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 28px;
-    height: 28px;
+    width: 32px;
+    height: 32px;
     border-radius: 8px;
     background: var(--color-surface-3);
     color: var(--color-card-border, var(--color-accent-cyan));
@@ -559,39 +666,62 @@
     font-weight: 700;
     text-transform: uppercase;
     line-height: 1;
-    opacity: 0.7;
-    z-index: 5;
+    z-index: 10;
     flex-shrink: 0;
     pointer-events: auto;
-    border: 1px solid var(--color-border);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 0;
+    box-sizing: border-box;
+    border: 1px solid transparent;
+  }
+
+  /* 1. Auto (gemini.txt) - No border, normal opacity */
+  .card-hotkey.auto {
+    opacity: 0.8;
+    border-color: transparent;
+  }
+
+  /* 2. Disabled (npm_run_dev.txt) - Dim, keyboard icon */
+  .card-hotkey.disabled {
+    opacity: 0.25;
+    background: transparent;
+  }
+
+  /* 3. Custom Fixed (npm_run_check.txt) - 1px border, full opacity */
+  .card-hotkey.custom {
+    border: 1px solid var(--color-accent-cyan);
+    opacity: 1;
+    background: var(--color-surface-2);
+  }
+
+  .card-hotkey:hover {
+    opacity: 1;
+    background: var(--color-surface-2);
+    border-color: rgba(0, 210, 255, 0.5);
+    transform: scale(1.1);
+  }
+
+  .card-hotkey.conflict {
+    background: rgba(255, 75, 75, 0.15);
+    color: #ff4b4b;
+    border-color: #ff4b4b;
+    opacity: 1;
+    animation: hotkeyShake 0.5s ease-in-out infinite alternate;
+  }
+
+  @keyframes hotkeyShake {
+    from { transform: translateX(0); }
+    to { transform: translateX(2px); }
   }
 
   .card-hotkey.absolute {
     position: absolute;
-    top: 3.5px;
+    top: 4px;
     right: 4px;
     border-radius: 10px;
-    /* border-radius: 14px; */
-    /* border-radius: 4px 14px 4px 8px; */
     border-top: none;
     border-right: none;
-  }
-
-  .missing-badge {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 4px 8px;
-    background: #ff4b4b;
-    color: white;
-    border-radius: 6px;
-    font-size: 0.6rem;
-    font-weight: 800;
-    letter-spacing: 0.5px;
-    z-index: 5;
   }
 
   .action-overlay-hint {
@@ -658,22 +788,56 @@
     position: relative;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
     flex: 1;
+    /* Ensure scrollbar pushed by negative margin is visible */
+    overflow: visible;
   }
   .card-content {
     position: relative;
     padding: 8px 0;
     max-height: 180px;
     overflow-y: auto;
+    overflow-x: hidden;
     pointer-events: auto;
-    scrollbar-width: thin;
+
+    /* Hide native scrollbar but keep functionality */
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
+    overscroll-behavior: contain; /* Prevent double scroll / scroll chaining */
   }
-  .card-content::-webkit-scrollbar { width: 4px; }
-  .card-content::-webkit-scrollbar-button { display: none; }
-  .card-content::-webkit-scrollbar-track { background: transparent; }
-  .card-content::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
-  .card-content::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
+  .card-content.full {
+    max-height: none;
+    overflow-y: visible;
+  }
+
+  /* Webkit (Chrome, Edge, Safari) hide native scrollbar */
+  .card-content::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Custom Scrollbar Styles */
+  .custom-scrollbar-track {
+    position: absolute;
+    right: -2.4px; /* Positioned at the very edge of the card */
+    top: 8px;
+    bottom: 8px;
+    width: 4px;
+    pointer-events: none;
+    z-index: 20;
+  }
+  .custom-scrollbar-thumb {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    transition:
+      background 0.2s ease,
+      opacity 0.3s ease;
+  }
+  .snippet-card:hover .custom-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.35);
+  }
 
   .line {
     font-family: var(--font-mono);
@@ -684,14 +848,91 @@
     word-break: break-word;
     border-radius: 4px;
     padding: 0 16px;
-    transition: background 0.15s ease, opacity 0.2s ease;
+    transition:
+      background 0.15s ease,
+      opacity 0.2s ease;
   }
-  .snippet-card.hover-strike .line:hover { background: var(--color-surface-3); cursor: pointer; }
+  .snippet-card.hover-strike .line:hover {
+    background: var(--color-surface-3);
+    cursor: pointer;
+  }
 
   .line.strikethrough {
     text-decoration: line-through;
     opacity: 0.4;
     color: var(--color-text-muted);
+  }
+
+  /* Markdown Styles */
+  .card-content.markdown {
+    padding: 12px 16px;
+  }
+  .markdown-body {
+    font-size: 0.85rem;
+    line-height: 1.6;
+    color: var(--color-text-primary);
+  }
+  .markdown-body :global(h1),
+  .markdown-body :global(h2),
+  .markdown-body :global(h3) {
+    margin-top: 16px;
+    margin-bottom: 8px;
+    font-weight: 700;
+    line-height: 1.25;
+    color: var(--color-text-primary);
+  }
+  .markdown-body :global(h1) { font-size: 1.25rem; border-bottom: 1px solid var(--color-border); padding-bottom: 4px; }
+  .markdown-body :global(h2) { font-size: 1.1rem; }
+  .markdown-body :global(h3) { font-size: 1rem; }
+  
+  .markdown-body :global(p) { margin-bottom: 12px; }
+  
+  .markdown-body :global(ul),
+  .markdown-body :global(ol) {
+    padding-left: 20px;
+    margin-bottom: 12px;
+  }
+  
+  .markdown-body :global(li) { margin-bottom: 4px; }
+  
+  .markdown-body :global(code) {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    background: var(--color-surface-3);
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: var(--color-accent-cyan);
+  }
+  
+  .markdown-body :global(pre) {
+    background: var(--color-surface-3);
+    padding: 12px;
+    border-radius: 8px;
+    overflow-x: auto;
+    margin-bottom: 12px;
+    border: 1px solid var(--color-border);
+  }
+  .markdown-body :global(pre code) {
+    background: transparent;
+    padding: 0;
+    color: var(--color-text-secondary);
+  }
+  
+  .markdown-body :global(blockquote) {
+    border-left: 4px solid var(--color-accent-violet);
+    padding-left: 12px;
+    color: var(--color-text-muted);
+    margin-bottom: 12px;
+    font-style: italic;
+  }
+  
+  .markdown-body :global(a) {
+    color: var(--color-accent-cyan);
+    text-decoration: none;
+    pointer-events: auto;
+  }
+  .markdown-body :global(a:hover) {
+    text-decoration: underline;
   }
 
   .card-fade {
@@ -717,6 +958,7 @@
     opacity: 0;
     transition: all 0.2s ease;
     z-index: 10;
+    pointer-events: auto; /* Enable clicks on buttons inside header */
   }
   .snippet-card:hover .card-actions-overlay,
   .card-actions-overlay.always-visible {
@@ -736,6 +978,7 @@
     cursor: pointer;
     transition: all 0.2s ease;
     flex-shrink: 0;
+    pointer-events: auto; /* Just in case */
   }
   .action-overlay-btn:hover {
     background: var(--color-surface-3);

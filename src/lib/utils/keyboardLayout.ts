@@ -12,6 +12,7 @@ const ROW_3 = ['KeyZ', 'KeyX', 'KeyC', 'KeyV', 'KeyB', 'KeyN', 'KeyM'];
 
 /** Full ordered list of QWERTY physical codes (26 letters total) */
 export const QWERTY_CODES = [...ROW_1, ...ROW_2, ...ROW_3];
+export const CARD_CODES = QWERTY_CODES; // Alias for picker modal
 
 /** Tab hotkeys: physical digit codes Digit1-Digit0 */
 export const TAB_CODES = [

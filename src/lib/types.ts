@@ -33,6 +33,10 @@ export interface Card {
   size: number;
   /** Last modified timestamp (mtime) */
   lastModified: number;
+  /** Whether the hotkey was explicitly set by user in config */
+  isCustomHotkey?: boolean;
+  /** Whether this card's hotkey conflicts with another card in the same tab */
+  isHotkeyConflicting?: boolean;
   /** Flag indicating the file was not found on disk during last scan */
   isMissing?: boolean;
   /** Internal flag for newly created unsaved cards */

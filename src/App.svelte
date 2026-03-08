@@ -17,6 +17,8 @@
   import ContextMenu from "./lib/components/ContextMenu.svelte";
   import CardSettingsModal from "./lib/components/CardSettingsModal.svelte";
   import TabSettingsModal from "./lib/components/TabSettingsModal.svelte";
+  import HotkeyConflictModal from "./lib/components/HotkeyConflictModal.svelte";
+  import HotkeyPickerModal from "./lib/components/HotkeyPickerModal.svelte";
   import DebugListener from "./lib/components/DebugListener.svelte";
 
   const appState = getState();
@@ -218,6 +220,10 @@
 <CardSettingsModal />
 
 <TabSettingsModal />
+
+<HotkeyConflictModal />
+
+<HotkeyPickerModal />
 
 <DebugListener />
 

@@ -111,7 +111,7 @@
         data-tab-path={tab.path}
       >
         {#if tab.hotkey}
-          <span class="tab-hotkey" data-testid="tab-hotkey">{tab.hotkey}</span>
+          <span class="tab-hotkey" data-testid="tab-hotkey">{appState.getHotkeyLabel(tab.hotkey)}</span>
         {/if}
 
         {#if LucideIcon}

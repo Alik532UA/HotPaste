@@ -13,7 +13,7 @@ const MAX_RECENT_LOGS = 1000;
 export const logConfig = {
     appState: true,
     fileSystem: false,
-    ui: false,
+    ui: true,
     error: true,
 };
 
