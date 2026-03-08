@@ -1,6 +1,7 @@
 <script lang="ts">
   import { getState, moveCard } from "../stores/appState.svelte";
   import SnippetCard from "./SnippetCard.svelte";
+  import CardErrorFallback from "./ui/CardErrorFallback.svelte";
   import { draggable, dropzone } from "../utils/dnd";
   import { t } from "../i18n";
 
@@ -22,7 +23,13 @@
         data-testid="card-wrapper"
         data-index={index}
       >
-        <SnippetCard {card} />
+        <svelte:boundary>
+          <SnippetCard {card} />
+          
+          {#snippet failed(error, reset)}
+            <CardErrorFallback {card} {error} {reset} />
+          {/snippet}
+        </svelte:boundary>
       </div>
     {/each}
   </div>
