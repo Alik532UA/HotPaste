@@ -1,22 +1,27 @@
 <script lang="ts">
     import { background } from '../states/background.svelte';
+    import { theme } from '../states/theme.svelte';
     import Waves from './backgrounds/Waves.svelte';
     import Particles from './backgrounds/Particles.svelte';
-    import Mesh from './backgrounds/Mesh.svelte';
+    import FloatingShapes from './backgrounds/FloatingShapes.svelte';
+    import { fade } from 'svelte/transition';
 
-    const backgrounds = {
-        waves: Waves,
-        particles: Particles,
-        mesh: Mesh,
-        none: null
-    };
-
-    let ActiveBg = $derived(backgrounds[background.type]);
+    const currentTheme = $derived(theme.current);
 </script>
 
 <div class="dynamic-bg-container">
-    {#if ActiveBg}
-        <ActiveBg />
+    {#if background.type === 'particles'}
+        <div class="bg-layer" transition:fade={{ duration: 1000 }}>
+            <Particles theme={currentTheme} />
+        </div>
+    {:else if background.type === 'waves'}
+        <div class="bg-layer" transition:fade={{ duration: 1000 }}>
+            <Waves theme={currentTheme} />
+        </div>
+    {:else if background.type === 'floating_shapes'}
+        <div class="bg-layer" transition:fade={{ duration: 1000 }}>
+            <FloatingShapes theme={currentTheme} />
+        </div>
     {/if}
 </div>
 
@@ -27,5 +32,11 @@
         z-index: -1;
         pointer-events: none;
         overflow: hidden;
+        background-color: var(--color-bg-primary);
+    }
+
+    .bg-layer {
+        position: absolute;
+        inset: 0;
     }
 </style>

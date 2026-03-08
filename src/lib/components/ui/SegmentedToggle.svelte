@@ -4,7 +4,8 @@
     interface Option {
         id: string;
         label: string;
-        icon?: ComponentType;
+        icon?: ComponentType<any>;
+        iconClass?: string; // Support for animation classes
     }
 
     let { options, value, onSelect }: { options: Option[], value: string, onSelect: (id: any) => void } = $props();
@@ -19,9 +20,11 @@
             type="button"
         >
             {#if opt.icon} 
-                <opt.icon size={14} /> 
+                <opt.icon size={14} class={opt.iconClass} /> 
             {/if}
-            <span class="label">{opt.label}</span>
+            {#if opt.label}
+                <span class="label">{opt.label}</span>
+            {/if}
         </button>
     {/each}
 </div>
@@ -65,6 +68,11 @@
 
     .label {
         line-height: 1;
+    }
+
+    /* Support for global animation classes on icons */
+    :global(.active) .label {
+        color: var(--color-accent-cyan);
     }
 
     @media (max-width: 800px) {

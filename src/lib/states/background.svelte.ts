@@ -1,7 +1,7 @@
 import { persistedState } from './persisted.svelte';
 
 /** Background State — Svelte 5 Rune Class */
-export type BgType = 'none' | 'particles' | 'waves' | 'mesh';
+export type BgType = 'none' | 'particles' | 'waves' | 'floating_shapes';
 
 class BackgroundState {
     private _type = persistedState<BgType>('hp_bg_type', 'waves');

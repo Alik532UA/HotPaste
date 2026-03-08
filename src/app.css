@@ -223,3 +223,44 @@ body::before {
   white-space: nowrap;
   border: 0;
 }
+
+/* =============================================
+   Animated Background Icons
+   ============================================= */
+
+/* Floating Shapes Icon */
+.lucide-shapes {
+    transition: all 0.3s ease;
+}
+.active .lucide-shapes {
+    animation: shapes-float 3s ease-in-out infinite;
+    color: var(--color-accent-cyan);
+    filter: drop-shadow(0 0 8px rgba(0, 210, 255, 0.5));
+}
+
+@keyframes shapes-float {
+    0%, 100% { transform: translateY(0) rotate(0deg) scale(1.1); }
+    50% { transform: translateY(-3px) rotate(12deg) scale(1.1); }
+}
+
+/* Particles (Sparkles) Icon */
+.active .lucide-sparkles {
+    animation: sparkles-pulse 2s ease-in-out infinite;
+    color: var(--color-accent-cyan);
+}
+
+@keyframes sparkles-pulse {
+    0%, 100% { transform: scale(1.2); opacity: 1; }
+    50% { transform: scale(0.9); opacity: 0.6; }
+}
+
+/* Waves Icon */
+.active .lucide-waves {
+    animation: waves-sway 4s ease-in-out infinite;
+    color: var(--color-accent-cyan);
+}
+
+@keyframes waves-sway {
+    0%, 100% { transform: scaleX(1.1) translateX(0); }
+    50% { transform: scaleX(1.3) translateX(2px); }
+}

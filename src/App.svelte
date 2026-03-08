@@ -31,7 +31,7 @@
   import { initUrlSync, restoreTabFromUrl } from "./lib/services/urlSync.svelte";
   import { t } from "./lib/i18n";
   import { logService } from "./lib/services/logService.svelte";
-  import { Moon, Sun, Layers, Monitor, Layout } from "lucide-svelte";
+  import { Sparkles, Waves, Shapes, CircleOff, Moon, Sun } from "lucide-svelte";
 
   const appState = getState();
 
@@ -121,10 +121,10 @@
   ];
 
   const bgOptions = [
-    { id: "none", label: "Off" },
-    { id: "waves", label: "", icon: Layers },
-    { id: "particles", label: "", icon: Monitor },
-    { id: "mesh", label: "", icon: Layout }
+    { id: "none", label: "Off", icon: CircleOff },
+    { id: "waves", label: "", icon: Waves, iconClass: "lucide-waves" },
+    { id: "particles", label: "", icon: Sparkles, iconClass: "lucide-sparkles" },
+    { id: "floating_shapes", label: "", icon: Shapes, iconClass: "lucide-shapes" }
   ];
 </script>
 
