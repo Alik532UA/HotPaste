@@ -232,7 +232,12 @@ export class BrowserFileSystemService implements IFileSystemService {
         const parts = path.split('/');
         let dirHandle: FileSystemDirectoryHandle = this.rootHandle;
 
-        for (let i = 0; i < parts.length - 1; i++) {
+        let startIndex = 0;
+        if (parts[0] === '__root__') {
+            startIndex = 1;
+        }
+
+        for (let i = startIndex; i < parts.length - 1; i++) {
             dirHandle = await dirHandle.getDirectoryHandle(parts[i]);
         }
 

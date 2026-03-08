@@ -59,6 +59,8 @@ export interface TabConfigEntry {
   icon?: string | null;
   color?: string | null;
   displayName?: string | null;
+  /** Array of card filenames in custom order */
+  order?: string[];
 }
 
 export interface HotPasteConfig {

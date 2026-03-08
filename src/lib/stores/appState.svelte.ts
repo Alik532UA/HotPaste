@@ -8,6 +8,7 @@ import type { Tab, Card, AppConfig } from '../types';
 import { DEFAULT_CONFIG } from '../types';
 import { BrowserFileSystemService, type IFileSystemService } from '../services/fileSystem';
 import { isTabHotkey, isCardHotkey, TAB_HOTKEYS, QWERTY_KEYS } from '../utils/keyboardLayout';
+import { logService } from '../services/logService';
 
 // --- Singleton state using Svelte 5 Runes ---
 
@@ -141,8 +142,9 @@ export async function copyCard(card: Card): Promise<void> {
         await navigator.clipboard.writeText(textToCopy);
         showFlash(card.filePath);
         showToast(`Скопійовано: ${card.name}`);
+        logService.log('appState', `Скопійовано картку: ${card.name}`);
     } catch (err) {
-        console.error('[HotPaste] Failed to copy:', err);
+        logService.log('error', 'Failed to copy card', err);
         showToast('Помилка копіювання!');
     }
 }
@@ -207,8 +209,9 @@ export async function saveCard(card: Card, newContent: string): Promise<void> {
         }
 
         showToast(`Збережено: ${card.name}`);
+        logService.log('appState', `Збережено картку: ${card.name}`);
     } catch (err) {
-        console.error('[HotPaste] Failed to save:', err);
+        logService.log('error', 'Failed to save card', err);
         showToast('Помилка збереження!');
     }
 }
@@ -295,8 +298,9 @@ async function saveCurrentTabConfig() {
         }
 
         await fileSystemService.writeConfig(tab.path, existingConfig);
+        logService.log('appState', `Збережено конфіг для вкладки: ${tab.path}`);
     } catch (err) {
-        console.error('[HotPaste] Failed to save tab config:', err);
+        logService.log('error', 'Failed to save tab config', err);
     }
 }
 

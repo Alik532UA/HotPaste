@@ -23,9 +23,17 @@
   const lines = $derived(card.content.split("\n"));
 
   /** Edit state */
-  // We use the `any` casting because `isNewMock` is our temporary flag added to Card
-  let isEditing = $state((card as any).isNewMock === true);
-  let editContent = $state(card.content);
+  let isEditing = $state(false);
+  let editContent = $state("");
+
+  // Initialize from the prop after mount to avoid the "state referenced locally" warning,
+  // or simply use an effect to sync if it's a new mock card.
+  $effect(() => {
+    if ((card as any).isNewMock && !isEditing) {
+      isEditing = true;
+      editContent = card.content;
+    }
+  });
 
   /** Hover zone tracking for click interaction */
   let hoverZone = $state<"action" | "strike" | null>(null);
@@ -370,10 +378,6 @@
     pointer-events: none;
     z-index: 2;
     color: var(--color-accent-cyan);
-  }
-
-  .snippet-card.edit-mode .action-overlay-hint {
-    color: var(--color-accent-violet);
   }
 
   /* Card header */

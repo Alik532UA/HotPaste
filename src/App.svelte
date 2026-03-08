@@ -13,6 +13,7 @@
   import Toast from "./lib/components/Toast.svelte";
   import EmptyState from "./lib/components/EmptyState.svelte";
   import FAB from "./lib/components/FAB.svelte";
+  import DebugListener from "./lib/components/DebugListener.svelte";
 
   const appState = getState();
 
@@ -158,6 +159,8 @@
 
 <!-- Toast Notification -->
 <Toast />
+
+<DebugListener />
 
 <style>
   .app-shell {
