@@ -8,6 +8,7 @@
 import type { Tab, Card, HotPasteConfig } from '../types';
 import { CONFIG_FILENAME, DEFAULT_HOTPASTE_CONFIG } from '../types';
 import { getTabHotkey, getCardHotkey } from '../utils/keyboardLayout';
+import { HotPasteConfigSchema } from '../schemas/config';
 
 /** Supported file extensions for snippets */
 const SUPPORTED_EXTENSIONS = ['.txt', '.md', '.prompt', '.snippet'];
@@ -328,11 +329,14 @@ export class BrowserFileSystemService implements IFileSystemService {
             const file = await fileHandle.getFile();
             const text = await file.text();
             const parsed = JSON.parse(text);
-            return {
-                tab: parsed.tab || {},
-                cards: parsed.cards || {},
-                tabs: parsed.tabs || {},
-            };
+            
+            const validated = HotPasteConfigSchema.safeParse(parsed);
+            if (!validated.success) {
+                console.warn(`[FileSystem] Invalid config in ${dirHandle.name}:`, validated.error.format());
+                return { tab: {}, cards: {}, tabs: {} };
+            }
+
+            return validated.data as HotPasteConfig;
         } catch (err) {
             return { tab: {}, cards: {}, tabs: {} };
         }
