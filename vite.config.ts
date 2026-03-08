@@ -3,8 +3,8 @@ import { svelte } from '@sveltejs/vite-plugin-svelte'
 import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
-export default defineConfig({
-  base: '/HotPaste/',
+export default defineConfig(({ command }) => ({
+  base: command === 'serve' ? '/' : '/HotPaste/',
   plugins: [
     svelte(),
     VitePWA({
@@ -32,4 +32,18 @@ export default defineConfig({
       }
     })
   ],
-})
+  build: {
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks: (id) => {
+          if (id.includes('node_modules')) {
+            if (id.includes('lucide-svelte')) return 'vendor-icons';
+            if (id.includes('zod')) return 'vendor-validation';
+            return 'vendor';
+          }
+        }
+      }
+    }
+  }
+}))
