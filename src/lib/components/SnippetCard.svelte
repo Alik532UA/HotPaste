@@ -223,16 +223,18 @@
     </div>
 
     <!-- Card content lines -->
-    <div class="card-content" class:full={isFull}>
-      {#each lines as line, i}
-        <div
-          class="line"
-          data-index={i}
-          class:strikethrough={card.strikethrough.includes(i)}
-        >
-          {line || " "}
-        </div>
-      {/each}
+    <div class="card-content-container">
+      <div class="card-content" class:full={isFull}>
+        {#each lines as line, i}
+          <div
+            class="line"
+            data-index={i}
+            class:strikethrough={card.strikethrough.includes(i)}
+          >
+            {line || " "}
+          </div>
+        {/each}
+      </div>
 
       {#if !isFull}
         <div class="card-fade"></div>
@@ -424,18 +426,34 @@
     flex-shrink: 0;
   }
 
+  /* Card content container to hold fade fixed while scrolling */
+  .card-content-container {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex: 1;
+  }
+
   /* Card content */
   .card-content {
     position: relative;
-    padding: 0 16px 14px;
-    max-height: 200px;
-    overflow: hidden;
+    padding: 0 16px 40px; /* bottom padding to account for fade */
+    max-height: 180px;
+    overflow-y: auto;
     pointer-events: auto; /* Re-enable pointer events for lines */
+    scrollbar-width: thin;
+  }
+
+  /* Fine-tuned scrollbar for cards */
+  .card-content::-webkit-scrollbar {
+    width: 4px;
   }
 
   .card-content.full {
     max-height: none;
     overflow: visible;
+    padding-bottom: 14px;
   }
 
   /* Individual text lines */
@@ -466,14 +484,14 @@
     color: var(--color-text-muted);
   }
 
-  /* Gradient fade for overflowing text */
+  /* Gradient fade for overflowing text - fixed relative to container */
   .card-fade {
     position: absolute;
     bottom: 0;
     left: 0;
     right: 0;
     height: 48px;
-    background: linear-gradient(to bottom, transparent, var(--color-card-bg));
+    background: linear-gradient(to bottom, transparent, var(--color-card-bg) 70%);
     pointer-events: none;
     z-index: 5;
   }
