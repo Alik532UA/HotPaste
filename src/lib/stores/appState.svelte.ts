@@ -41,6 +41,12 @@ let scale = $state(1.0);
 /** Whether a card is currently "flashing" (just copied) */
 let flashingCardPath = $state('');
 
+/** App mode: 'copy' or 'edit' */
+let appMode = $state<'copy' | 'edit'>('copy');
+
+/** Card view: 'short' (truncated) or 'full' (full text) */
+let cardView = $state<'short' | 'full'>('short');
+
 /** App config (persisted to localStorage) */
 let config = $state<AppConfig>(loadConfig());
 
@@ -70,6 +76,8 @@ export function getState() {
         get toastVisible() { return toastVisible; },
         get scale() { return scale; },
         get flashingCardPath() { return flashingCardPath; },
+        get appMode() { return appMode; },
+        get cardView() { return cardView; },
         get config() { return config; },
     };
 }
@@ -159,6 +167,26 @@ export function adjustScale(delta: number): void {
     setScale(scale + delta);
 }
 
+/** Toggle app mode between copy and edit */
+export function toggleAppMode(): void {
+    appMode = appMode === 'copy' ? 'edit' : 'copy';
+}
+
+/** Set app mode explicitly */
+export function setAppMode(mode: 'copy' | 'edit'): void {
+    appMode = mode;
+}
+
+/** Toggle card view between short and full */
+export function toggleCardView(): void {
+    cardView = cardView === 'short' ? 'full' : 'short';
+}
+
+/** Set card view explicitly */
+export function setCardView(view: 'short' | 'full'): void {
+    cardView = view;
+}
+
 // --- Toast ---
 
 function showToast(message: string): void {
@@ -227,8 +255,8 @@ export function handleGlobalKeydown(event: KeyboardEvent): void {
         return;
     }
 
-    // Card copy (letters)
-    if (isCardHotkey(key)) {
+    // Card copy (letters) — only in copy mode
+    if (appMode === 'copy' && isCardHotkey(key)) {
         event.preventDefault();
         copyCardByHotkey(key);
         return;

@@ -5,16 +5,16 @@
     selectTab,
   } from "../stores/appState.svelte";
 
-  const state = getState();
+  const appState = getState();
 </script>
 
 <div class="tab-bar" role="tablist" aria-label="Вкладки сніпетів">
-  {#each state.tabs as tab, i}
+  {#each appState.tabs as tab, i}
     <button
       class="tab"
-      class:active={state.activeTabIndex === i}
+      class:active={appState.activeTabIndex === i}
       role="tab"
-      aria-selected={state.activeTabIndex === i}
+      aria-selected={appState.activeTabIndex === i}
       id="tab-{i}"
       onclick={() => selectTab(i)}
     >

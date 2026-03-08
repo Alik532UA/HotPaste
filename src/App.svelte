@@ -6,13 +6,15 @@
     connectDirectory,
     adjustScale,
     refreshTabs,
+    setAppMode,
+    setCardView,
   } from "./lib/stores/appState.svelte";
   import TabBar from "./lib/components/TabBar.svelte";
   import CardGrid from "./lib/components/CardGrid.svelte";
   import Toast from "./lib/components/Toast.svelte";
   import EmptyState from "./lib/components/EmptyState.svelte";
 
-  const state = getState();
+  const appState = getState();
 
   // Global keyboard listener
   function onKeydown(e: KeyboardEvent) {
@@ -39,7 +41,7 @@
   });
 </script>
 
-{#if !state.isConnected}
+{#if !appState.isConnected}
   <!-- Landing / Empty State -->
   <EmptyState />
 {:else}
@@ -52,8 +54,82 @@
           <span class="logo-gradient">Hot</span>Paste
         </h1>
         <div class="header-divider"></div>
-        <span class="root-name" title={state.rootName}>📂 {state.rootName}</span
+        <span class="root-name" title={appState.rootName}
+          >📂 {appState.rootName}</span
         >
+      </div>
+
+      <!-- Mode toggles (center) -->
+      <div class="header-center">
+        <!-- App mode: copy / edit -->
+        <div class="toggle-group" id="mode-toggle">
+          <button
+            class="toggle-btn"
+            class:active={appState.appMode === "copy"}
+            onclick={() => setAppMode("copy")}
+            title="Режим копіювання: натискання на картку копіює текст"
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <rect
+                x="4"
+                y="1"
+                width="9"
+                height="10"
+                rx="1.5"
+                stroke="currentColor"
+                stroke-width="1.3"
+                fill="none"
+              />
+              <path
+                d="M10 4H3.5A1.5 1.5 0 0 0 2 5.5V12"
+                stroke="currentColor"
+                stroke-width="1.3"
+                stroke-linecap="round"
+              />
+            </svg>
+            Копіювання
+          </button>
+          <button
+            class="toggle-btn"
+            class:active={appState.appMode === "edit"}
+            onclick={() => setAppMode("edit")}
+            title="Режим редагування: натискання на картку відкриває редактор"
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path
+                d="M8.5 2.5l3 3L4.5 12.5H1.5v-3l7-7z"
+                stroke="currentColor"
+                stroke-width="1.3"
+                stroke-linejoin="round"
+                fill="none"
+              />
+              <path d="M7 4l3 3" stroke="currentColor" stroke-width="1.3" />
+            </svg>
+            Редагування
+          </button>
+        </div>
+
+        <div class="header-divider"></div>
+
+        <!-- Card view: short / full -->
+        <div class="toggle-group" id="view-toggle">
+          <button
+            class="toggle-btn"
+            class:active={appState.cardView === "short"}
+            onclick={() => setCardView("short")}
+            title="Короткий вигляд: текст обрізається"
+          >
+            Короткий
+          </button>
+          <button
+            class="toggle-btn"
+            class:active={appState.cardView === "full"}
+            onclick={() => setCardView("full")}
+            title="Повний вигляд: весь текст видно"
+          >
+            Повний
+          </button>
+        </div>
       </div>
 
       <div class="header-right">
@@ -64,7 +140,7 @@
             onclick={() => adjustScale(-0.1)}
             aria-label="Зменшити масштаб">−</button
           >
-          <span class="scale-value">{Math.round(state.scale * 100)}%</span>
+          <span class="scale-value">{Math.round(appState.scale * 100)}%</span>
           <button
             class="scale-btn"
             onclick={() => adjustScale(0.1)}
@@ -268,5 +344,50 @@
   .app-main {
     flex: 1;
     overflow-y: auto;
+  }
+
+  /* Header center — mode toggles */
+  .header-center {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  /* Toggle group (segmented control) */
+  .toggle-group {
+    display: flex;
+    align-items: center;
+    background: var(--color-surface-2);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border);
+    padding: 2px;
+    gap: 2px;
+  }
+
+  .toggle-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 12px;
+    border: none;
+    background: transparent;
+    color: var(--color-text-muted);
+    font-family: var(--font-family);
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+  }
+
+  .toggle-btn:hover {
+    color: var(--color-text-secondary);
+    background: var(--color-surface-3);
+  }
+
+  .toggle-btn.active {
+    background: var(--color-surface-3);
+    color: var(--color-accent-cyan);
   }
 </style>

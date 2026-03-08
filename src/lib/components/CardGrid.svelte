@@ -1,17 +1,17 @@
 <script lang="ts">
-  import { getState } from '../stores/appState.svelte';
-  import SnippetCard from './SnippetCard.svelte';
+  import { getState } from "../stores/appState.svelte";
+  import SnippetCard from "./SnippetCard.svelte";
 
-  const state = getState();
+  const appState = getState();
 </script>
 
-{#if state.activeCards.length > 0}
-  <div class="card-grid" style="--scale: {state.scale}">
-    {#each state.activeCards as card (card.filePath)}
+{#if appState.activeCards.length > 0}
+  <div class="card-grid" style="--scale: {appState.scale}">
+    {#each appState.activeCards as card (card.filePath)}
       <SnippetCard {card} />
     {/each}
   </div>
-{:else if state.isConnected}
+{:else if appState.isConnected}
   <div class="empty-tab">
     <div class="empty-tab-icon">📂</div>
     <p class="empty-tab-text">Ця вкладка порожня</p>

@@ -1,13 +1,13 @@
 <script lang="ts">
     import { getState } from "../stores/appState.svelte";
 
-    const state = getState();
+    const appState = getState();
 </script>
 
-{#if state.toastVisible}
-    <div class="toast" class:visible={state.toastVisible}>
+{#if appState.toastVisible}
+    <div class="toast" class:visible={appState.toastVisible}>
         <span class="toast-icon">✓</span>
-        <span class="toast-text">{state.toastMessage}</span>
+        <span class="toast-text">{appState.toastMessage}</span>
     </div>
 {/if}
 
