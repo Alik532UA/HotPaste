@@ -14,7 +14,7 @@
     toggleCardSelection,
   } from "../stores/appState.svelte";
   import { logService } from "../services/logService";
-  import { Edit3, Menu, Copy, FileX, Keyboard, Link, Trash2, Check } from "lucide-svelte";
+  import { Edit3, Menu, Copy, FileX, Keyboard, Link, Trash2, Check, Maximize2, Minimize2 } from "lucide-svelte";
   import * as icons from "lucide-svelte";
   import type { ComponentType } from "svelte";
   import { renderMarkdown } from "../utils/markdown";
@@ -63,6 +63,9 @@
 
   /** Linking state (manual recovery) */
   let isLinking = $state(false);
+
+  /** Full-screen editor mode */
+  let isMaximized = $state(false);
 
   // Sync global editing state
   $effect(() => {
@@ -319,10 +322,11 @@
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
     class="snippet-card editing"
+    class:maximized={isMaximized}
     id="card-{card.filePath.replace(/[^a-zA-Z0-9]/g, '-')}"
     style={getCardStyle()}
     oncontextmenu={(e) => e.stopPropagation()}
-    data-testid="card-editing"
+    data-testid={isMaximized ? "card-editing-maximized" : "card-editing-standard"}
   >
     <div class="card-header" data-testid="card-header">
       {#if LucideIcon}
@@ -331,11 +335,24 @@
         <span class="card-icon emoji">{card.icon}</span>
       {/if}
       <h3 class="card-title" data-testid="card-title">{card.name}</h3>
-      <span class="card-ext" data-testid="card-extension">{card.extension}</span
-      >
+      <div class="edit-header-actions" data-testid="edit-header-actions">
+        <span class="card-ext" data-testid="card-extension">{card.extension}</span>
+        <button 
+          class="icon-btn-toggle" 
+          onclick={() => isMaximized = !isMaximized}
+          title={isMaximized ? "Minimize" : "Maximize"}
+          data-testid="btn-edit-toggle-maximize"
+        >
+          {#if isMaximized}
+            <Minimize2 size={16} />
+          {:else}
+            <Maximize2 size={16} />
+          {/if}
+        </button>
+      </div>
     </div>
 
-    <div class="edit-area">
+    <div class="edit-area" data-testid="edit-area">
       <textarea
         class="edit-textarea"
         bind:this={textareaElement}
@@ -353,9 +370,10 @@
       class="edit-actions"
       role="presentation"
       onclick={(e) => e.stopPropagation()}
+      data-testid="edit-actions"
     >
-      <span class="edit-hint">{t.cards.hint}</span>
-      <div class="edit-buttons">
+      <span class="edit-hint" data-testid="edit-hint">{t.cards.hint}</span>
+      <div class="edit-buttons" data-testid="edit-buttons">
         <button
           class="edit-btn cancel"
           onclick={(e) => {
@@ -712,6 +730,56 @@
   .snippet-card.editing {
     border-color: var(--color-accent-violet);
     box-shadow: 0 0 20px rgba(123, 97, 255, 0.15);
+  }
+
+  .snippet-card.editing.maximized {
+    position: fixed;
+    top: 5vh;
+    left: 5vw;
+    width: 90vw;
+    height: 90vh;
+    z-index: 3000;
+    background: var(--color-bg-secondary);
+    box-shadow: 0 25px 80px rgba(0, 0, 0, 0.6);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .snippet-card.editing.maximized .edit-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .snippet-card.editing.maximized .edit-textarea {
+    flex: 1;
+    max-height: none;
+  }
+
+  .edit-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+    pointer-events: auto;
+  }
+
+  .icon-btn-toggle {
+    background: transparent;
+    border: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    transition: all 0.2s;
+  }
+
+  .icon-btn-toggle:hover {
+    background: var(--color-surface-3);
+    color: var(--color-text-primary);
   }
 
   .snippet-card.selected {
@@ -1258,19 +1326,33 @@
   }
   .edit-actions {
     display: flex;
+    flex-direction: column; /* Hint above buttons by default */
+    align-items: flex-start;
+    padding: 10px 16px 14px;
+    gap: 12px;
+  }
+
+  .editing.maximized .edit-actions {
+    flex-direction: row; /* Horizontal for maximized mode */
     align-items: center;
     justify-content: space-between;
-    padding: 10px 16px 14px;
-    gap: 8px;
   }
+
   .edit-hint {
     font-size: 0.7rem;
     color: var(--color-text-muted);
     font-family: var(--font-mono);
   }
+
   .edit-buttons {
     display: flex;
     gap: 6px;
+    width: 100%;
+    justify-content: flex-end; /* Buttons to the right */
+  }
+
+  .editing.maximized .edit-buttons {
+    width: auto;
   }
   .edit-btn {
     padding: 6px 14px;
