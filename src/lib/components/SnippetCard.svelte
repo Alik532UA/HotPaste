@@ -23,8 +23,9 @@
   const lines = $derived(card.content.split("\n"));
 
   /** Edit state */
-  let isEditing = $state(false);
-  let editContent = $state("");
+  // We use the `any` casting because `isNewMock` is our temporary flag added to Card
+  let isEditing = $state((card as any).isNewMock === true);
+  let editContent = $state(card.content);
 
   /** Hover zone tracking for click interaction */
   let hoverZone = $state<"action" | "strike" | null>(null);
@@ -102,6 +103,15 @@
   function cancelEditing() {
     isEditing = false;
     editContent = "";
+
+    // If it was a mock card and user cancelled, it should be removed from the list
+    if ((card as any).isNewMock) {
+      // Find the active tab and remove this card
+      const tab = appState.activeTab;
+      if (tab) {
+        tab.cards = tab.cards.filter((c) => c !== card);
+      }
+    }
   }
 
   async function handleSave() {

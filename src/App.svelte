@@ -12,6 +12,7 @@
   import CardGrid from "./lib/components/CardGrid.svelte";
   import Toast from "./lib/components/Toast.svelte";
   import EmptyState from "./lib/components/EmptyState.svelte";
+  import FAB from "./lib/components/FAB.svelte";
 
   const appState = getState();
 
@@ -149,6 +150,9 @@
     <main class="app-main">
       <CardGrid />
     </main>
+
+    <!-- Floating Action Button for creating new card -->
+    <FAB />
   </div>
 {/if}
 

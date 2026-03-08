@@ -175,7 +175,7 @@ export class BrowserFileSystemService implements IFileSystemService {
     }
 
     async writeFile(path: string, content: string): Promise<void> {
-        const fileHandle = await this.getFileHandleFromPath(path);
+        const fileHandle = await this.getFileHandleFromPath(path, true);
         // @ts-ignore
         const writable = await fileHandle.createWritable();
         await writable.write(content);
@@ -226,7 +226,7 @@ export class BrowserFileSystemService implements IFileSystemService {
         }
     }
 
-    private async getFileHandleFromPath(path: string): Promise<FileSystemFileHandle> {
+    private async getFileHandleFromPath(path: string, create: boolean = false): Promise<FileSystemFileHandle> {
         if (!this.rootHandle) throw new Error('No directory access.');
 
         const parts = path.split('/');
@@ -236,7 +236,7 @@ export class BrowserFileSystemService implements IFileSystemService {
             dirHandle = await dirHandle.getDirectoryHandle(parts[i]);
         }
 
-        return await dirHandle.getFileHandle(parts[parts.length - 1]);
+        return await dirHandle.getFileHandle(parts[parts.length - 1], { create });
     }
 
     private async readCardsFromDirectory(

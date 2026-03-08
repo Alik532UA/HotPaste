@@ -147,13 +147,36 @@ export async function copyCard(card: Card): Promise<void> {
     }
 }
 
-/** Save a card's content (write to file) */
+/** Save a card's content (write to file). If it's a mock new card, creates it first. */
 export async function saveCard(card: Card, newContent: string): Promise<void> {
     try {
+        let isNewCard = false;
+
+        // Check if this is a newly created mock card that hasn't been saved yet
+        if (!card.filePath) {
+            isNewCard = true;
+            const tab = activeTab;
+            if (!tab) throw new Error("No active tab to save to.");
+
+            // Generate a filename based on timestamp or just new_snippet
+            const date = new Date();
+            const timestamp = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}_${String(date.getHours()).padStart(2, '0')}${String(date.getMinutes()).padStart(2, '0')}${String(date.getSeconds()).padStart(2, '0')}`;
+            const fileName = `snippet_${timestamp}.txt`;
+
+            // Compute the new file path correctly. Assuming tab.path is the directory path.
+            // Replace backslashes just in case we are mixing separators
+            const separator = tab.path.includes('\\') ? '\\' : '/';
+            // ensure tab.path does not end with separator
+            const basePath = tab.path.replace(/[\\/]$/, '');
+            card.filePath = `${basePath}${separator}${fileName}`;
+            card.fileName = fileName;
+            card.name = fileName.replace(/\.[^/.]+$/, ""); // name without extension
+        }
+
         await fileSystemService.writeFile(card.filePath, newContent);
 
-        // Recalculate strikethrough indices if content changed
-        if (card.strikethrough.length > 0) {
+        // Recalculate strikethrough indices if content changed and card is not new
+        if (!isNewCard && card.strikethrough.length > 0) {
             const oldLines = card.content.split('\n');
             const newLines = newContent.split('\n');
 
@@ -176,11 +199,46 @@ export async function saveCard(card: Card, newContent: string): Promise<void> {
 
         // Update in-memory data
         card.content = newContent;
+
+        // If it was a mock new card, we need to fully refresh tabs to get the real file handle
+        // and order applied. For now, we just refresh tabs entirely.
+        if (isNewCard) {
+            await refreshTabs();
+        }
+
         showToast(`Збережено: ${card.name}`);
     } catch (err) {
         console.error('[HotPaste] Failed to save:', err);
         showToast('Помилка збереження!');
     }
+}
+
+/** Create a new mock card and append it to the active cards to start editing */
+export function startNewCardCreation(): void {
+    const tab = activeTab;
+    if (!tab) return;
+
+    // Create a mock card that does not have a real filePath yet
+    const mockCard: Card = {
+        name: "New Snippet",
+        fileName: "",
+        filePath: "",
+        content: "",
+        extension: "txt",
+        contentLower: "",
+        // Derived configs
+        displayName: null,
+        hotkey: null,
+        icon: null,
+        color: null,
+        borderColor: null,
+        strikethrough: [],
+        // Temporary flag indicating it's new
+        isNewMock: true
+    } as any; // Type hack for the temporary flag
+
+    // Prepend to active cards temporarily (we actually modify the reactive array)
+    tab.cards = [mockCard, ...tab.cards];
 }
 
 /** Toggle strikethrough state for a specific line in a card */
@@ -319,10 +377,18 @@ export function handleGlobalKeydown(event: KeyboardEvent): void {
         return;
     }
 
+    // Only check hotkeys if we are connected
+    if (!isConnected) return;
+
+    // Ctrl+N = New Card
+    if (event.ctrlKey && event.key === 'n') {
+        event.preventDefault();
+        startNewCardCreation();
+        return;
+    }
+
     // Ignore if modifier keys are pressed (except for Ctrl+scroll handled elsewhere)
     if (event.ctrlKey || event.metaKey || event.altKey) return;
-
-    if (!isConnected) return;
 
     const key = event.key;
 
