@@ -1,6 +1,7 @@
 <script lang="ts">
   import { getState, closeTabSettings, updateTabSettings, renamePhysicalTab } from "../stores/appState.svelte";
-  import * as icons from "lucide-svelte";
+  import { Layout } from "lucide-svelte";
+  import BaseModal from "./ui/BaseModal.svelte";
   import { t } from "../i18n";
 
   const appState = getState();
@@ -8,37 +9,26 @@
 
   /** Local form state */
   let displayName = $state("");
-  let dirName = $state("");
+  let path = $state("");
   let icon = $state("");
   let color = $state("");
 
   /** Color presets */
   const colorPresets = [
     { name: "Default", value: "" },
-    { name: "Slate", value: "#1e293b" },
-    { name: "Zinc", value: "#18181b" },
-    { name: "Stone", value: "#1c1917" },
-    { name: "Red", value: "#450a0a" },
-    { name: "Orange", value: "#431407" },
-    { name: "Amber", value: "#451a03" },
-    { name: "Yellow", value: "#422006" },
-    { name: "Green", value: "#052e16" },
-    { name: "Emerald", value: "#064e3b" },
-    { name: "Teal", value: "#134e4a" },
-    { name: "Cyan", value: "#164e63" },
-    { name: "Blue", value: "#1e3a8a" },
-    { name: "Indigo", value: "#312e81" },
-    { name: "Violet", value: "#4c1d95" },
-    { name: "Purple", value: "#581c87" },
-    { name: "Fuchsia", value: "#701a75" },
-    { name: "Pink", value: "#831843" },
-    { name: "Rose", value: "#881337" },
+    { name: "Blue", value: "rgba(0, 113, 227, 0.15)" },
+    { name: "Green", value: "rgba(0, 255, 136, 0.15)" },
+    { name: "Violet", value: "rgba(123, 97, 255, 0.15)" },
+    { name: "Red", value: "rgba(255, 75, 75, 0.15)" },
+    { name: "Orange", value: "rgba(255, 159, 75, 0.15)" },
+    { name: "Yellow", value: "rgba(255, 225, 75, 0.15)" },
+    { name: "Pink", value: "rgba(255, 107, 157, 0.15)" },
   ];
 
   $effect(() => {
     if (tab) {
       displayName = tab.displayName || "";
-      dirName = tab.path === "__root__" ? "" : tab.path;
+      path = tab.path || "";
       icon = tab.icon || "";
       color = tab.color || "";
     }
@@ -46,9 +36,9 @@
 
   async function handleSave() {
     if (tab) {
-      // 1. Check for physical rename (only if not root)
-      if (tab.path !== "__root__" && dirName && dirName !== tab.path) {
-        await renamePhysicalTab(tab, dirName);
+      // 1. Rename physical directory if changed
+      if (path && path !== tab.path && tab.path !== '__root__') {
+        await renamePhysicalTab(tab, path);
       }
 
       // 2. Update metadata
@@ -62,190 +52,121 @@
   }
 
   function handleKeydown(e: KeyboardEvent) {
-    if (e.key === "Escape") closeTabSettings();
     if (e.key === "Enter" && e.ctrlKey) handleSave();
   }
 </script>
 
-{#if tab}
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <!-- svelte-ignore a11y_click_events_have_key_events -->
-  <div class="modal-overlay" onclick={closeTabSettings} onkeydown={handleKeydown} data-testid="modal-overlay">
-    <div class="modal-content" onclick={(e) => e.stopPropagation()} data-testid="tab-settings-modal">
-      <header class="modal-header">
-        <div class="header-title" data-testid="modal-header-title">
-          <icons.FolderCog size={20} class="header-icon" />
-          <h2>{t.tabs.settings}</h2>
-        </div>
-        <button class="close-btn" onclick={closeTabSettings} data-testid="btn-modal-close">
-          <icons.X size={20} />
-        </button>
-      </header>
-
-      <div class="modal-body" data-testid="modal-body">
-        <!-- Display Name -->
-        <div class="form-group" data-testid="form-group-tab-display-name">
-          <label for="tab-display-name" data-testid="label-tab-display-name">{t.cards.displayName}</label>
-          <input
-            id="tab-display-name"
-            type="text"
-            bind:value={displayName}
-            onkeydown={(e) => { e.stopPropagation(); handleKeydown(e); }}
-            placeholder={tab.path === "__root__" ? "Files" : tab.path}
-            autocomplete="off"
-            data-testid="input-tab-display-name"
-          />
-          <p class="field-hint" data-testid="hint-tab-display-name">{t.cards.displayName} ({t.common.edit})</p>
-        </div>
-
-        <!-- Directory Name (Physical) - Hide for root -->
-        {#if tab.path !== "__root__"}
-          <div class="form-group" data-testid="form-group-tab-dir-name">
-            <label for="tab-dir-name" data-testid="label-tab-dir-name">{t.cards.fileName}</label>
-            <input
-              id="tab-dir-name"
-              type="text"
-              bind:value={dirName}
-              onkeydown={(e) => { e.stopPropagation(); handleKeydown(e); }}
-              placeholder="folder_name"
-              autocomplete="off"
-              data-testid="input-tab-dir-name"
-            />
-            <p class="field-hint" data-testid="hint-tab-dir-name">{t.cards.fileName} (Warning: renames physical folder)</p>
-          </div>
-        {/if}
-
-        <!-- Icon -->
-        <div class="form-group" data-testid="form-group-tab-icon">
-          <label for="tab-icon-emoji" data-testid="label-tab-icon">{t.cards.icon} (Emoji)</label>
-          <input
-            id="tab-icon-emoji"
-            type="text"
-            bind:value={icon}
-            onkeydown={(e) => { e.stopPropagation(); handleKeydown(e); }}
-            placeholder="📁, 🚀, 📝..."
-            data-testid="input-tab-icon"
-          />
-        </div>
-
-        <!-- Color Picker -->
-        <div class="form-group" data-testid="form-group-tab-color">
-          <label for="tab-color-custom" data-testid="label-tab-color">{t.cards.color}</label>
-          <div class="color-grid" data-testid="tab-color-presets-grid">
-            {#each colorPresets as preset}
-              <button
-                class="color-swatch"
-                class:active={color === preset.value}
-                style="background-color: {preset.value || 'rgba(255,255,255,0.05)'}"
-                onclick={() => (color = preset.value)}
-                title={preset.name}
-                data-testid="tab-color-preset"
-                data-color={preset.value}
-                data-color-name={preset.name}
-              ></button>
-            {/each}
-            <input id="tab-color-custom" type="color" bind:value={color} class="custom-color-picker" data-testid="input-tab-color-custom" />
-          </div>
-        </div>
-      </div>
-
-      <footer class="modal-footer" data-testid="modal-footer">
-        <span class="edit-hint" data-testid="modal-edit-hint">Ctrl+Enter — {t.common.save}</span>
-        <div class="footer-btns" data-testid="modal-footer-btns">
-          <button class="btn-secondary" onclick={closeTabSettings} data-testid="btn-settings-cancel">{t.common.cancel}</button>
-          <button class="btn-primary" onclick={handleSave} data-testid="btn-settings-save">{t.common.save}</button>
-        </div>
-      </footer>
+<BaseModal 
+  isOpen={!!tab} 
+  onClose={closeTabSettings}
+  testId="tab-settings-modal"
+>
+  {#snippet header()}
+    <div class="header-title-inner">
+      <Layout size={20} class="header-icon" />
+      <h2 class="modal-title-text">{t.tabs.settings}</h2>
     </div>
-  </div>
-{/if}
+  {/snippet}
+
+  {#if tab}
+    <!-- Display Name -->
+    <div class="form-group">
+      <label for="tab-display-name">{t.tabs.displayName}</label>
+      <input
+        id="tab-display-name"
+        type="text"
+        bind:value={displayName}
+        onkeydown={(e) => { e.stopPropagation(); handleKeydown(e); }}
+        placeholder={tab.path === '__root__' ? '📄 Файли' : tab.path}
+        autocomplete="off"
+      />
+      <p class="field-hint">{t.tabs.displayName} ({t.common.edit})</p>
+    </div>
+
+    <!-- Directory Name (Physical) -->
+    {#if tab.path !== '__root__'}
+      <div class="form-group">
+        <label for="tab-path">{t.tabs.dirName}</label>
+        <input
+          id="tab-path"
+          type="text"
+          bind:value={path}
+          onkeydown={(e) => { e.stopPropagation(); handleKeydown(e); }}
+          placeholder="folder_name"
+          autocomplete="off"
+        />
+        <p class="field-hint">{t.tabs.dirName} (Warning: renames physical directory)</p>
+      </div>
+    {/if}
+
+    <!-- Icon -->
+    <div class="form-group">
+      <label for="tab-icon">{t.tabs.icon} (Lucide/Emoji)</label>
+      <input
+        id="tab-icon"
+        type="text"
+        bind:value={icon}
+        onkeydown={(e) => { e.stopPropagation(); handleKeydown(e); }}
+        placeholder="Folder, Star, 📁, 🚀..."
+      />
+    </div>
+
+    <!-- Color Picker -->
+    <div class="form-group">
+      <label for="tab-color-custom">{t.tabs.color}</label>
+      <div class="color-grid">
+        {#each colorPresets as preset}
+          <button
+            class="color-swatch"
+            class:active={color === preset.value}
+            style="background-color: {preset.value || 'rgba(255,255,255,0.05)'}"
+            onclick={() => (color = preset.value)}
+            title={preset.name}
+          ></button>
+        {/each}
+        <input id="tab-color-custom" type="color" bind:value={color} class="custom-color-picker" />
+      </div>
+    </div>
+  {/if}
+
+  {#snippet footer()}
+    <div class="footer-inner">
+      <span class="edit-hint">Ctrl+Enter — {t.common.save}</span>
+      <div class="footer-btns">
+        <button class="btn-secondary" onclick={closeTabSettings}>{t.common.cancel}</button>
+        <button class="btn-primary" onclick={handleSave}>{t.common.save}</button>
+      </div>
+    </div>
+  {/snippet}
+</BaseModal>
 
 <style>
-  .modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(4px);
-    z-index: 2000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-    animation: fadeIn 0.2s ease-out;
-  }
-
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-
-  .modal-content {
-    width: 100%;
-    max-width: 480px;
-    background: var(--color-bg-secondary);
-    border: 1px solid var(--color-border);
-    border-radius: 20px;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    animation: slideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  }
-
-  @keyframes slideUp {
-    from { opacity: 0; transform: translateY(20px) scale(0.95); }
-    to { opacity: 1; transform: translateY(0) scale(1); }
-  }
-
-  .modal-header {
-    padding: 20px 24px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border-bottom: 1px solid var(--color-border);
-  }
-
-  .header-title {
+  .header-title-inner {
     display: flex;
     align-items: center;
     gap: 12px;
   }
 
-  :global(.modal-header .header-icon) {
+  :global(.header-icon) {
     color: var(--color-accent-violet);
   }
 
-  .modal-header h2 {
+  .modal-title-text {
     font-size: 1.1rem;
     font-weight: 600;
     margin: 0;
-  }
-
-  .close-btn {
-    background: transparent;
-    border: none;
-    color: var(--color-text-muted);
-    cursor: pointer;
-    transition: color 0.2s;
-  }
-
-  .close-btn:hover {
     color: var(--color-text-primary);
-  }
-
-  .modal-body {
-    padding: 24px;
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-    max-height: 70vh;
-    overflow-y: auto;
   }
 
   .form-group {
     display: flex;
     flex-direction: column;
     gap: 8px;
+    margin-bottom: 20px;
+  }
+
+  .form-group:last-child {
+    margin-bottom: 0;
   }
 
   label {
@@ -310,13 +231,11 @@
     cursor: pointer;
   }
 
-  .modal-footer {
-    padding: 20px 24px;
-    background: var(--color-surface-1);
-    border-top: 1px solid var(--color-border);
+  .footer-inner {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    width: 100%;
   }
 
   .edit-hint {
