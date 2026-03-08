@@ -6,6 +6,7 @@
     duplicateCard,
     deleteCard,
     moveCardToTab,
+    openSettings,
   } from "../stores/appState.svelte";
   import * as icons from "lucide-svelte";
   import { onMount } from "svelte";
@@ -99,6 +100,11 @@
         {/if}
       </div>
     </div>
+
+    <button class="menu-item" onclick={() => handleAction(() => openSettings(contextMenu.card))}>
+      <icons.Settings size={14} />
+      <span>Налаштувати</span>
+    </button>
 
     <div class="divider"></div>
 

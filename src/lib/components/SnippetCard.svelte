@@ -294,7 +294,7 @@
     display: flex;
     flex-direction: column;
     padding: 0;
-    border: 1px solid var(--card-border-default);
+    border: 1px solid var(--color-card-border, var(--card-border-default));
     border-radius: 14px;
     background: var(--color-card-bg);
     backdrop-filter: blur(12px);
@@ -317,20 +317,20 @@
   }
 
   .snippet-card:focus-visible {
-    border-color: var(--color-accent-cyan);
+    border-color: var(--color-card-border, var(--color-accent-cyan));
     box-shadow: 0 0 0 2px rgba(0, 210, 255, 0.3);
   }
 
   /* Hover states based on zone */
   .snippet-card.hover-action {
     cursor: pointer;
-    border-color: var(--color-accent-cyan);
+    border-color: var(--color-card-border, var(--color-accent-cyan));
     transform: translateY(-2px);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(0, 210, 255, 0.1);
   }
 
   .snippet-card.hover-strike {
-    border-color: var(--color-border-hover);
+    border-color: var(--color-card-border, var(--color-border-hover));
   }
 
   .snippet-card:active {
@@ -374,7 +374,7 @@
     height: 28px;
     border-radius: 8px;
     background: var(--color-surface-3);
-    color: var(--color-accent-cyan);
+    color: var(--color-card-border, var(--color-accent-cyan));
     font-family: var(--font-mono);
     font-size: 0.75rem;
     font-weight: 700;

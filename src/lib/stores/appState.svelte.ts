@@ -51,6 +51,9 @@ let cardView = $state<'short' | 'full'>('short');
 /** Context menu state */
 let activeContextMenu = $state<{ x: number, y: number, card: Card } | null>(null);
 
+/** Settings modal state */
+let activeSettingsCard = $state<Card | null>(null);
+
 /** App config (persisted to localStorage) */
 let config = $state<AppConfig>(loadConfig());
 
@@ -83,6 +86,7 @@ export function getState() {
         get cardView() { return cardView; },
         get config() { return config; },
         get activeContextMenu() { return activeContextMenu; },
+        get activeSettingsCard() { return activeSettingsCard; },
     };
 }
 
@@ -336,6 +340,27 @@ export function closeContextMenu(): void {
     activeContextMenu = null;
 }
 
+/** Settings modal actions */
+export function openSettings(card: Card): void {
+    activeSettingsCard = card;
+}
+
+export function closeSettings(): void {
+    activeSettingsCard = null;
+}
+
+/** Update card settings and save */
+export async function updateCardSettings(card: Card, settings: Partial<Card>): Promise<void> {
+    // Update in memory
+    Object.assign(card, settings);
+
+    // If displayName was set to empty, use the name as fallback for memory but keep null for config
+    if (settings.displayName === "") card.displayName = null;
+
+    await saveCurrentTabConfig();
+    showToast(`Налаштування збережено: ${card.name}`);
+}
+
 /** Toggle strikethrough state for a specific line in a card */
 export function toggleStrikethrough(card: Card, lineIndex: number): void {
     const sIdx = card.strikethrough.indexOf(lineIndex);
@@ -401,14 +426,25 @@ async function saveCurrentTabConfig() {
                 existingConfig.cards[card.fileName] = {};
             }
 
-            // Only save what's different from default/derived
             const cInfo = existingConfig.cards[card.fileName];
+
+            // Customization fields
+            if (card.displayName) cInfo.displayName = card.displayName; else delete cInfo.displayName;
+            if (card.hotkey) cInfo.hotkey = card.hotkey; else delete cInfo.hotkey;
+            if (card.icon) cInfo.icon = card.icon; else delete cInfo.icon;
+            if (card.color) cInfo.color = card.color; else delete cInfo.color;
+            if (card.borderColor) cInfo.borderColor = card.borderColor; else delete cInfo.borderColor;
 
             // Strikethrough
             if (card.strikethrough && card.strikethrough.length > 0) {
                 cInfo.strikethrough = [...card.strikethrough];
             } else {
                 delete cInfo.strikethrough;
+            }
+
+            // Cleanup empty card objects
+            if (Object.keys(cInfo).length === 0) {
+                delete existingConfig.cards[card.fileName];
             }
         }
 
