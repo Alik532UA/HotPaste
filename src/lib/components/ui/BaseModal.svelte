@@ -1,6 +1,7 @@
 <script lang="ts">
   import { X } from "lucide-svelte";
   import type { Snippet } from "svelte";
+  import { focusTrap } from "../../utils/focusTrap";
 
   interface Props {
     title?: string;
@@ -49,6 +50,11 @@
       class="modal-content" 
       style="max-width: {maxWidth}"
       onclick={(e) => e.stopPropagation()} 
+      use:focusTrap
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-title"
+      tabindex="-1"
       data-testid={testId}
     >
       <header class="modal-header">
@@ -56,7 +62,7 @@
           {#if header}
             {@render header()}
           {:else if title}
-            <h2 class="default-title">{title}</h2>
+            <h2 id="modal-title" class="default-title">{title}</h2>
           {/if}
         </div>
         <button class="close-btn" onclick={onClose} aria-label="Close" data-testid="btn-modal-close">

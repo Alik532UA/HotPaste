@@ -1,11 +1,11 @@
 <script lang="ts">
-    import { logService } from "../services/logService";
+    import { logService } from "../services/logService.svelte";
     import { Copy } from "lucide-svelte";
 
     let copied = $state(false);
 
     async function handleCopy() {
-        const logs = logService.getRecentLogs();
+        const logs = logService.getRecentLogsText();
         const header =
             `--- DEBUG LOG REPORT ---\n` +
             `Generated: ${new Date().toLocaleString()}\n` +

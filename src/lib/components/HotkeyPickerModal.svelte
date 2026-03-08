@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { getState, updateCardHotkey, closeHotkeyPicker } from "../stores/appState.svelte";
+  import { getState, updateCardHotkey, closeHotkeyPicker, resetCardHotkeyToDefault } from "../stores/appState.svelte";
   import { X, Keyboard } from "lucide-svelte";
   import { fade, scale } from "svelte/transition";
   import { CARD_CODES, getHotkeyLabel } from "../utils/keyboardLayout";
@@ -29,7 +29,7 @@
 
   function handleReset() {
     if (card) {
-      import("../stores/appState.svelte").then(m => m.resetCardHotkeyToDefault(card));
+      resetCardHotkeyToDefault(card);
     }
   }
 

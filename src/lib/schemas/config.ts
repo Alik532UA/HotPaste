@@ -1,5 +1,11 @@
 import { z } from 'zod';
 
+/** Maximum text file size allowed (1MB) */
+export const MAX_FILE_SIZE = 1 * 1024 * 1024;
+
+/** Allowed file extensions */
+export const ALLOWED_EXTENSIONS = ['.txt', '.md'];
+
 /**
  * Zod schema for single Card metadata
  */
@@ -9,8 +15,19 @@ export const CardConfigSchema = z.object({
     icon: z.string().nullable().optional(),
     color: z.string().nullable().optional(),
     borderColor: z.string().nullable().optional(),
-    strikethrough: z.array(z.number()).default([])
+    strikethrough: z.array(z.number()).default([]),
+    fingerprint: z.object({
+        size: z.number(),
+        lastModified: z.number()
+    }).optional()
 });
+
+/** Schema for file names/paths */
+export const FileNameSchema = z.string()
+    .trim()
+    .min(1)
+    .max(255)
+    .regex(/^[^\\/:*?"<>|]+$/, "Invalid filename characters");
 
 /**
  * Zod schema for Tab metadata (stored in _hotpaste.json inside tab folder)

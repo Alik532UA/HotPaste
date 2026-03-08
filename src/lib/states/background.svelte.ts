@@ -1,18 +1,19 @@
+import { persistedState } from './persisted.svelte';
+
 /** Background State — Svelte 5 Rune Class */
 export type BgType = 'none' | 'particles' | 'waves' | 'mesh';
 
 class BackgroundState {
-    type = $state<BgType>('none');
+    private _type = persistedState<BgType>('hp_bg_type', 'waves');
+
+    get type() { return this._type.value; }
 
     init() {
-        if (typeof window === 'undefined') return;
-        this.type = (localStorage.getItem('hp_bg_type') as BgType) || 'waves';
+        // Effect-driven
     }
 
     set(newType: BgType) {
-        if (this.type === newType) return;
-        this.type = newType;
-        localStorage.setItem('hp_bg_type', newType);
+        this._type.value = newType;
     }
 }
 

@@ -13,7 +13,7 @@
     openHotkeyPicker,
     toggleCardSelection,
   } from "../stores/appState.svelte";
-  import { logService } from "../services/logService";
+  import { logService } from "../services/logService.svelte";
   import { Edit3, Menu, Copy, FileX, Keyboard, Link, Trash2, Check, Maximize2, Minimize2 } from "lucide-svelte";
   import * as icons from "lucide-svelte";
   import type { ComponentType } from "svelte";
@@ -725,6 +725,12 @@
 
   .snippet-card.hover-strike {
     border-color: var(--color-card-border, var(--color-border-hover));
+  }
+
+  .snippet-card:focus-visible {
+    outline: 2px solid var(--color-accent-cyan);
+    outline-offset: 4px;
+    border-color: var(--color-accent-cyan);
   }
 
   .snippet-card.editing {

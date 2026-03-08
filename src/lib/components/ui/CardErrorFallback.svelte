@@ -2,7 +2,7 @@
   import { AlertTriangle, RefreshCw } from "lucide-svelte";
   import type { Card } from "../../types";
   import { t } from "../../i18n";
-  import { logService } from "../../services/logService";
+  import { logService } from "../../services/logService.svelte";
 
   interface Props {
     card: Card;

@@ -104,6 +104,7 @@
         class:is-dragging={draggedTabIndex === i}
         role="tab"
         aria-selected={appState.activeTabIndex === i}
+        aria-controls="app-main"
         id="tab-{i}"
         onclick={() => selectTab(i)}
         oncontextmenu={(e) => handleContextMenu(e, tab)}

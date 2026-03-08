@@ -1,26 +1,32 @@
-/** Theme State — Svelte 5 Rune Class */
+import { persistedState } from './persisted.svelte';
+
 class ThemeState {
-    current = $state("dark");
+    private _current = persistedState<string>("hp_theme", "dark");
     isChanging = $state(false);
 
+    get current() { return this._current.value; }
+
+    constructor() {
+        // No $effect here to avoid effect_orphan
+    }
+
     init() {
-        if (typeof window === 'undefined') return;
-        const saved = localStorage.getItem("theme") || "dark";
-        this.set(saved);
+        $effect(() => {
+            if (typeof document !== 'undefined') {
+                document.documentElement.setAttribute("data-theme", this.current);
+            }
+        });
     }
 
     async toggle() {
         if (this.isChanging) return;
         
         this.isChanging = true;
-        // Small delay to allow the blur overlay to start fading in
         await new Promise(r => setTimeout(r, 50));
 
         setTimeout(() => {
-            const next = this.current === "dark" ? "light" : "dark";
-            this.set(next);
+            this._current.value = this.current === "dark" ? "light" : "dark";
             
-            // Keep overlay active while colors transition
             setTimeout(() => {
                 this.isChanging = false;
             }, 300);
@@ -28,9 +34,7 @@ class ThemeState {
     }
 
     set(theme: string) {
-        this.current = theme;
-        document.documentElement.setAttribute("data-theme", theme);
-        localStorage.setItem("theme", theme);
+        this._current.value = theme;
     }
 }
 
