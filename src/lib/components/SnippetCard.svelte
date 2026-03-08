@@ -283,7 +283,9 @@
   }
 
   .snippet-card.interactive {
-    cursor: default;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
   }
 
   .snippet-card:focus-visible {

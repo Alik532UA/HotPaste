@@ -277,8 +277,23 @@ export class BrowserFileSystemService implements IFileSystemService {
             }
         }
 
-        // Sort cards alphabetically by original filename
-        cards.sort((a, b) => a.fileName.localeCompare(b.fileName));
+        // Sort cards based on custom order, or alphabetically as fallback
+        const orderArr = config.tab?.order || [];
+        cards.sort((a, b) => {
+            const indexA = orderArr.indexOf(a.fileName);
+            const indexB = orderArr.indexOf(b.fileName);
+
+            if (indexA !== -1 && indexB !== -1) {
+                return indexA - indexB;
+            } else if (indexA !== -1) {
+                return -1; // a is in order, b is not (put a first)
+            } else if (indexB !== -1) {
+                return 1; // b is in order, a is not (put b first)
+            } else {
+                // Neither in order, sort alphabetically
+                return a.fileName.localeCompare(b.fileName);
+            }
+        });
         return cards;
     }
 

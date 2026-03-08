@@ -1,14 +1,26 @@
 <script lang="ts">
-  import { getState } from "../stores/appState.svelte";
+  import { getState, moveCard } from "../stores/appState.svelte";
   import SnippetCard from "./SnippetCard.svelte";
+  import { draggable, dropzone } from "../utils/dnd";
 
   const appState = getState();
+
+  function handleDrop(fromIndex: number, toIndex: number) {
+    moveCard(fromIndex, toIndex);
+  }
 </script>
 
 {#if appState.activeCards.length > 0}
   <div class="card-grid" style="--scale: {appState.scale}">
-    {#each appState.activeCards as card (card.filePath)}
-      <SnippetCard {card} />
+    {#each appState.activeCards as card, index (card.filePath)}
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div
+        class="card-wrapper"
+        use:draggable={index}
+        use:dropzone={{ index, onDrop: handleDrop }}
+      >
+        <SnippetCard {card} />
+      </div>
     {/each}
   </div>
 {:else if appState.isConnected}
@@ -26,6 +38,33 @@
     padding: var(--space-4);
     max-width: 1800px;
     margin: 0 auto;
+  }
+
+  .card-wrapper {
+    break-inside: avoid;
+    margin-bottom: var(--space-3);
+    border-radius: var(--radius-md);
+    transition:
+      transform 0.2s,
+      opacity 0.2s;
+    user-select: none; /* Prevent text selection to allow drag and drop */
+    -webkit-user-select: none;
+    cursor: grab;
+  }
+
+  .card-wrapper:active {
+    cursor: grabbing;
+  }
+
+  :global(.card-wrapper.dragging) {
+    opacity: 0.5;
+    transform: scale(0.95);
+  }
+
+  :global(.card-wrapper.drag-over) {
+    outline: 2px dashed var(--color-accent-blue);
+    outline-offset: 4px;
+    transform: translateY(4px);
   }
 
   .empty-tab {

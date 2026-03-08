@@ -260,11 +260,27 @@ export function toggleStrikethrough(card: Card, lineIndex: number): void {
 }
 
 /** Debounced saving of the current tab's _hotpaste.json */
-function debouncedSaveTabConfig() {
+export function debouncedSaveTabConfig() {
     if (configSaveTimeout) clearTimeout(configSaveTimeout);
     configSaveTimeout = setTimeout(() => {
         saveCurrentTabConfig();
     }, 500);
+}
+
+/** Move a card to a new position (DND) */
+export function moveCard(fromIndex: number, toIndex: number): void {
+    const tab = activeTab;
+    if (!tab) return;
+
+    if (fromIndex < 0 || fromIndex >= tab.cards.length || toIndex < 0 || toIndex >= tab.cards.length) {
+        return;
+    }
+
+    const cardToMove = tab.cards[fromIndex];
+    tab.cards.splice(fromIndex, 1);
+    tab.cards.splice(toIndex, 0, cardToMove);
+
+    debouncedSaveTabConfig();
 }
 
 /** Builds and saves config for the active tab */
@@ -279,6 +295,13 @@ async function saveCurrentTabConfig() {
         if (!existingConfig.cards) {
             existingConfig.cards = {};
         }
+
+        if (!existingConfig.tab) {
+            existingConfig.tab = {};
+        }
+
+        // Save order
+        existingConfig.tab.order = tab.cards.map(c => c.fileName);
 
         // Update card configurations
         for (const card of tab.cards) {
