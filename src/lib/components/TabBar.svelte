@@ -8,12 +8,23 @@
     createNewTab,
     moveTab,
     openContextMenu,
+    setSearchQuery,
   } from "../stores/appState.svelte";
+  import { Plus, Search, X } from "lucide-svelte";
   import * as icons from "lucide-svelte";
   import type { ComponentType } from "svelte";
   import type { Tab } from "../types";
 
   const appState = getState();
+
+  function handleSearchInput(e: Event) {
+    const target = e.target as HTMLInputElement;
+    setSearchQuery(target.value);
+  }
+
+  function clearSearch() {
+    setSearchQuery("");
+  }
 
   function getLucideIcon(iconName: string | null): ComponentType | null {
     if (!iconName || iconName.length <= 2) return null;
@@ -127,17 +138,41 @@
 
     <!-- Add Tab Button -->
     <button class="add-tab-btn" onclick={handleAddTab} title="Створити нову вкладку" data-testid="btn-add-tab">
-      <icons.Plus size={16} />
+      <Plus size={16} />
     </button>
+  </div>
+
+  <!-- Search Bar -->
+  <div class="search-container">
+    <div class="search-wrapper">
+      <Search size={14} class="search-icon" />
+      <input
+        type="text"
+        class="search-input"
+        placeholder="Пошук сніпетів..."
+        value={appState.searchQuery}
+        oninput={handleSearchInput}
+        onkeydown={(e) => e.stopPropagation()}
+        data-testid="search-input"
+      />
+      {#if appState.searchQuery}
+        <button class="search-clear" onclick={clearSearch} title="Очистити пошук">
+          <X size={14} />
+        </button>
+      {/if}
+    </div>
   </div>
 </div>
 
 <style>
   .tab-bar-container {
     display: flex;
-    align-items: center;
+    align-items: flex-end; /* Align elements to the bottom to match tabs */
     padding: 0 var(--space-4);
     background: var(--color-surface-1);
+    border-bottom: 1px solid var(--color-border);
+    height: 48px; /* Fixed height for better control */
+    gap: var(--space-4);
   }
 
   .tab-bar {
@@ -147,7 +182,79 @@
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
     flex: 1;
+    align-items: flex-end;
   }
+
+  /* ... existing tab styles ... */
+
+  .search-container {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    padding-bottom: 6px; /* Align with tabs bottom line roughly */
+  }
+
+  .search-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    padding: 0 10px;
+    width: 220px;
+    height: 32px;
+    transition: all 0.2s ease;
+  }
+
+  .search-wrapper:focus-within {
+    border-color: var(--color-accent-cyan);
+    background: var(--color-surface-3);
+    width: 280px;
+    box-shadow: 0 0 0 3px rgba(0, 210, 255, 0.1);
+  }
+
+  .search-wrapper :global(.search-icon) {
+    color: var(--color-text-muted);
+    margin-right: 8px;
+    flex-shrink: 0;
+  }
+
+  .search-input {
+    background: transparent;
+    border: none;
+    color: var(--color-text-primary);
+    font-size: 0.85rem;
+    width: 100%;
+    outline: none;
+    padding: 0;
+  }
+
+  .search-input::placeholder {
+    color: var(--color-text-muted);
+    opacity: 0.6;
+  }
+
+  .search-clear {
+    background: transparent;
+    border: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    margin-right: -4px;
+    transition: all 0.2s;
+  }
+
+  .search-clear:hover {
+    background: var(--color-surface-1);
+    color: var(--color-text-primary);
+  }
+
+  /* existing styles continued ... */
 
   .tab-bar::-webkit-scrollbar {
     display: none;
@@ -157,7 +264,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 10px 16px;
+    padding: 12px 16px;
     border: none;
     background: transparent;
     color: var(--color-text-muted);
@@ -171,6 +278,7 @@
     position: relative;
     flex-shrink: 0;
     user-select: none;
+    height: 100%; /* Take full container height */
   }
 
   .tab::after {
@@ -180,15 +288,15 @@
     left: 50%;
     transform: translateX(-50%);
     width: 0;
-    height: 2px;
-    background: var(--tab-color, var(--color-accent-gradient));
-    border-radius: 2px 2px 0 0;
+    height: 3px;
+    background: var(--tab-color, var(--color-accent-violet));
+    border-radius: 3px 3px 0 0;
     transition: width 0.25s ease;
   }
 
   .tab:hover {
     color: var(--color-text-secondary);
-    background: var(--color-surface-2);
+    background: rgba(255, 255, 255, 0.03);
   }
 
   .tab.active {
@@ -211,7 +319,7 @@
 
   /* Custom Color tab styles */
   .tab.has-custom-color.active {
-    background: color-mix(in srgb, var(--tab-color) 10%, transparent);
+    background: color-mix(in srgb, var(--tab-color) 12%, transparent);
     color: var(--tab-color);
   }
 
@@ -232,8 +340,8 @@
   }
 
   .tab.active .tab-hotkey {
-    background: var(--tab-color, var(--color-accent-gradient));
-    color: var(--color-bg-primary);
+    background: var(--tab-color, var(--color-accent-violet));
+    color: white;
   }
 
   .tab-icon {
@@ -253,28 +361,38 @@
   }
 
   .tab-count {
-    font-size: 0.7rem;
-    opacity: 0.5;
+    font-size: 0.75rem;
+    opacity: 0.4;
     font-weight: 400;
+    margin-left: -2px;
   }
 
   .add-tab-btn {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
-    border: none;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    border: 1px solid transparent;
     background: transparent;
     color: var(--color-text-muted);
     cursor: pointer;
-    transition: all 0.2s;
-    margin-left: 8px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    margin-left: 12px;
+    margin-bottom: 7px; /* Fine-tuned alignment with tab text center */
+    flex-shrink: 0;
   }
 
   .add-tab-btn:hover {
     background: var(--color-surface-2);
     color: var(--color-text-primary);
+    border-color: var(--color-border);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+
+  .add-tab-btn:active {
+    transform: translateY(0) scale(0.95);
   }
 </style>

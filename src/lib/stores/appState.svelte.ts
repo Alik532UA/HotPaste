@@ -39,6 +39,9 @@ let toastTimeout: ReturnType<typeof setTimeout> | null = null;
 /** Global scale */
 let scale = $state(1.0);
 
+/** Search/Filter query */
+let searchQuery = $state('');
+
 /** Whether a card is currently being edited globally */
 let editingCardPath = $state('');
 
@@ -78,6 +81,18 @@ const activeTab = $derived(tabs[activeTabIndex] ?? null);
 /** Cards in the active tab */
 const activeCards = $derived(activeTab?.cards ?? []);
 
+/** Filtered cards based on search query */
+const filteredCards = $derived(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return activeCards;
+    
+    return activeCards.filter(card => 
+        card.name.toLowerCase().includes(query) ||
+        card.fileName.toLowerCase().includes(query) ||
+        card.content.toLowerCase().includes(query)
+    );
+});
+
 /** Total number of tabs */
 const tabCount = $derived(tabs.length);
 
@@ -89,6 +104,8 @@ export function getState() {
         get activeTabIndex() { return activeTabIndex; },
         get activeTab() { return activeTab; },
         get activeCards() { return activeCards; },
+        get filteredCards() { return filteredCards(); },
+        get searchQuery() { return searchQuery; },
         get tabCount() { return tabCount; },
         get isConnected() { return isConnected; },
         get rootName() { return rootName; },
@@ -110,6 +127,11 @@ export function getState() {
 }
 
 // --- Actions ---
+
+/** Set search query */
+export function setSearchQuery(query: string): void {
+    searchQuery = query;
+}
 
 /** Open hotkey picker for a card */
 export function openHotkeyPicker(card: Card): void {
@@ -529,14 +551,26 @@ export async function saveCard(card: Card, newContent: string): Promise<void> {
             
             let fileName = cleanWords.join('_');
             if (fileName.length > 30) fileName = fileName.substring(0, 30); // Limit length
-            fileName += '.txt';
             
-            if (fileName === '.txt' || cleanWords.length === 0) {
+            if (fileName === '' || cleanWords.length === 0) {
                 const date = new Date();
                 const timestamp = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}_${String(date.getHours()).padStart(2, '0')}${String(date.getMinutes()).padStart(2, '0')}${String(date.getSeconds()).padStart(2, '0')}`;
-                fileName = `snippet_${timestamp}.txt`;
-                logService.log('appState', `Fallback to timestamp filename: ${fileName}`);
+                fileName = `snippet_${timestamp}`;
+                logService.log('appState', `Fallback to timestamp filename base: ${fileName}`);
             }
+
+            // --- VERSIONING LOGIC ---
+            const baseName = fileName;
+            let version = 1;
+            const existingFileNames = new Set(tab.cards.map(c => c.fileName.toLowerCase()));
+            
+            let finalFileName = `${baseName}.txt`;
+            while (existingFileNames.has(finalFileName.toLowerCase())) {
+                version++;
+                finalFileName = `${baseName}_v${version}.txt`;
+            }
+            fileName = finalFileName;
+            // ------------------------
 
             if (tab.path === '__root__') {
                 card.filePath = `__root__/${fileName}`;
@@ -1053,12 +1087,25 @@ function saveConfig(): void {
 // --- Keyboard handler ---
 
 export function handleGlobalKeydown(event: KeyboardEvent): void {
-    // Ignore if typing in an input/textarea
-    const target = event.target as HTMLElement;
+    // 1. INPUT CHECK: Don't intercept if focused on ANY input-like element
+    const activeEl = document.activeElement;
+    const isInput = activeEl && (
+        ['INPUT', 'TEXTAREA'].includes(activeEl.tagName.toUpperCase()) ||
+        (activeEl as HTMLElement).isContentEditable
+    );
+
+    if (isInput || event.defaultPrevented) {
+        return;
+    }
+
+    // 2. HARD BLOCK: If any modal or editor is active, ignore global hotkeys
+    // Return early before any preventDefault() calls to let browser handle typing
     if (
-        target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.isContentEditable
+        editingCardPath || 
+        activeSettingsCard || 
+        activeSettingsTab || 
+        activeHotkeyPickerCard || 
+        activeHotkeyConflict
     ) {
         return;
     }
@@ -1086,15 +1133,8 @@ export function handleGlobalKeydown(event: KeyboardEvent): void {
 
     // Card copy (Keys)
     if (isCardHotkey(code)) {
-        // We only want to prevent default and try to copy if a card actually has this hotkey
-        copyCardByHotkey(code).then(success => {
-            if (success) {
-                // Potential issue: event is already processed by the time promise resolves
-                // But in most cases it's fine for simple preventing
-            }
-        });
-        
-        // To be safe, always prevent if it's a valid card hotkey area
+        // Only prevent default if we are actually going to handle this hotkey
         event.preventDefault();
+        copyCardByHotkey(code);
     }
 }

@@ -121,6 +121,7 @@
             id="display-name"
             type="text"
             bind:value={displayName}
+            onkeydown={(e) => { e.stopPropagation(); handleKeydown(e); }}
             placeholder={card.fileName}
             autocomplete="off"
             data-testid="input-display-name"
@@ -135,6 +136,7 @@
             id="file-name"
             type="text"
             bind:value={fileName}
+            onkeydown={(e) => { e.stopPropagation(); handleKeydown(e); }}
             placeholder="example.txt"
             autocomplete="off"
             data-testid="input-file-name"
@@ -151,7 +153,7 @@
               type="text"
               readonly
               value={appState.getHotkeyLabel(hotkey)}
-              onkeydown={handleHotkeyKeydown}
+              onkeydown={(e) => { e.stopPropagation(); handleHotkeyKeydown(e); }}
               placeholder="Натисніть клавішу"
               class="hotkey-input"
               title="Фокус і натискання будь-якої клавіші змінить гарячу клавішу"
@@ -167,6 +169,7 @@
               id="icon-name"
               type="text"
               bind:value={icon}
+              onkeydown={(e) => { e.stopPropagation(); handleKeydown(e); }}
               placeholder="Copy, Edit, 📁, 🚀..."
               data-testid="input-card-icon"
             />

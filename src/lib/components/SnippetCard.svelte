@@ -13,7 +13,7 @@
     openHotkeyPicker,
   } from "../stores/appState.svelte";
   import { logService } from "../services/logService";
-  import { Edit3, MoreVertical, Copy, FileX, Keyboard } from "lucide-svelte";
+  import { Edit3, Menu, Copy, FileX, Keyboard } from "lucide-svelte";
   import * as icons from "lucide-svelte";
   import type { ComponentType } from "svelte";
   import snarkdown from "snarkdown";
@@ -51,13 +51,19 @@
   $effect(() => {
     const globalPath = appState.editingCardPath;
     if (globalPath === card.filePath && !isEditing) {
-      logService.log("ui", `Effect: starting local edit for ${card.name} because global path matches`);
+      logService.log(
+        "ui",
+        `Effect: starting local edit for ${card.name} because global path matches`,
+      );
       startEditing();
     } else if (globalPath !== card.filePath && isEditing) {
       // If global state changed to something else, cancel local edit
       // (Unless it's a new mock, which we handle separately)
       if (!(card as any).isNewMock) {
-        logService.log("ui", `Effect: cancelling local edit for ${card.name} because global path changed to: ${globalPath}`);
+        logService.log(
+          "ui",
+          `Effect: cancelling local edit for ${card.name} because global path changed to: ${globalPath}`,
+        );
         isEditing = false;
         editContent = "";
       }
@@ -158,7 +164,10 @@
   }
 
   function handleCardClick(e: MouseEvent) {
-    logService.log("ui", `handleCardClick for card: ${card.name}, isEditing: ${isEditing}`);
+    logService.log(
+      "ui",
+      `handleCardClick for card: ${card.name}, isEditing: ${isEditing}`,
+    );
     if (isMissing || isEditing) return;
     const currentTarget = e.currentTarget as HTMLElement;
     const rect = currentTarget.getBoundingClientRect();
@@ -169,7 +178,10 @@
       logService.log("ui", "handleCardClick: triggered copy action");
       handleAction();
     } else {
-      logService.log("ui", "handleCardClick: triggered line strikethrough check");
+      logService.log(
+        "ui",
+        "handleCardClick: triggered line strikethrough check",
+      );
       const target = e.target as HTMLElement;
       const lineEl = target.closest(".line");
       if (lineEl) {
@@ -198,7 +210,10 @@
   }
 
   function startEditing() {
-    logService.log("ui", `Starting edit (local): ${card.name} (${card.filePath})`);
+    logService.log(
+      "ui",
+      `Starting edit (local): ${card.name} (${card.filePath})`,
+    );
     editContent = card.content;
     isEditing = true;
     startEditingCard(card); // Sync to global state
@@ -209,7 +224,7 @@
     isEditing = false;
     editContent = "";
     stopEditingCard(); // Sync to global state
-    
+
     if ((card as any).isNewMock) {
       const tab = appState.activeTab;
       if (tab) {
@@ -299,13 +314,20 @@
         class="edit-textarea"
         bind:this={textareaElement}
         bind:value={editContent}
-        onkeydown={handleEditKeydown}
+        onkeydown={(e) => {
+          e.stopPropagation(); // Prevent global hotkeys while typing
+          handleEditKeydown(e);
+        }}
         disabled={isSaving}
         data-testid="edit-textarea"
       ></textarea>
     </div>
 
-    <div class="edit-actions" role="presentation" onclick={(e) => e.stopPropagation()}>
+    <div
+      class="edit-actions"
+      role="presentation"
+      onclick={(e) => e.stopPropagation()}
+    >
       <span class="edit-hint">Ctrl+Enter — зберегти, Esc — скасувати</span>
       <div class="edit-buttons">
         <button
@@ -396,7 +418,7 @@
             onclick={handleMoreClick}
             data-testid="btn-card-more"
           >
-            <icons.MoreVertical size={18} />
+            <icons.Menu size={18} />
           </button>
 
           <button
@@ -412,19 +434,26 @@
 
         <!-- Hotkey (inside header) -->
         {#if (card.hotkey || card.isCustomHotkey) && !isMissing}
-          <button 
-            class="card-hotkey" 
-            class:conflict={card.isHotkeyConflicting} 
+          <button
+            class="card-hotkey"
+            class:conflict={card.isHotkeyConflicting}
             class:custom={card.isCustomHotkey && card.hotkey}
             class:disabled={card.isCustomHotkey && !card.hotkey}
             class:auto={!card.isCustomHotkey}
-            onclick={(e) => { 
+            onclick={(e) => {
               e.preventDefault();
-              e.stopPropagation(); 
-              logService.log("ui", `HOTKEY BUTTON CLICKED (STOPPED) for ${card.name}`);
-              openHotkeyPicker(card); 
+              e.stopPropagation();
+              logService.log(
+                "ui",
+                `HOTKEY BUTTON CLICKED (STOPPED) for ${card.name}`,
+              );
+              openHotkeyPicker(card);
             }}
-            title={card.isCustomHotkey && card.hotkey ? "Гаряча клавіша (закріплено)" : card.isCustomHotkey ? "Гаряча клавіша (вимкнено)" : "Змінити гарячу клавішу"}
+            title={card.isCustomHotkey && card.hotkey
+              ? "Гаряча клавіша (закріплено)"
+              : card.isCustomHotkey
+                ? "Гаряча клавіша (вимкнено)"
+                : "Змінити гарячу клавішу"}
             data-testid="card-hotkey"
           >
             {#if card.hotkey}
@@ -438,19 +467,26 @@
     {:else}
       <!-- Hotkey badge (absolute position for compact mode) -->
       {#if (card.hotkey || card.isCustomHotkey) && !isMissing}
-        <button 
-          class="card-hotkey absolute" 
-          class:conflict={card.isHotkeyConflicting} 
+        <button
+          class="card-hotkey absolute"
+          class:conflict={card.isHotkeyConflicting}
           class:custom={card.isCustomHotkey && card.hotkey}
           class:disabled={card.isCustomHotkey && !card.hotkey}
           class:auto={!card.isCustomHotkey}
-          onclick={(e) => { 
+          onclick={(e) => {
             e.preventDefault();
-            e.stopPropagation(); 
-            logService.log("ui", `HOTKEY BUTTON CLICKED COMPACT (STOPPED) for ${card.name}`);
-            openHotkeyPicker(card); 
+            e.stopPropagation();
+            logService.log(
+              "ui",
+              `HOTKEY BUTTON CLICKED COMPACT (STOPPED) for ${card.name}`,
+            );
+            openHotkeyPicker(card);
           }}
-          title={card.isCustomHotkey && card.hotkey ? "Гаряча клавіша (закріплено)" : card.isCustomHotkey ? "Гаряча клавіша (вимкнено)" : "Змінити гарячу клавішу"}
+          title={card.isCustomHotkey && card.hotkey
+            ? "Гаряча клавіша (закріплено)"
+            : card.isCustomHotkey
+              ? "Гаряча клавіша (вимкнено)"
+              : "Змінити гарячу клавішу"}
           data-testid="card-hotkey"
         >
           {#if card.hotkey}
@@ -586,12 +622,12 @@
   }
 
   .snippet-card.compact {
-    padding-top: 10px;
+    padding-top: 0;
   }
 
   .snippet-card.compact .card-content {
     padding-top: 10px;
-    padding-bottom: 14px;
+    padding-bottom: 10px;
   }
 
   .snippet-card.interactive {
@@ -695,11 +731,14 @@
     background: var(--color-surface-2);
   }
 
-  .card-hotkey:hover {
+  .card-hotkey:hover,
+  .action-overlay-btn:hover {
     opacity: 1;
-    background: var(--color-surface-2);
-    border-color: rgba(0, 210, 255, 0.5);
+    background: var(--color-surface-3);
+    border-color: var(--color-accent-cyan);
+    color: var(--color-text-primary);
     transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(0, 210, 255, 0.15);
   }
 
   .card-hotkey.conflict {
@@ -711,17 +750,19 @@
   }
 
   @keyframes hotkeyShake {
-    from { transform: translateX(0); }
-    to { transform: translateX(2px); }
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(2px);
+    }
   }
 
   .card-hotkey.absolute {
     position: absolute;
-    top: 4px;
+    top: 3px;
     right: 4px;
     border-radius: 10px;
-    border-top: none;
-    border-right: none;
   }
 
   .action-overlay-hint {
@@ -881,20 +922,32 @@
     line-height: 1.25;
     color: var(--color-text-primary);
   }
-  .markdown-body :global(h1) { font-size: 1.25rem; border-bottom: 1px solid var(--color-border); padding-bottom: 4px; }
-  .markdown-body :global(h2) { font-size: 1.1rem; }
-  .markdown-body :global(h3) { font-size: 1rem; }
-  
-  .markdown-body :global(p) { margin-bottom: 12px; }
-  
+  .markdown-body :global(h1) {
+    font-size: 1.25rem;
+    border-bottom: 1px solid var(--color-border);
+    padding-bottom: 4px;
+  }
+  .markdown-body :global(h2) {
+    font-size: 1.1rem;
+  }
+  .markdown-body :global(h3) {
+    font-size: 1rem;
+  }
+
+  .markdown-body :global(p) {
+    margin-bottom: 12px;
+  }
+
   .markdown-body :global(ul),
   .markdown-body :global(ol) {
     padding-left: 20px;
     margin-bottom: 12px;
   }
-  
-  .markdown-body :global(li) { margin-bottom: 4px; }
-  
+
+  .markdown-body :global(li) {
+    margin-bottom: 4px;
+  }
+
   .markdown-body :global(code) {
     font-family: var(--font-mono);
     font-size: 0.8rem;
@@ -903,7 +956,7 @@
     border-radius: 4px;
     color: var(--color-accent-cyan);
   }
-  
+
   .markdown-body :global(pre) {
     background: var(--color-surface-3);
     padding: 12px;
@@ -917,7 +970,7 @@
     padding: 0;
     color: var(--color-text-secondary);
   }
-  
+
   .markdown-body :global(blockquote) {
     border-left: 4px solid var(--color-accent-violet);
     padding-left: 12px;
@@ -925,7 +978,7 @@
     margin-bottom: 12px;
     font-style: italic;
   }
-  
+
   .markdown-body :global(a) {
     color: var(--color-accent-cyan);
     text-decoration: none;
@@ -985,11 +1038,6 @@
     color: var(--color-text-primary);
     border-color: var(--color-border-hover);
     transform: scale(1.1);
-  }
-  .action-overlay-btn.edit-btn:hover {
-    background: var(--color-accent-violet);
-    color: white;
-    border-color: transparent;
   }
   .action-overlay-btn :global(svg) {
     flex-shrink: 0;

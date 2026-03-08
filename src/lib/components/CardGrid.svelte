@@ -10,9 +10,9 @@
   }
 </script>
 
-{#if appState.activeCards.length > 0}
+{#if appState.filteredCards.length > 0}
   <div class="card-grid" style="--scale: {appState.scale}" data-testid="card-grid">
-    {#each appState.activeCards as card, index (card.id)}
+    {#each appState.filteredCards as card, index (card.id)}
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div
         class="card-wrapper"
@@ -27,19 +27,28 @@
   </div>
 {:else if appState.isConnected}
   <div class="empty-tab" data-testid="empty-tab">
-    <div class="empty-tab-icon" data-testid="empty-tab-icon">📂</div>
-    <p class="empty-tab-text" data-testid="empty-tab-text">Ця вкладка порожня</p>
-    <p class="empty-tab-hint" data-testid="empty-tab-hint">Додайте .txt або .md файли в цю папку</p>
+    {#if appState.searchQuery}
+      <div class="empty-tab-icon" data-testid="empty-tab-icon">🔍</div>
+      <p class="empty-tab-text" data-testid="empty-tab-text">Нічого не знайдено</p>
+      <p class="empty-tab-hint" data-testid="empty-tab-hint">Спробуйте змінити запит: "{appState.searchQuery}"</p>
+    {:else}
+      <div class="empty-tab-icon" data-testid="empty-tab-icon">📂</div>
+      <p class="empty-tab-text" data-testid="empty-tab-text">Ця вкладка порожня</p>
+      <p class="empty-tab-hint" data-testid="empty-tab-hint">Додайте .txt або .md файли в цю папку</p>
+    {/if}
   </div>
 {/if}
 
 <style>
   .card-grid {
-    columns: calc(280px * var(--scale, 1));
+    columns: 300px; /* Base column width, will be scaled by zoom */
     column-gap: var(--space-3);
     padding: var(--space-4);
-    max-width: 1800px;
+    max-width: 100%; /* Allow grid to grow with scale */
     margin: 0 auto;
+    zoom: var(--scale, 1); /* Smooth scaling for Chromium browsers */
+    transform-origin: top center;
+    transition: zoom 0.1s ease-out;
   }
 
   .card-wrapper {

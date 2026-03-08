@@ -5,6 +5,7 @@
     handleGlobalKeydown,
     connectDirectory,
     adjustScale,
+    setScale,
     refreshTabs,
     setCardView,
     setCardDensity,
@@ -22,6 +23,45 @@
   import DebugListener from "./lib/components/DebugListener.svelte";
 
   const appState = getState();
+
+  /** Scale dragging logic */
+  let isDraggingScale = $state(false);
+  let startDragX = $state(0);
+  let startScale = $state(1.0);
+
+  function handleScaleMouseDown(e: MouseEvent) {
+    isDraggingScale = true;
+    startDragX = e.clientX;
+    startScale = appState.scale;
+    document.body.style.cursor = "col-resize";
+    e.preventDefault();
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      if (!isDraggingScale) return;
+      const deltaX = moveEvent.clientX - startDragX;
+      // Change 10% for every 50px moved
+      const scaleDelta = (deltaX / 500); 
+      setScale(startScale + scaleDelta);
+    };
+
+    const onMouseUp = () => {
+      isDraggingScale = false;
+      document.body.style.cursor = "";
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+  }
+
+  // Scale reset handler for keyboard
+  function handleScaleKeydown(e: KeyboardEvent) {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      setScale(1.0);
+    }
+  }
 
   // Global keyboard listener
   function onKeydown(e: KeyboardEvent) {
@@ -141,9 +181,20 @@
             aria-label="Зменшити масштаб"
             data-testid="btn-scale-down">−</button
           >
-          <span class="scale-value" data-testid="scale-value"
-            >{Math.round(appState.scale * 100)}%</span
+          <span 
+            class="scale-value" 
+            class:dragging={isDraggingScale}
+            onmousedown={handleScaleMouseDown}
+            oncontextmenu={(e) => { e.preventDefault(); setScale(1.0); }}
+            onkeydown={handleScaleKeydown}
+            role="button"
+            tabindex="0"
+            aria-label="Скинути масштаб до 100%"
+            title="Затисніть для зміни, ПКМ або Enter — скинути до 100%"
+            data-testid="scale-value"
           >
+            {Math.round(appState.scale * 100)}%
+          </span>
           <button
             class="scale-btn"
             onclick={() => adjustScale(0.1)}
@@ -332,6 +383,21 @@
     color: var(--color-text-muted);
     min-width: 36px;
     text-align: center;
+    cursor: col-resize;
+    user-select: none;
+    transition: all var(--transition-fast);
+    padding: 2px 4px;
+    border-radius: 4px;
+  }
+
+  .scale-value:hover {
+    color: var(--color-text-primary);
+    background: var(--color-surface-3);
+  }
+
+  .scale-value.dragging {
+    color: var(--color-accent-cyan);
+    background: var(--color-surface-3);
   }
 
   /* Icon buttons */

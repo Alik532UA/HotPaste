@@ -89,6 +89,7 @@
             id="tab-display-name"
             type="text"
             bind:value={displayName}
+            onkeydown={(e) => { e.stopPropagation(); handleKeydown(e); }}
             placeholder={tab.path === "__root__" ? "Файли" : tab.path}
             autocomplete="off"
             data-testid="input-tab-display-name"
@@ -104,6 +105,7 @@
               id="tab-dir-name"
               type="text"
               bind:value={dirName}
+              onkeydown={(e) => { e.stopPropagation(); handleKeydown(e); }}
               placeholder="folder_name"
               autocomplete="off"
               data-testid="input-tab-dir-name"
@@ -119,6 +121,7 @@
             id="tab-icon-emoji"
             type="text"
             bind:value={icon}
+            onkeydown={(e) => { e.stopPropagation(); handleKeydown(e); }}
             placeholder="📁, 🚀, 📝..."
             data-testid="input-tab-icon"
           />

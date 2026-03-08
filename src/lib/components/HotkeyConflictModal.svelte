@@ -29,7 +29,7 @@
     >
       <div class="modal-header">
         <div class="header-title">
-          <AlertTriangle class="text-warning" size={20} />
+          <AlertTriangle color="#ff9f0a" size={20} />
           <h2>Конфлікт клавіші {appState.getHotkeyLabel(conflict.code)}</h2>
         </div>
         <button class="btn-close" onclick={handleClose} aria-label="Закрити">
@@ -105,10 +105,6 @@
     margin: 0;
     font-size: 1.1rem;
     font-weight: 600;
-  }
-
-  .text-warning {
-    color: #ff9f0a;
   }
 
   .btn-close {
