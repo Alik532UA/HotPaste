@@ -20,6 +20,7 @@
         onclick={handleClick}
         title="Створити нову картку (Ctrl+N)"
         aria-label="Створити нову картку"
+        data-testid="fab-add-card"
     >
         <Plus size={24} strokeWidth={2.5} />
     </button>

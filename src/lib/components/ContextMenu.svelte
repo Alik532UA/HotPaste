@@ -7,12 +7,24 @@
     deleteCard,
     moveCardToTab,
     openSettings,
+    openTabSettings,
+    deleteTab,
+    duplicateTab,
   } from "../stores/appState.svelte";
   import * as icons from "lucide-svelte";
   import { onMount } from "svelte";
+  import type { Card, Tab } from "../types";
 
   const appState = getState();
   const contextMenu = $derived(appState.activeContextMenu);
+  
+  // Type guards
+  const isCard = $derived(contextMenu && "filePath" in (contextMenu.card as any));
+  const isTab = $derived(contextMenu && "path" in (contextMenu.card as any));
+  
+  // Casting for convenience
+  const card = $derived(isCard ? (contextMenu?.card as unknown as Card) : null);
+  const tab = $derived(isTab ? (contextMenu?.card as unknown as Tab) : null);
 
   let menuElement = $state<HTMLElement | null>(null);
 
@@ -30,8 +42,8 @@
     let x = contextMenu.x;
     let y = contextMenu.y;
     
-    // Crude screen edge detection (can be improved with actual menu dimensions)
-    if (x > window.innerWidth - 180) x -= 180;
+    // Crude screen edge detection
+    if (x > window.innerWidth - 220) x -= 200;
     if (y > window.innerHeight - 300) y -= 280;
     
     return { x, y };
@@ -50,68 +62,100 @@
   }
 
   function handleMove(tabPath: string) {
-    if (contextMenu) {
-      moveCardToTab(contextMenu.card, tabPath);
+    if (card) {
+      moveCardToTab(card, tabPath);
     }
     closeContextMenu();
   }
 </script>
 
 {#if contextMenu}
+  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
   <div
     class="context-menu"
     bind:this={menuElement}
     style="left: {position.x}px; top: {position.y}px;"
     oncontextmenu={(e) => e.preventDefault()}
+    role="menu"
+    tabindex="-1"
+    data-testid="context-menu"
   >
     <div class="menu-header">
-      <span class="card-name">{contextMenu.card.name}</span>
+      <span class="card-name" data-testid="menu-title">{isCard ? card?.name : tab?.name}</span>
     </div>
 
-    <button class="menu-item" onclick={() => handleAction(() => copyCard(contextMenu.card))}>
-      <icons.Copy size={14} />
-      <span>Копіювати текст</span>
-      <span class="shortcut">{contextMenu.card.hotkey?.toUpperCase() || ""}</span>
-    </button>
+    {#if isCard && card}
+      <!-- Card Menu Items -->
+      <button class="menu-item" onclick={() => handleAction(() => copyCard(card))} role="menuitem" data-testid="menu-item-copy">
+        <icons.Copy size={14} />
+        <span>Копіювати текст</span>
+        <span class="shortcut" data-testid="menu-item-shortcut">{appState.getHotkeyLabel(card.hotkey)}</span>
+      </button>
 
-    <div class="divider"></div>
+      <div class="divider" role="separator"></div>
 
-    <button class="menu-item" onclick={() => handleAction(() => duplicateCard(contextMenu.card))}>
-      <icons.CopyPlus size={14} />
-      <span>Дублювати</span>
-    </button>
+      <button class="menu-item" onclick={() => handleAction(() => duplicateCard(card))} role="menuitem" data-testid="menu-item-duplicate">
+        <icons.CopyPlus size={14} />
+        <span>Дублювати</span>
+      </button>
 
-    <div class="menu-item move-item">
-      <icons.ExternalLink size={14} />
-      <span>Перемістити</span>
-      <icons.ChevronRight size={14} class="arrow" />
-      
-      <!-- Submenu for tabs -->
-      <div class="submenu">
-        {#each appState.tabs as tab}
-          {#if tab.path !== contextMenu.card.filePath.split('/').slice(0, -1).join('/') && !(tab.path === '__root__' && contextMenu.card.filePath.startsWith('__root__/'))}
-            <button class="menu-item" onclick={() => handleMove(tab.path)}>
-              <span>{tab.icon || "📂"} {tab.name}</span>
-            </button>
+      <div class="menu-item move-item" role="menuitem" aria-haspopup="true" data-testid="menu-item-move">
+        <icons.ExternalLink size={14} />
+        <span>Перемістити</span>
+        <icons.ChevronRight size={14} class="arrow-icon" />
+        
+        <div class="submenu" role="menu" data-testid="submenu-move">
+          {#each appState.tabs as t}
+            {#if t.path !== card.filePath.split('/').slice(0, -1).join('/') && !(t.path === '__root__' && card.filePath.startsWith('__root__/'))}
+              <button class="menu-item" onclick={() => handleMove(t.path)} role="menuitem" data-testid="submenu-item-move-to" data-tab-path={t.path}>
+                <span>{t.icon || "📂"} {t.name}</span>
+              </button>
+            {/if}
+          {/each}
+          {#if appState.tabs.length <= 1}
+              <div class="menu-item disabled" role="menuitem" aria-disabled="true">Немає інших вкладок</div>
           {/if}
-        {/each}
-        {#if appState.tabs.length <= 1}
-            <div class="menu-item disabled">Немає інших вкладок</div>
-        {/if}
+        </div>
       </div>
-    </div>
 
-    <button class="menu-item" onclick={() => handleAction(() => openSettings(contextMenu.card))}>
-      <icons.Settings size={14} />
-      <span>Налаштувати</span>
-    </button>
+      <button class="menu-item" onclick={() => handleAction(() => openSettings(card))} role="menuitem" data-testid="menu-item-settings">
+        <icons.Settings size={14} />
+        <span>Налаштувати</span>
+      </button>
 
-    <div class="divider"></div>
+      <div class="divider" role="separator"></div>
 
-    <button class="menu-item danger" onclick={() => handleAction(() => deleteCard(contextMenu.card))}>
-      <icons.Trash2 size={14} />
-      <span>Видалити</span>
-    </button>
+      <button class="menu-item danger" onclick={() => handleAction(() => deleteCard(card))} role="menuitem" data-testid="menu-item-delete">
+        <icons.Trash2 size={14} />
+        <span>Видалити</span>
+      </button>
+
+    {:else if isTab && tab}
+      <!-- Tab Menu Items -->
+      <button class="menu-item" onclick={() => handleAction(() => openTabSettings(tab))} role="menuitem" data-testid="menu-item-tab-settings">
+        <icons.Settings size={14} />
+        <span>Налаштувати вкладку</span>
+      </button>
+
+      <button class="menu-item" onclick={() => handleAction(() => duplicateTab(tab))} role="menuitem" data-testid="menu-item-tab-duplicate">
+        <icons.CopyPlus size={14} />
+        <span>Дублювати вкладку</span>
+      </button>
+
+      <div class="divider" role="separator"></div>
+
+      <button 
+        class="menu-item danger" 
+        class:disabled={tab.path === '__root__'}
+        onclick={() => handleAction(() => deleteTab(tab))}
+        role="menuitem"
+        aria-disabled={tab.path === '__root__'}
+        data-testid="menu-item-tab-delete"
+      >
+        <icons.Trash2 size={14} />
+        <span>Видалити вкладку</span>
+      </button>
+    {/if}
   </div>
 {/if}
 
@@ -119,50 +163,53 @@
   .context-menu {
     position: fixed;
     z-index: 1000;
-    width: 200px;
+    width: 220px;
     background: var(--color-bg-secondary);
     border: 1px solid var(--color-border);
-    border-radius: 10px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
     padding: 6px;
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    animation: menuAppear 0.15s ease-out;
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    animation: menuAppear 0.1s ease-out;
+    outline: none;
   }
 
   @keyframes menuAppear {
-    from { opacity: 0; transform: scale(0.95); }
+    from { opacity: 0; transform: scale(0.98); }
     to { opacity: 1; transform: scale(1); }
   }
 
   .menu-header {
-    padding: 8px 10px;
-    font-size: 0.7rem;
+    padding: 8px 12px;
+    font-size: 0.65rem;
     color: var(--color-text-muted);
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.8px;
     border-bottom: 1px solid var(--color-surface-2);
-    margin-bottom: 4px;
+    margin-bottom: 6px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    opacity: 0.8;
   }
 
   .menu-item {
     width: 100%;
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 8px 10px;
+    gap: 12px;
+    padding: 10px 12px;
     background: transparent;
     border: none;
-    border-radius: 6px;
+    border-radius: 8px;
     color: var(--color-text-secondary);
     font-size: 0.85rem;
     cursor: pointer;
-    transition: all 0.1s ease;
+    transition: all 0.15s ease;
     position: relative;
     text-align: left;
+    font-family: inherit;
   }
 
   .menu-item:hover {
@@ -175,12 +222,13 @@
   }
 
   .menu-item.danger:hover {
-    background: rgba(255, 85, 85, 0.1);
+    background: rgba(255, 85, 85, 0.15);
   }
 
   .menu-item.disabled {
-    opacity: 0.5;
-    cursor: default;
+    opacity: 0.4;
+    cursor: not-allowed;
+    pointer-events: none;
   }
 
   .shortcut {
@@ -193,10 +241,12 @@
   .divider {
     height: 1px;
     background: var(--color-border);
-    margin: 4px 0;
+    margin: 6px 0;
+    opacity: 0.5;
   }
 
-  .arrow {
+  /* Custom styling for icons inside menu items if needed */
+  :global(.context-menu .arrow-icon) {
     margin-left: auto;
     opacity: 0.5;
   }
@@ -214,8 +264,8 @@
     width: 180px;
     background: var(--color-bg-secondary);
     border: 1px solid var(--color-border);
-    border-radius: 10px;
+    border-radius: 12px;
     padding: 6px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
   }
 </style>

@@ -7,7 +7,7 @@
 import type { Tab, Card, AppConfig } from '../types';
 import { DEFAULT_CONFIG } from '../types';
 import { BrowserFileSystemService, type IFileSystemService } from '../services/fileSystem';
-import { isTabHotkey, isCardHotkey, TAB_HOTKEYS, QWERTY_KEYS } from '../utils/keyboardLayout';
+import { isTabHotkey, isCardHotkey, TAB_CODES, getHotkeyLabel } from '../utils/keyboardLayout';
 import { logService } from '../services/logService';
 
 // --- Singleton state using Svelte 5 Runes ---
@@ -53,6 +53,7 @@ let activeContextMenu = $state<{ x: number, y: number, card: Card } | null>(null
 
 /** Settings modal state */
 let activeSettingsCard = $state<Card | null>(null);
+let activeSettingsTab = $state<Tab | null>(null);
 
 /** App config (persisted to localStorage) */
 let config = $state<AppConfig>(loadConfig());
@@ -87,6 +88,8 @@ export function getState() {
         get config() { return config; },
         get activeContextMenu() { return activeContextMenu; },
         get activeSettingsCard() { return activeSettingsCard; },
+        get activeSettingsTab() { return activeSettingsTab; },
+        getHotkeyLabel: (code: string) => getHotkeyLabel(code),
     };
 }
 
@@ -106,8 +109,17 @@ export async function connectDirectory(): Promise<void> {
 export async function refreshTabs(): Promise<void> {
     if (!fileSystemService.hasAccess()) return;
 
+    logService.log('appState', 'Refreshing tabs from disk...');
     const oldActivePath = activeTab?.path;
-    tabs = await fileSystemService.readDirectory();
+    const loadedTabs = await fileSystemService.readDirectory();
+
+    // Reconcile metadata for each tab before assigning to state
+    for (const tab of loadedTabs) {
+        await reconcileTabMetadata(tab);
+    }
+
+    tabs = loadedTabs;
+    logService.log('appState', `Tabs loaded: ${tabs.length}. Restoring active path: ${oldActivePath}`);
 
     // Try to restore active tab by path
     if (oldActivePath) {
@@ -122,6 +134,200 @@ export async function refreshTabs(): Promise<void> {
     }
 }
 
+/** 
+ * Automatically matches metadata in _hotpaste.json with files on disk 
+ * if they were renamed manually (based on size + mtime fingerprint).
+ */
+async function reconcileTabMetadata(tab: Tab): Promise<void> {
+    try {
+        const config = await fileSystemService.readConfig(tab.path);
+        if (!config.cards || Object.keys(config.cards).length === 0) return;
+
+        const diskFileNames = new Set(tab.cards.map(c => c.fileName));
+        const configKeys = Object.keys(config.cards);
+        
+        // 1. Identify "orphaned" metadata (in JSON but not on disk)
+        const orphanedKeys = configKeys.filter(k => !diskFileNames.has(k));
+        if (orphanedKeys.length === 0) return;
+
+        // 2. Identify "unrecognized" files (on disk but not in JSON)
+        const unrecognizedCards = tab.cards.filter(c => !config.cards![c.fileName]);
+        
+        let modified = false;
+
+        for (const orphanKey of orphanedKeys) {
+            const orphanConfig = config.cards[orphanKey];
+            if (!orphanConfig.fingerprint) continue;
+
+            // Try Level 1 Match: Size + Date
+            let match = unrecognizedCards.find(c => 
+                c.size === orphanConfig.fingerprint?.size && 
+                c.lastModified === orphanConfig.fingerprint?.lastModified
+            );
+
+            // Try Level 2 Match: Date only (if user edited some lines but timestamp is same, 
+            // or if we decide to trust Date more on some OS)
+            if (!match) {
+                match = unrecognizedCards.find(c => 
+                    c.lastModified === orphanConfig.fingerprint?.lastModified
+                );
+            }
+
+            if (match) {
+                logService.log('appState', `Відновлено зв'язок для перейменованого файлу: ${orphanKey} -> ${match.fileName}`);
+                
+                // Transfer metadata to new key
+                config.cards[match.fileName] = { ...orphanConfig };
+                delete config.cards[orphanKey];
+                
+                // Update the runtime card object
+                match.displayName = orphanConfig.displayName || null;
+                match.icon = orphanConfig.icon || null;
+                match.color = orphanConfig.color || null;
+                match.borderColor = orphanConfig.borderColor || null;
+                match.strikethrough = orphanConfig.strikethrough || [];
+                match.name = match.displayName || match.fileName.replace(/\.[^/.]+$/, "");
+                match.hotkey = orphanConfig.hotkey || '';
+
+                modified = true;
+                unrecognizedCards.splice(unrecognizedCards.indexOf(match), 1);
+            } else {
+                // If NO match found, create a "Ghost Card" representing this missing file
+                const ghostCard: Card = {
+                    id: tab.path === '__root__' ? orphanKey : `${tab.path}/${orphanKey}`,
+                    name: orphanConfig.displayName || orphanKey.replace(/\.[^/.]+$/, ""),
+                    displayName: orphanConfig.displayName || null,
+                    fileName: orphanKey,
+                    filePath: tab.path === '__root__' ? orphanKey : `${tab.path}/${orphanKey}`,
+                    content: "ФАЙЛ НЕ ЗНАЙДЕНО",
+                    extension: orphanKey.split('.').pop() || 'txt',
+                    hotkey: orphanConfig.hotkey || '',
+                    icon: orphanConfig.icon || 'AlertTriangle',
+                    color: orphanConfig.color || null,
+                    borderColor: orphanConfig.borderColor || '#ff4b4b',
+                    strikethrough: orphanConfig.strikethrough || [],
+                    size: 0,
+                    lastModified: 0,
+                    isMissing: true
+                };
+                
+                // Put ghost cards at the beginning or according to order
+                tab.cards.push(ghostCard);
+            }
+        }
+
+        // Sort tab cards again to respect order even with ghosts
+        const orderArr = config.tab?.order || [];
+        tab.cards.sort((a, b) => {
+            const indexA = orderArr.indexOf(a.fileName);
+            const indexB = orderArr.indexOf(b.fileName);
+            if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+            if (indexA !== -1) return -1;
+            if (indexB !== -1) return 1;
+            return a.fileName.localeCompare(b.fileName);
+        });
+
+        if (modified) {
+            await fileSystemService.writeConfig(tab.path, config);
+        }
+    } catch (err) {
+        logService.log('error', 'Metadata reconciliation failed', err);
+    }
+}
+
+/** Action to remove metadata for a file that is no longer needed */
+export async function removeOrphanedConfig(card: Card): Promise<void> {
+    try {
+        const parts = card.filePath.split('/');
+        parts.pop();
+        const tabPath = parts.join('/') || '__root__';
+        
+        const config = await fileSystemService.readConfig(tabPath);
+        if (config.cards && config.cards[card.fileName]) {
+            delete config.cards[card.fileName];
+            
+            if (config.tab?.order) {
+                config.tab.order = config.tab.order.filter(n => n !== card.fileName);
+            }
+            
+            await fileSystemService.writeConfig(tabPath, config);
+        }
+        
+        await refreshTabs();
+        showToast("Видалено з конфігурації");
+    } catch (err) {
+        logService.log('error', 'Failed to remove orphaned config', err);
+    }
+}
+
+/** Action to manually link a missing card to an existing unrecognized file */
+export async function linkFileManually(ghostCard: Card, realFileName: string): Promise<void> {
+    try {
+        const parts = ghostCard.filePath.split('/');
+        parts.pop();
+        const tabPath = parts.join('/') || '__root__';
+        
+        const config = await fileSystemService.readConfig(tabPath);
+        if (config.cards && config.cards[ghostCard.fileName]) {
+            const metadata = { ...config.cards[ghostCard.fileName] };
+            delete config.cards[ghostCard.fileName];
+            
+            config.cards[realFileName] = metadata;
+            
+            if (config.tab?.order) {
+                config.tab.order = config.tab.order.map(n => n === ghostCard.fileName ? realFileName : n);
+            }
+            
+            await fileSystemService.writeConfig(tabPath, config);
+        }
+        
+        await refreshTabs();
+        showToast("Зв'язок відновлено");
+    } catch (err) {
+        logService.log('error', 'Failed to link file manually', err);
+    }
+}
+
+/** Physical file rename action */
+export async function renamePhysicalFile(card: Card, newFileName: string): Promise<void> {
+    if (!newFileName || newFileName === card.fileName) return;
+    
+    // Ensure extension is preserved or added if missing
+    if (!newFileName.includes('.')) {
+        newFileName += card.extension;
+    }
+
+    try {
+        const oldFileName = card.fileName;
+        const parts = card.filePath.split('/');
+        parts.pop();
+        const tabPath = parts.join('/') || '__root__';
+
+        // 1. Physical rename
+        await fileSystemService.renameFile(card.filePath, newFileName);
+
+        // 2. Update config JSON keys
+        const config = await fileSystemService.readConfig(tabPath);
+        if (config.cards && config.cards[oldFileName]) {
+            config.cards[newFileName] = { ...config.cards[oldFileName] };
+            delete config.cards[oldFileName];
+            
+            // Update order array if exists
+            if (config.tab?.order) {
+                config.tab.order = config.tab.order.map(n => n === oldFileName ? newFileName : n);
+            }
+            
+            await fileSystemService.writeConfig(tabPath, config);
+        }
+
+        await refreshTabs();
+        showToast(`Файл перейменовано на ${newFileName}`);
+    } catch (err) {
+        logService.log('error', 'Failed to rename file', err);
+        showToast('Помилка перейменування файлу!');
+    }
+}
+
 /** Select a tab by index */
 export function selectTab(index: number): void {
     if (index >= 0 && index < tabs.length) {
@@ -129,10 +335,10 @@ export function selectTab(index: number): void {
     }
 }
 
-/** Select a tab by hotkey */
-export function selectTabByHotkey(key: string): boolean {
-    if (!isTabHotkey(key)) return false;
-    const index = TAB_HOTKEYS.indexOf(key);
+/** Select a tab by hotkey (physical code) */
+export function selectTabByHotkey(code: string): boolean {
+    if (!isTabHotkey(code)) return false;
+    const index = TAB_CODES.indexOf(code);
     if (index >= 0 && index < tabs.length) {
         activeTabIndex = index;
         return true;
@@ -140,11 +346,9 @@ export function selectTabByHotkey(key: string): boolean {
     return false;
 }
 
-/** Copy a card's content by hotkey */
-export async function copyCardByHotkey(key: string): Promise<boolean> {
-    if (!isCardHotkey(key)) return false;
-    const lowerKey = key.toLowerCase();
-    const card = activeCards.find(c => c.hotkey === lowerKey);
+/** Copy a card's content by hotkey (physical code) */
+export async function copyCardByHotkey(code: string): Promise<boolean> {
+    const card = activeCards.find(c => c.hotkey === code);
     if (!card) return false;
     await copyCard(card);
     return true;
@@ -171,19 +375,34 @@ export async function copyCard(card: Card): Promise<void> {
 
 /** Save a card's content (write to file). If it's a mock new card, creates it first. */
 export async function saveCard(card: Card, newContent: string): Promise<void> {
+    logService.log('appState', `saveCard called for: ${card.name}, id: ${card.id}, isNewMock: ${card.isNewMock}`);
     try {
         let isNewCard = false;
 
         // Check if this is a newly created mock card that hasn't been saved yet
-        if (!card.filePath) {
+        if (card.isNewMock || !card.filePath || card.filePath.startsWith('new-')) {
             isNewCard = true;
             const tab = activeTab;
             if (!tab) throw new Error("No active tab to save to.");
 
-            // Generate a filename based on timestamp or just new_snippet
-            const date = new Date();
-            const timestamp = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}_${String(date.getHours()).padStart(2, '0')}${String(date.getMinutes()).padStart(2, '0')}${String(date.getSeconds()).padStart(2, '0')}`;
-            const fileName = `snippet_${timestamp}.txt`;
+            // Generate filename from content: first 2-3 words
+            const rawWords = newContent.trim().split(/\s+/).slice(0, 3);
+            const cleanWords = rawWords
+                .map(w => w.replace(/[^a-zA-Z0-9а-яА-ЯіїєґІЇЄҐ]/g, ''))
+                .filter(w => w.length > 0);
+            
+            logService.log('appState', `Generating name from content. Words: ${JSON.stringify(rawWords)}, Clean: ${JSON.stringify(cleanWords)}`);
+            
+            let fileName = cleanWords.join('_');
+            if (fileName.length > 30) fileName = fileName.substring(0, 30); // Limit length
+            fileName += '.txt';
+            
+            if (fileName === '.txt' || cleanWords.length === 0) {
+                const date = new Date();
+                const timestamp = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}_${String(date.getHours()).padStart(2, '0')}${String(date.getMinutes()).padStart(2, '0')}${String(date.getSeconds()).padStart(2, '0')}`;
+                fileName = `snippet_${timestamp}.txt`;
+                logService.log('appState', `Fallback to timestamp filename: ${fileName}`);
+            }
 
             if (tab.path === '__root__') {
                 card.filePath = `__root__/${fileName}`;
@@ -191,36 +410,26 @@ export async function saveCard(card: Card, newContent: string): Promise<void> {
                 card.filePath = `${tab.path}/${fileName}`;
             }
             card.fileName = fileName;
-            card.name = fileName.replace(/\.[^/.]+$/, ""); // name without extension
+            card.displayName = null;
+            card.name = fileName.replace(/\.[^/.]+$/, "");
+            logService.log('appState', `Mock card promoted to real file: ${card.filePath}`);
         }
 
         await fileSystemService.writeFile(card.filePath, newContent);
+        logService.log('appState', `File written successfully: ${card.filePath}`);
 
-        // Recalculate strikethrough indices if content changed and card is not new
-        if (!isNewCard && card.strikethrough.length > 0) {
-            const oldLines = card.content.split('\n');
-            const newLines = newContent.split('\n');
-
-            // Simple approach: keep strikethroughs for lines that exactly match
-            const newStrikethrough: number[] = [];
-            for (const oldIdx of card.strikethrough) {
-                if (oldIdx < oldLines.length) {
-                    const lineText = oldLines[oldIdx];
-                    const newIdx = newLines.indexOf(lineText);
-                    if (newIdx !== -1 && !newStrikethrough.includes(newIdx)) {
-                        newStrikethrough.push(newIdx);
-                    }
-                }
-            }
-            card.strikethrough = newStrikethrough.sort((a, b) => a - b);
-            debouncedSaveTabConfig();
+        // Update in-memory data immediately
+        card.content = newContent;
+        if (card.isNewMock) {
+            delete card.isNewMock;
+            // IMPORTANT: We do NOT change card.id here to keep Svelte component stable 
+            // until the full refresh replaces it.
         }
 
-        // Update in-memory data
-        card.content = newContent;
-
         if (isNewCard) {
-            await refreshTabs();
+            logService.log('appState', 'Triggering refreshTabs (background)');
+            // FIRE AND FORGET refresh, don't await!
+            refreshTabs(); 
         }
 
         showToast(`Збережено: ${card.name}`);
@@ -228,6 +437,7 @@ export async function saveCard(card: Card, newContent: string): Promise<void> {
     } catch (err) {
         logService.log('error', 'Failed to save card', err);
         showToast('Помилка збереження!');
+        throw err;
     }
 }
 
@@ -308,27 +518,33 @@ export function startNewCardCreation(): void {
     const tab = activeTab;
     if (!tab) return;
 
+    const tempId = `new-${Date.now()}`;
+    logService.log('appState', `startNewCardCreation: generated tempId ${tempId}`);
+
     // Create a mock card that does not have a real filePath yet
     const mockCard: Card = {
+        id: tempId, // Unique stable key for Svelte grid
         name: "New Snippet",
         fileName: "",
-        filePath: "",
+        filePath: tempId, 
         content: "",
         extension: "txt",
-        contentLower: "",
         // Derived configs
         displayName: null,
-        hotkey: null,
+        hotkey: '',
         icon: null,
         color: null,
         borderColor: null,
         strikethrough: [],
+        size: 0,
+        lastModified: 0,
         // Temporary flag indicating it's new
         isNewMock: true
-    } as any; // Type hack for the temporary flag
+    };
 
     // Prepend to active cards temporarily (we actually modify the reactive array)
     tab.cards = [mockCard, ...tab.cards];
+    logService.log('appState', 'New mock card added to tab.cards');
 }
 
 /** Context Menu actions */
@@ -354,8 +570,11 @@ export async function updateCardSettings(card: Card, settings: Partial<Card>): P
     // Update in memory
     Object.assign(card, settings);
 
-    // If displayName was set to empty, use the name as fallback for memory but keep null for config
+    // If displayName was set to empty, use null for config
     if (settings.displayName === "") card.displayName = null;
+
+    // Sync UI name
+    card.name = card.displayName || card.fileName.replace(/\.[^/.]+$/, "");
 
     await saveCurrentTabConfig();
     showToast(`Налаштування збережено: ${card.name}`);
@@ -435,6 +654,12 @@ async function saveCurrentTabConfig() {
             if (card.color) cInfo.color = card.color; else delete cInfo.color;
             if (card.borderColor) cInfo.borderColor = card.borderColor; else delete cInfo.borderColor;
 
+            // System fingerprint for recovery
+            cInfo.fingerprint = {
+                size: card.size,
+                lastModified: card.lastModified
+            };
+
             // Strikethrough
             if (card.strikethrough && card.strikethrough.length > 0) {
                 cInfo.strikethrough = [...card.strikethrough];
@@ -475,6 +700,171 @@ export function toggleCardView(): void {
 /** Set card view explicitly */
 export function setCardView(view: 'short' | 'full'): void {
     cardView = view;
+}
+
+/** Create a new tab (physical directory) */
+export async function createNewTab(name: string): Promise<void> {
+    try {
+        await fileSystemService.createDirectory(name);
+        await refreshTabs();
+        showToast(`Вкладку "${name}" створено`);
+    } catch (err) {
+        logService.log('error', 'Failed to create tab', err);
+        showToast('Помилка створення вкладки!');
+    }
+}
+
+/** Delete a tab (physical directory) */
+export async function deleteTab(tab: Tab): Promise<void> {
+    if (tab.path === '__root__') {
+        showToast('Неможливо видалити кореневу вкладку');
+        return;
+    }
+    if (!confirm(`Ви впевнені, що хочете видалити вкладку "${tab.name}" з усіма файлами?`)) return;
+
+    try {
+        await fileSystemService.deleteDirectory(tab.path);
+        
+        // Remove from root config tabOrder if exists
+        const rootConfig = await fileSystemService.readConfig('__root__');
+        if (rootConfig.tab?.tabOrder) {
+            rootConfig.tab.tabOrder = rootConfig.tab.tabOrder.filter(p => p !== tab.path);
+            if (rootConfig.tabs) delete rootConfig.tabs[tab.path];
+            await fileSystemService.writeConfig('__root__', rootConfig);
+        }
+
+        await refreshTabs();
+        showToast(`Вкладку "${tab.name}" видалено`);
+    } catch (err) {
+        logService.log('error', 'Failed to delete tab', err);
+        showToast('Помилка видалення вкладки!');
+    }
+}
+
+/** Physical tab rename (rename directory) */
+export async function renamePhysicalTab(tab: Tab, newDirName: string): Promise<void> {
+    if (!newDirName || newDirName === tab.path || tab.path === '__root__') return;
+
+    try {
+        const oldPath = tab.path;
+        await fileSystemService.renameDirectory(oldPath, newDirName);
+
+        // Update root config tabOrder
+        const rootConfig = await fileSystemService.readConfig('__root__');
+        if (rootConfig.tab?.tabOrder) {
+            rootConfig.tab.tabOrder = rootConfig.tab.tabOrder.map(p => p === oldPath ? newDirName : p);
+        }
+        if (rootConfig.tabs && rootConfig.tabs[oldPath]) {
+            rootConfig.tabs[newDirName] = { ...rootConfig.tabs[oldPath] };
+            delete rootConfig.tabs[oldPath];
+        }
+        await fileSystemService.writeConfig('__root__', rootConfig);
+
+        await refreshTabs();
+        showToast(`Вкладку перейменовано на ${newDirName}`);
+    } catch (err) {
+        logService.log('error', 'Failed to rename tab directory', err);
+        showToast('Помилка перейменування папки!');
+    }
+}
+
+/** Update tab settings (displayName, icon, color) and save to root config */
+export async function updateTabSettings(tab: Tab, settings: Partial<Tab>): Promise<void> {
+    // 1. Update in-memory tab object
+    Object.assign(tab, settings);
+    if (settings.displayName === "") tab.displayName = null;
+    
+    // Sync UI name
+    tab.name = tab.displayName || (tab.path === '__root__' ? '📄 Файли' : tab.path);
+
+    // 2. Save to ROOT config (since tabs metadata is stored in root's _hotpaste.json)
+    try {
+        const rootConfig = await fileSystemService.readConfig('__root__');
+        
+        if (tab.path === '__root__') {
+            // Root tab metadata is stored in "tab" property of root config
+            if (!rootConfig.tab) rootConfig.tab = {};
+            rootConfig.tab.displayName = tab.displayName;
+            rootConfig.tab.icon = tab.icon;
+            rootConfig.tab.color = tab.color;
+        } else {
+            // Other tabs metadata is stored in "tabs" dictionary of root config
+            if (!rootConfig.tabs) rootConfig.tabs = {};
+            if (!rootConfig.tabs[tab.path]) rootConfig.tabs[tab.path] = {};
+            
+            const tMeta = rootConfig.tabs[tab.path];
+            tMeta.displayName = tab.displayName;
+            tMeta.icon = tab.icon;
+            tMeta.color = tab.color;
+            
+            // Cleanup empty
+            if (Object.keys(tMeta).length === 0) delete rootConfig.tabs[tab.path];
+        }
+        
+        await fileSystemService.writeConfig('__root__', rootConfig);
+        showToast(`Налаштування вкладки збережено`);
+    } catch (err) {
+        logService.log('error', 'Failed to save tab settings', err);
+    }
+}
+
+/** Open tab settings modal */
+export function openTabSettings(tab: Tab): void {
+    activeSettingsTab = tab;
+}
+
+export function closeTabSettings(): void {
+    activeSettingsTab = null;
+}
+
+/** Duplicate a tab */
+export async function duplicateTab(tab: Tab): Promise<void> {
+    if (tab.path === '__root__') return;
+    
+    try {
+        const newPath = `${tab.path}_copy`;
+        await fileSystemService.createDirectory(newPath);
+        
+        // Copy all files
+        for (const card of tab.cards) {
+            await fileSystemService.copyFile(card.filePath, `${newPath}/${card.fileName}`);
+        }
+        
+        // Copy config if exists
+        const config = await fileSystemService.readConfig(tab.path);
+        await fileSystemService.writeConfig(newPath, config);
+        
+        await refreshTabs();
+        showToast(`Вкладку дубльовано: ${newPath}`);
+    } catch (err) {
+        logService.log('error', 'Failed to duplicate tab', err);
+        showToast('Помилка дублювання вкладки!');
+    }
+}
+
+/** Move a tab to a new position (DnD) */
+export async function moveTab(fromIndex: number, toIndex: number): Promise<void> {
+    if (fromIndex < 0 || fromIndex >= tabs.length || toIndex < 0 || toIndex >= tabs.length) return;
+
+    // Move in memory
+    const movedTab = tabs[fromIndex];
+    tabs.splice(fromIndex, 1);
+    tabs.splice(toIndex, 0, movedTab);
+
+    // Save order to root config
+    try {
+        const rootConfig = await fileSystemService.readConfig('__root__');
+        if (!rootConfig.tab) rootConfig.tab = {};
+        
+        // Exclude __root__ from tabOrder as it's always first or handled specially
+        rootConfig.tab.tabOrder = tabs
+            .filter(t => t.path !== '__root__')
+            .map(t => t.path);
+            
+        await fileSystemService.writeConfig('__root__', rootConfig);
+    } catch (err) {
+        logService.log('error', 'Failed to save tab order', err);
+    }
 }
 
 // --- Toast ---
@@ -536,7 +926,7 @@ export function handleGlobalKeydown(event: KeyboardEvent): void {
     if (!isConnected) return;
 
     // Ctrl+N = New Card
-    if (event.ctrlKey && event.key === 'n') {
+    if (event.ctrlKey && event.code === 'KeyN') {
         event.preventDefault();
         startNewCardCreation();
         return;
@@ -545,18 +935,25 @@ export function handleGlobalKeydown(event: KeyboardEvent): void {
     // Ignore if modifier keys are pressed (except for Ctrl+scroll handled elsewhere)
     if (event.ctrlKey || event.metaKey || event.altKey) return;
 
-    const key = event.key;
+    const code = event.code;
 
-    // Tab switch (digits)
-    if (selectTabByHotkey(key)) {
+    // Tab switch (Digit1-0)
+    if (selectTabByHotkey(code)) {
         event.preventDefault();
         return;
     }
 
-    // Card copy (letters)
-    if (isCardHotkey(key)) {
+    // Card copy (Keys)
+    if (isCardHotkey(code)) {
+        // We only want to prevent default and try to copy if a card actually has this hotkey
+        copyCardByHotkey(code).then(success => {
+            if (success) {
+                // Potential issue: event is already processed by the time promise resolves
+                // But in most cases it's fine for simple preventing
+            }
+        });
+        
+        // To be safe, always prevent if it's a valid card hotkey area
         event.preventDefault();
-        copyCardByHotkey(key);
-        return;
     }
 }

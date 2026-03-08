@@ -1,50 +1,83 @@
 /**
- * QWERTY Keyboard Layout mapping for card hotkeys.
- * Cards are assigned letters based on their visual position,
- * mapping to standard keyboard rows.
+ * QWERTY Keyboard Layout mapping using physical key codes (KeyboardEvent.code).
+ * This makes hotkeys layout-independent (works the same on English, Ukrainian, etc.)
  */
 
-/** First row of QWERTY keyboard */
-const ROW_1 = ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'];
-/** Second row of QWERTY keyboard */
-const ROW_2 = ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'];
-/** Third row of QWERTY keyboard */
-const ROW_3 = ['z', 'x', 'c', 'v', 'b', 'n', 'm'];
+/** Physical codes for the first row of QWERTY keyboard */
+const ROW_1 = ['KeyQ', 'KeyW', 'KeyE', 'KeyR', 'KeyT', 'KeyY', 'KeyU', 'KeyI', 'KeyO', 'KeyP'];
+/** Physical codes for the second row of QWERTY keyboard */
+const ROW_2 = ['KeyA', 'KeyS', 'KeyD', 'KeyF', 'KeyG', 'KeyH', 'KeyJ', 'KeyK', 'KeyL'];
+/** Physical codes for the third row of QWERTY keyboard */
+const ROW_3 = ['KeyZ', 'KeyX', 'KeyC', 'KeyV', 'KeyB', 'KeyN', 'KeyM'];
 
-/** Full ordered list of QWERTY hotkeys (26 letters total) */
-export const QWERTY_KEYS = [...ROW_1, ...ROW_2, ...ROW_3];
+/** Full ordered list of QWERTY physical codes (26 letters total) */
+export const QWERTY_CODES = [...ROW_1, ...ROW_2, ...ROW_3];
 
-/** Tab hotkeys: digits 1-9 and 0 for the 10th tab */
-export const TAB_HOTKEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
+/** Tab hotkeys: physical digit codes Digit1-Digit0 */
+export const TAB_CODES = [
+    'Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 
+    'Digit6', 'Digit7', 'Digit8', 'Digit9', 'Digit0'
+];
 
 /**
- * Get the QWERTY hotkey for a card at the given index.
- * Returns empty string if index exceeds available keys (26).
+ * Get the physical code for a card at the given index.
  */
 export function getCardHotkey(index: number): string {
-    return index < QWERTY_KEYS.length ? QWERTY_KEYS[index] : '';
+    return index < QWERTY_CODES.length ? QWERTY_CODES[index] : '';
 }
 
 /**
- * Get the tab hotkey for a tab at the given index.
- * Returns empty string if index exceeds 10 tabs.
+ * Get the physical code for a tab at the given index.
  */
 export function getTabHotkey(index: number): string {
-    return index < TAB_HOTKEYS.length ? TAB_HOTKEYS[index] : '';
+    return index < TAB_CODES.length ? TAB_CODES[index] : '';
 }
 
 /**
- * Check if a key is a tab hotkey (digit).
+ * Check if a code is a tab hotkey (Digit1-0).
  */
-export function isTabHotkey(key: string): boolean {
-    return TAB_HOTKEYS.includes(key);
+export function isTabHotkey(code: string): boolean {
+    return TAB_CODES.includes(code);
 }
 
 /**
- * Check if a key is a card hotkey (QWERTY letter).
+ * Check if a code is a card hotkey.
+ * Allows Digit codes (if not used for tabs) or Key codes.
  */
-export function isCardHotkey(key: string): boolean {
-    return QWERTY_KEYS.includes(key.toLowerCase());
+export function isCardHotkey(code: string): boolean {
+    // For cards, we allow any Key or Digit code that isn't already a tab hotkey
+    return (code.startsWith('Key') || code.startsWith('Digit')) && !isTabHotkey(code);
+}
+
+/**
+ * Converts a physical code (e.g., 'KeyQ', 'Digit1', 'Semicolon') 
+ * into a friendly display label (e.g., 'Q', '1', ';').
+ */
+export function getHotkeyLabel(code: string): string {
+    if (!code) return '';
+    
+    // KeyA -> A, Digit1 -> 1
+    if (code.startsWith('Key')) return code.slice(3);
+    if (code.startsWith('Digit')) return code.slice(5);
+    
+    // Special common cases
+    const special: Record<string, string> = {
+        'Semicolon': ';',
+        'Quote': "'",
+        'Comma': ',',
+        'Period': '.',
+        'Slash': '/',
+        'Backslash': '\\',
+        'BracketLeft': '[',
+        'BracketRight': ']',
+        'Minus': '-',
+        'Equal': '=',
+        'Backquote': '`',
+        'Space': '␣',
+        'Enter': '↵',
+    };
+    
+    return special[code] || code;
 }
 
 /**

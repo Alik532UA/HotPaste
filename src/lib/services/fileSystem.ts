@@ -31,8 +31,16 @@ export interface IFileSystemService {
     readConfig(tabPath: string): Promise<HotPasteConfig>;
     /** Write tab config */
     writeConfig(tabPath: string, config: HotPasteConfig): Promise<void>;
+    /** Rename a file */
+    renameFile(path: string, newName: string): Promise<string>;
     /** Delete a file */
     deleteFile(path: string): Promise<void>;
+    /** Create a new directory (tab) */
+    createDirectory(name: string): Promise<void>;
+    /** Delete a directory recursively */
+    deleteDirectory(path: string): Promise<void>;
+    /** Rename a directory (effectively move its content or create new handle) */
+    renameDirectory(oldPath: string, newName: string): Promise<string>;
     /** Copy a file to the same directory with a new name */
     copyFile(path: string, newName: string): Promise<string>;
     /** Move a file to another directory */
@@ -80,39 +88,44 @@ export class BrowserFileSystemService implements IFileSystemService {
         const tabs: Tab[] = [];
         const rootFiles: Card[] = [];
 
-        // Read root config if exists
+        // Read root config if exists (to get tab order and metadata for subfolders)
         const rootConfig = await this.readConfigInternal(this.rootHandle);
 
         // Iterate over entries in the root directory
-        // @ts-ignore — entries() may not be in all TS lib definitions
+        // @ts-ignore
         for await (const [name, handle] of this.rootHandle.entries()) {
             if (handle.kind === 'directory') {
                 // Subdirectory = Tab
                 const dirHandle = handle as FileSystemDirectoryHandle;
                 const config = await this.readConfigInternal(dirHandle);
+                
+                // Also look into root config for tab-specific metadata (displayName, icon, color)
+                const rootTabMeta = rootConfig.tabs?.[name] || {};
+                
                 const cards = await this.readCardsFromDirectory(dirHandle, name, config);
 
-                if (cards.length > 0 || (config.tab && Object.keys(config.tab).length > 0)) {
+                if (cards.length > 0 || (config.tab && Object.keys(config.tab).length > 0) || rootTabMeta) {
                     tabs.push({
-                        name: config.tab?.displayName || this.cleanName(name),
-                        hotkey: '', // will be assigned later
+                        name: rootTabMeta.displayName || config.tab?.displayName || this.cleanName(name),
+                        displayName: rootTabMeta.displayName || config.tab?.displayName || null,
+                        hotkey: '', 
                         cards,
                         path: name,
-                        icon: config.tab?.icon || null,
-                        color: config.tab?.color || null,
+                        icon: rootTabMeta.icon || config.tab?.icon || null,
+                        color: rootTabMeta.color || config.tab?.color || null,
                     });
                 }
             } else if (handle.kind === 'file') {
-                // Root-level file = card in a default tab
                 const ext = this.getExtension(name);
                 if (SUPPORTED_EXTENSIONS.includes(ext)) {
                     const file = await (handle as FileSystemFileHandle).getFile();
                     const content = await file.text();
-
                     const cardConfig = rootConfig.cards?.[name] || {};
 
                     rootFiles.push({
+                        id: `__root__/${name}`,
                         name: cardConfig.displayName || this.cleanName(name),
+                        displayName: cardConfig.displayName || null,
                         content,
                         hotkey: cardConfig.hotkey || '',
                         filePath: `__root__/${name}`,
@@ -122,18 +135,33 @@ export class BrowserFileSystemService implements IFileSystemService {
                         color: cardConfig.color || null,
                         borderColor: cardConfig.borderColor || null,
                         strikethrough: cardConfig.strikethrough || [],
+                        size: file.size,
+                        lastModified: file.lastModified,
                     });
                 }
             }
         }
 
-        // Sort tabs alphabetically by original path, unless config dictates otherwise (can be added later)
-        tabs.sort((a, b) => a.path.localeCompare(b.path));
+        // Sort tabs: root order first, then alphabetical
+        const tabOrder = rootConfig.tab?.tabOrder || [];
+        tabs.sort((a, b) => {
+            if (a.path === '__root__') return -1;
+            if (b.path === '__root__') return 1;
+            
+            const indexA = tabOrder.indexOf(a.path);
+            const indexB = tabOrder.indexOf(b.path);
+            
+            if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+            if (indexA !== -1) return -1;
+            if (indexB !== -1) return 1;
+            return a.path.localeCompare(b.path);
+        });
 
         // If there are root-level files, add them as the first tab
         if (rootFiles.length > 0) {
             tabs.unshift({
                 name: rootConfig.tab?.displayName || '📄 Файли',
+                displayName: rootConfig.tab?.displayName || null,
                 hotkey: '',
                 cards: rootFiles,
                 path: '__root__',
@@ -142,11 +170,10 @@ export class BrowserFileSystemService implements IFileSystemService {
             });
         }
 
-        // Assign automatic hotkeys, respecting custom ones from config
+        // Assign automatic hotkeys
         tabs.forEach((tab, i) => {
             tab.hotkey = getTabHotkey(i);
 
-            // Collect used hotkeys in this tab to avoid collisions
             const usedHotkeys = new Set<string>();
             tab.cards.forEach(card => {
                 if (card.hotkey) {
@@ -154,12 +181,10 @@ export class BrowserFileSystemService implements IFileSystemService {
                 }
             });
 
-            // Assign hotkeys to cards that don't have them
             let autoHotkeyIndex = 0;
             tab.cards.forEach(card => {
                 if (!card.hotkey) {
                     let nextHotkey = getCardHotkey(autoHotkeyIndex);
-                    // Skip hotkeys that are already custom assigned
                     while (usedHotkeys.has(nextHotkey) && nextHotkey !== '') {
                         autoHotkeyIndex++;
                         nextHotkey = getCardHotkey(autoHotkeyIndex);
@@ -214,28 +239,70 @@ export class BrowserFileSystemService implements IFileSystemService {
         await writable.close();
     }
 
+    async renameFile(path: string, newName: string): Promise<string> {
+        const content = await this.readFile(path);
+        const parts = path.split('/');
+        parts.pop();
+        const dirPath = parts.join('/');
+        const newPath = dirPath === '' || dirPath === '__root__' ? newName : `${dirPath}/${newName}`;
+        await this.writeFile(newPath, content);
+        await this.deleteFile(path);
+        return newPath;
+    }
+
     async deleteFile(path: string): Promise<void> {
         if (!this.rootHandle) throw new Error('No directory access.');
-
         const parts = path.split('/');
         const fileName = parts.pop()!;
         const dirPath = parts.join('/');
-
         let dirHandle = this.rootHandle;
         if (dirPath !== '' && dirPath !== '__root__') {
             dirHandle = await this.rootHandle.getDirectoryHandle(dirPath);
         }
-
         await dirHandle.removeEntry(fileName);
+    }
+
+    async createDirectory(name: string): Promise<void> {
+        if (!this.rootHandle) throw new Error('No directory access.');
+        await this.rootHandle.getDirectoryHandle(name, { create: true });
+    }
+
+    async deleteDirectory(path: string): Promise<void> {
+        if (!this.rootHandle) throw new Error('No directory access.');
+        if (path === '__root__') return;
+        await this.rootHandle.removeEntry(path, { recursive: true });
+    }
+
+    async renameDirectory(oldPath: string, newName: string): Promise<string> {
+        if (!this.rootHandle) throw new Error('No directory access.');
+        if (oldPath === '__root__') return oldPath;
+
+        const oldDirHandle = await this.rootHandle.getDirectoryHandle(oldPath);
+        const newDirHandle = await this.rootHandle.getDirectoryHandle(newName, { create: true });
+        
+        // @ts-ignore
+        for await (const [name, handle] of oldDirHandle.entries()) {
+            if (handle.kind === 'file') {
+                const fileHandle = handle as FileSystemFileHandle;
+                const file = await fileHandle.getFile();
+                const newFileHandle = await newDirHandle.getFileHandle(name, { create: true });
+                // @ts-ignore
+                const writable = await newFileHandle.createWritable();
+                await writable.write(await file.arrayBuffer());
+                await writable.close();
+            }
+        }
+        
+        await this.rootHandle.removeEntry(oldPath, { recursive: true });
+        return newName;
     }
 
     async copyFile(path: string, newName: string): Promise<string> {
         const content = await this.readFile(path);
         const parts = path.split('/');
-        parts.pop(); // remove original filename
+        parts.pop();
         const dirPath = parts.join('/');
         const newPath = dirPath === '' ? newName : `${dirPath}/${newName}`;
-
         await this.writeFile(newPath, content);
         return newPath;
     }
@@ -244,16 +311,11 @@ export class BrowserFileSystemService implements IFileSystemService {
         const content = await this.readFile(path);
         const parts = path.split('/');
         const fileName = parts.pop()!;
-
         const newPath = targetTabPath === '__root__' ? fileName : `${targetTabPath}/${fileName}`;
-
         await this.writeFile(newPath, content);
         await this.deleteFile(path);
-
         return newPath;
     }
-
-    // --- Private helpers ---
 
     private async readConfigInternal(dirHandle: FileSystemDirectoryHandle): Promise<HotPasteConfig> {
         try {
@@ -264,26 +326,21 @@ export class BrowserFileSystemService implements IFileSystemService {
             return {
                 tab: parsed.tab || {},
                 cards: parsed.cards || {},
+                tabs: parsed.tabs || {},
             };
         } catch (err) {
-            // File doesn't exist or is invalid JSON
-            return { tab: {}, cards: {} };
+            return { tab: {}, cards: {}, tabs: {} };
         }
     }
 
     private async getFileHandleFromPath(path: string, create: boolean = false): Promise<FileSystemFileHandle> {
         if (!this.rootHandle) throw new Error('No directory access.');
-
-        // Normalize path
         const normalizedPath = path.startsWith('__root__/') ? path.slice(9) : path;
         const parts = normalizedPath.split('/');
-
         let dirHandle: FileSystemDirectoryHandle = this.rootHandle;
-
         for (let i = 0; i < parts.length - 1; i++) {
             dirHandle = await dirHandle.getDirectoryHandle(parts[i], { create });
         }
-
         return await dirHandle.getFileHandle(parts[parts.length - 1], { create });
     }
 
@@ -293,7 +350,6 @@ export class BrowserFileSystemService implements IFileSystemService {
         config: HotPasteConfig
     ): Promise<Card[]> {
         const cards: Card[] = [];
-
         // @ts-ignore
         for await (const [name, handle] of dirHandle.entries()) {
             if (handle.kind === 'file' && name !== CONFIG_FILENAME) {
@@ -301,41 +357,35 @@ export class BrowserFileSystemService implements IFileSystemService {
                 if (SUPPORTED_EXTENSIONS.includes(ext)) {
                     const file = await (handle as FileSystemFileHandle).getFile();
                     const content = await file.text();
-
                     const cardConfig = config.cards?.[name] || {};
-
+                    const filePath = `${dirPath}/${name}`;
                     cards.push({
+                        id: filePath,
                         name: cardConfig.displayName || this.cleanName(name),
+                        displayName: cardConfig.displayName || null,
                         content,
                         hotkey: cardConfig.hotkey || '',
-                        filePath: `${dirPath}/${name}`,
+                        filePath,
                         fileName: name,
                         extension: ext,
                         icon: cardConfig.icon || null,
                         color: cardConfig.color || null,
                         borderColor: cardConfig.borderColor || null,
                         strikethrough: cardConfig.strikethrough || [],
+                        size: file.size,
+                        lastModified: file.lastModified,
                     });
                 }
             }
         }
-
-        // Sort cards based on custom order, or alphabetically as fallback
         const orderArr = config.tab?.order || [];
         cards.sort((a, b) => {
             const indexA = orderArr.indexOf(a.fileName);
             const indexB = orderArr.indexOf(b.fileName);
-
-            if (indexA !== -1 && indexB !== -1) {
-                return indexA - indexB;
-            } else if (indexA !== -1) {
-                return -1; // a is in order, b is not (put a first)
-            } else if (indexB !== -1) {
-                return 1; // b is in order, a is not (put b first)
-            } else {
-                // Neither in order, sort alphabetically
-                return a.fileName.localeCompare(b.fileName);
-            }
+            if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+            else if (indexA !== -1) return -1;
+            else if (indexB !== -1) return 1;
+            else return a.fileName.localeCompare(b.fileName);
         });
         return cards;
     }
@@ -348,6 +398,8 @@ export class BrowserFileSystemService implements IFileSystemService {
     private cleanName(name: string): string {
         const lastDot = name.lastIndexOf('.');
         const withoutExt = lastDot >= 0 ? name.slice(0, lastDot) : name;
-        return withoutExt.replace(/^\d+[_\-\s]*/, '');
+        // Only strip numeric prefix if there is something left after it
+        const cleaned = withoutExt.replace(/^\d+[_\-\s]+/, '');
+        return cleaned || withoutExt;
     }
 }

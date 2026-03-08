@@ -5,8 +5,12 @@
 // ============================================
 
 export interface Card {
+  /** Unique stable identifier (defaults to filePath or temp ID for new cards) */
+  id: string;
   /** Display name (from config or derived from filename) */
   name: string;
+  /** Explicit display name from config (if any) */
+  displayName: string | null;
   /** Full text content of the snippet */
   content: string;
   /** Assigned keyboard hotkey (QWERTY letter) */
@@ -25,11 +29,21 @@ export interface Card {
   borderColor: string | null;
   /** Indices of strikethrough lines (0-based) */
   strikethrough: number[];
+  /** File size in bytes */
+  size: number;
+  /** Last modified timestamp (mtime) */
+  lastModified: number;
+  /** Flag indicating the file was not found on disk during last scan */
+  isMissing?: boolean;
+  /** Internal flag for newly created unsaved cards */
+  isNewMock?: boolean;
 }
 
 export interface Tab {
   /** Display name (from config or derived from folder name) */
   name: string;
+  /** Explicit display name from config (if any) */
+  displayName: string | null;
   /** Assigned keyboard hotkey ('1'-'9', '0') */
   hotkey: string;
   /** Cards (snippets) within this tab */
@@ -53,6 +67,11 @@ export interface CardConfigEntry {
   color?: string | null;
   borderColor?: string | null;
   strikethrough?: number[];
+  /** System fingerprint for recovery (size + lastModified) */
+  fingerprint?: {
+    size: number;
+    lastModified: number;
+  };
 }
 
 export interface TabConfigEntry {
@@ -61,11 +80,15 @@ export interface TabConfigEntry {
   displayName?: string | null;
   /** Array of card filenames in custom order */
   order?: string[];
+  /** Array of subdirectory names in custom order (only relevant for root config) */
+  tabOrder?: string[];
 }
 
 export interface HotPasteConfig {
   tab?: TabConfigEntry;
   cards?: Record<string, CardConfigEntry>;
+  /** Configuration for sub-tabs (only used in the root directory's config) */
+  tabs?: Record<string, TabConfigEntry>;
 }
 
 /** Default empty config */
@@ -93,5 +116,5 @@ export const DEFAULT_CONFIG: AppConfig = {
 /** Config filename used in each tab directory */
 export const CONFIG_FILENAME = '_hotpaste.json';
 
-/** CSS variable for action zone width (left side of card) */
-export const ACTION_ZONE_WIDTH = '50%';
+/** CSS variable for action zone width (right side of card) */
+export const ACTION_ZONE_WIDTH = '80%';

@@ -1,17 +1,15 @@
 <script lang="ts">
-  import { getState, closeSettings, updateCardSettings, renamePhysicalFile } from "../stores/appState.svelte";
+  import { getState, closeTabSettings, updateTabSettings, renamePhysicalTab } from "../stores/appState.svelte";
   import * as icons from "lucide-svelte";
 
   const appState = getState();
-  const card = $derived(appState.activeSettingsCard);
+  const tab = $derived(appState.activeSettingsTab);
 
   /** Local form state */
   let displayName = $state("");
-  let fileName = $state("");
-  let hotkey = $state("");
+  let dirName = $state("");
   let icon = $state("");
   let color = $state("");
-  let borderColor = $state("");
 
   /** Color presets */
   const colorPresets = [
@@ -36,79 +34,49 @@
     { name: "Rose", value: "#881337" },
   ];
 
-  const borderPresets = [
-    { name: "Default", value: "" },
-    { name: "Cyan", value: "#00d2ff" },
-    { name: "Violet", value: "#7b61ff" },
-    { name: "Green", value: "#00ff88" },
-    { name: "Red", value: "#ff4b4b" },
-    { name: "Orange", value: "#ff9f4b" },
-    { name: "Yellow", value: "#ffe14b" },
-    { name: "White", value: "rgba(255,255,255,0.2)" },
-    { name: "Invisible", value: "transparent" },
-  ];
-
   $effect(() => {
-    if (card) {
-      displayName = card.displayName || "";
-      fileName = card.fileName || "";
-      hotkey = card.hotkey || "";
-      icon = card.icon || "";
-      color = card.color || "";
-      borderColor = card.borderColor || "";
+    if (tab) {
+      displayName = tab.displayName || "";
+      dirName = tab.path === "__root__" ? "" : tab.path;
+      icon = tab.icon || "";
+      color = tab.color || "";
     }
   });
 
   async function handleSave() {
-    if (card) {
-      if (fileName && fileName !== card.fileName) {
-        await renamePhysicalFile(card, fileName);
+    if (tab) {
+      // 1. Check for physical rename (only if not root)
+      if (tab.path !== "__root__" && dirName && dirName !== tab.path) {
+        await renamePhysicalTab(tab, dirName);
       }
 
-      await updateCardSettings(card, {
+      // 2. Update metadata
+      await updateTabSettings(tab, {
         displayName: displayName || null,
-        hotkey: hotkey || "",
         icon: icon || null,
         color: color || null,
-        borderColor: borderColor || null,
-      } as any);
-      closeSettings();
+      });
+      closeTabSettings();
     }
   }
 
   function handleKeydown(e: KeyboardEvent) {
-    if (e.key === "Escape") closeSettings();
+    if (e.key === "Escape") closeTabSettings();
     if (e.key === "Enter" && e.ctrlKey) handleSave();
-  }
-
-  /** Capture physical key code */
-  function handleHotkeyKeydown(e: KeyboardEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    // Ignore modifiers only if they are pressed alone
-    if (['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) return;
-    
-    if (e.key === 'Backspace' || e.key === 'Delete') {
-      hotkey = "";
-      return;
-    }
-
-    hotkey = e.code;
   }
 </script>
 
-{#if card}
+{#if tab}
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <!-- svelte-ignore a11y_click_events_have_key_events -->
-  <div class="modal-overlay" onclick={closeSettings} onkeydown={handleKeydown}>
-    <div class="modal-content" onclick={(e) => e.stopPropagation()} data-testid="card-settings-modal">
+  <div class="modal-overlay" onclick={closeTabSettings} onkeydown={handleKeydown}>
+    <div class="modal-content" onclick={(e) => e.stopPropagation()} data-testid="tab-settings-modal">
       <header class="modal-header">
         <div class="header-title">
-          <icons.Settings size={20} class="header-icon" />
-          <h2>Налаштувати картку</h2>
+          <icons.FolderCog size={20} class="header-icon" />
+          <h2>Налаштувати вкладку</h2>
         </div>
-        <button class="close-btn" onclick={closeSettings} data-testid="btn-modal-close">
+        <button class="close-btn" onclick={closeTabSettings} data-testid="btn-modal-close">
           <icons.X size={20} />
         </button>
       </header>
@@ -116,66 +84,49 @@
       <div class="modal-body">
         <!-- Display Name -->
         <div class="form-group">
-          <label for="display-name">Відображувана назва</label>
+          <label for="tab-display-name">Відображувана назва</label>
           <input
-            id="display-name"
+            id="tab-display-name"
             type="text"
             bind:value={displayName}
-            placeholder={card.fileName}
+            placeholder={tab.path === "__root__" ? "Файли" : tab.path}
             autocomplete="off"
-            data-testid="input-display-name"
+            data-testid="input-tab-display-name"
           />
-          <p class="field-hint">Як картка підписана в інтерфейсі</p>
+          <p class="field-hint">Як вкладка підписана в інтерфейсі</p>
         </div>
 
-        <!-- File Name (Physical) -->
+        <!-- Directory Name (Physical) - Hide for root -->
+        {#if tab.path !== "__root__"}
+          <div class="form-group">
+            <label for="tab-dir-name">Ім'я папки на диску</label>
+            <input
+              id="tab-dir-name"
+              type="text"
+              bind:value={dirName}
+              placeholder="folder_name"
+              autocomplete="off"
+              data-testid="input-tab-dir-name"
+            />
+            <p class="field-hint">Увага: це змінить назву фізичної папки</p>
+          </div>
+        {/if}
+
+        <!-- Icon -->
         <div class="form-group">
-          <label for="file-name">Ім'я файлу на диску</label>
+          <label for="tab-icon-emoji">Іконка (Emoji)</label>
           <input
-            id="file-name"
+            id="tab-icon-emoji"
             type="text"
-            bind:value={fileName}
-            placeholder="example.txt"
-            autocomplete="off"
-            data-testid="input-file-name"
+            bind:value={icon}
+            placeholder="📁, 🚀, 📝..."
+            data-testid="input-tab-icon"
           />
-          <p class="field-hint">Увага: це змінить назву фізичного файлу</p>
-        </div>
-
-        <div class="form-row">
-          <!-- Hotkey -->
-          <div class="form-group flex-1">
-            <label for="hotkey-cap">Гаряча клавіша</label>
-            <input
-              id="hotkey-cap"
-              type="text"
-              readonly
-              value={appState.getHotkeyLabel(hotkey)}
-              onkeydown={handleHotkeyKeydown}
-              placeholder="Натисніть клавішу"
-              class="hotkey-input"
-              title="Фокус і натискання будь-якої клавіші змінить гарячу клавішу"
-              data-testid="input-card-hotkey"
-            />
-            <p class="field-hint">Фізична кнопка (не залежить від мови)</p>
-          </div>
-
-          <!-- Icon -->
-          <div class="form-group flex-2">
-            <label for="icon-name">Іконка (Lucide або Emoji)</label>
-            <input
-              id="icon-name"
-              type="text"
-              bind:value={icon}
-              placeholder="Copy, Edit, 📁, 🚀..."
-              data-testid="input-card-icon"
-            />
-          </div>
         </div>
 
         <!-- Color Picker -->
         <div class="form-group">
-          <label for="bg-color-custom">Колір фону</label>
+          <label for="tab-color-custom">Колір вкладки</label>
           <div class="color-grid">
             {#each colorPresets as preset}
               <button
@@ -184,30 +135,11 @@
                 style="background-color: {preset.value || 'rgba(255,255,255,0.05)'}"
                 onclick={() => (color = preset.value)}
                 title={preset.name}
-                data-testid="color-preset"
+                data-testid="tab-color-preset"
                 data-color={preset.value}
               ></button>
             {/each}
-            <input id="bg-color-custom" type="color" bind:value={color} class="custom-color-picker" data-testid="input-card-color-custom" />
-          </div>
-        </div>
-
-        <!-- Border Picker -->
-        <div class="form-group">
-          <label for="border-color-custom">Колір обводки</label>
-          <div class="color-grid">
-            {#each borderPresets as preset}
-              <button
-                class="color-swatch"
-                class:active={borderColor === preset.value}
-                style="background-color: {preset.value || 'rgba(255,255,255,0.05)'}; border: 1px solid {preset.value || 'var(--color-border)'}"
-                onclick={() => (borderColor = preset.value)}
-                title={preset.name}
-                data-testid="border-preset"
-                data-color={preset.value}
-              ></button>
-            {/each}
-            <input id="border-color-custom" type="color" bind:value={borderColor} class="custom-color-picker" data-testid="input-card-border-custom" />
+            <input id="tab-color-custom" type="color" bind:value={color} class="custom-color-picker" data-testid="input-tab-color-custom" />
           </div>
         </div>
       </div>
@@ -215,7 +147,7 @@
       <footer class="modal-footer">
         <span class="edit-hint">Ctrl+Enter — зберегти</span>
         <div class="footer-btns">
-          <button class="btn-secondary" onclick={closeSettings} data-testid="btn-settings-cancel">Скасувати</button>
+          <button class="btn-secondary" onclick={closeTabSettings} data-testid="btn-settings-cancel">Скасувати</button>
           <button class="btn-primary" onclick={handleSave} data-testid="btn-settings-save">Зберегти зміни</button>
         </div>
       </footer>
@@ -311,14 +243,6 @@
     gap: 8px;
   }
 
-  .form-row {
-    display: flex;
-    gap: 16px;
-  }
-
-  .flex-1 { flex: 1; }
-  .flex-2 { flex: 2; }
-
   label {
     font-size: 0.8rem;
     font-weight: 500;
@@ -340,20 +264,6 @@
     outline: none;
     border-color: var(--color-accent-violet);
     background: var(--color-surface-3);
-  }
-
-  .hotkey-input {
-    text-align: center;
-    font-family: var(--font-mono);
-    text-transform: uppercase;
-    font-weight: bold;
-    cursor: pointer;
-    caret-color: transparent;
-  }
-
-  .hotkey-input:focus {
-    background: var(--color-accent-violet-transparent, rgba(123, 97, 255, 0.1));
-    border-color: var(--color-accent-violet);
   }
 
   .field-hint {

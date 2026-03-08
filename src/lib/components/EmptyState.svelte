@@ -85,6 +85,7 @@
             onmouseenter={() => (isHovering = true)}
             onmouseleave={() => (isHovering = false)}
             id="connect-directory-btn"
+            data-testid="btn-connect-directory"
         >
             <svg
                 width="20"

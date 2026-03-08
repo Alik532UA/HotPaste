@@ -15,6 +15,7 @@
   import FAB from "./lib/components/FAB.svelte";
   import ContextMenu from "./lib/components/ContextMenu.svelte";
   import CardSettingsModal from "./lib/components/CardSettingsModal.svelte";
+  import TabSettingsModal from "./lib/components/TabSettingsModal.svelte";
   import DebugListener from "./lib/components/DebugListener.svelte";
 
   const appState = getState();
@@ -49,15 +50,15 @@
   <EmptyState />
 {:else}
   <!-- Main App Layout -->
-  <div class="app-shell">
+  <div class="app-shell" data-testid="app-shell">
     <!-- Top Header -->
-    <header class="app-header">
+    <header class="app-header" data-testid="app-header">
       <div class="header-left">
-        <h1 class="app-logo">
+        <h1 class="app-logo" data-testid="app-logo">
           <span class="logo-gradient">Hot</span>Paste
         </h1>
         <div class="header-divider"></div>
-        <span class="root-name" title={appState.rootName}
+        <span class="root-name" title={appState.rootName} data-testid="root-name-label"
           >📂 {appState.rootName}</span
         >
       </div>
@@ -65,12 +66,13 @@
       <!-- View toggles (center) -->
       <div class="header-center">
         <!-- Card view: short / full -->
-        <div class="toggle-group" id="view-toggle">
+        <div class="toggle-group" id="view-toggle" data-testid="view-toggle-group">
           <button
             class="toggle-btn"
             class:active={appState.cardView === "short"}
             onclick={() => setCardView("short")}
             title="Короткий вигляд: текст обрізається"
+            data-testid="btn-view-short"
           >
             Короткий
           </button>
@@ -79,6 +81,7 @@
             class:active={appState.cardView === "full"}
             onclick={() => setCardView("full")}
             title="Повний вигляд: весь текст видно"
+            data-testid="btn-view-full"
           >
             Повний
           </button>
@@ -87,17 +90,19 @@
 
       <div class="header-right">
         <!-- Scale indicator -->
-        <div class="scale-control">
+        <div class="scale-control" data-testid="scale-control">
           <button
             class="scale-btn"
             onclick={() => adjustScale(-0.1)}
-            aria-label="Зменшити масштаб">−</button
+            aria-label="Зменшити масштаб"
+            data-testid="btn-scale-down">−</button
           >
-          <span class="scale-value">{Math.round(appState.scale * 100)}%</span>
+          <span class="scale-value" data-testid="scale-value">{Math.round(appState.scale * 100)}%</span>
           <button
             class="scale-btn"
             onclick={() => adjustScale(0.1)}
-            aria-label="Збільшити масштаб">+</button
+            aria-label="Збільшити масштаб"
+            data-testid="btn-scale-up">+</button
           >
         </div>
 
@@ -107,6 +112,7 @@
           onclick={() => refreshTabs()}
           title="Оновити"
           aria-label="Оновити файли"
+          data-testid="btn-refresh"
         >
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
             <path
@@ -131,6 +137,7 @@
           onclick={() => connectDirectory()}
           title="Змінити папку"
           aria-label="Обрати іншу папку"
+          data-testid="btn-change-directory"
         >
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
             <path
@@ -145,12 +152,12 @@
     </header>
 
     <!-- Tab Bar -->
-    <div class="tab-bar-wrapper">
+    <div class="tab-bar-wrapper" data-testid="tab-bar-wrapper">
       <TabBar />
     </div>
 
     <!-- Main Content -->
-    <main class="app-main">
+    <main class="app-main" data-testid="app-main">
       <CardGrid />
     </main>
 
@@ -165,6 +172,8 @@
 <ContextMenu />
 
 <CardSettingsModal />
+
+<TabSettingsModal />
 
 <DebugListener />
 

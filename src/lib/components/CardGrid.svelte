@@ -12,7 +12,7 @@
 
 {#if appState.activeCards.length > 0}
   <div class="card-grid" style="--scale: {appState.scale}">
-    {#each appState.activeCards as card, index (card.filePath)}
+    {#each appState.activeCards as card, index (card.id)}
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div
         class="card-wrapper"
