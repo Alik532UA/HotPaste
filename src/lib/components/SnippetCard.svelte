@@ -16,7 +16,7 @@
   import { Edit3, Menu, Copy, FileX, Keyboard, Link, Trash2 } from "lucide-svelte";
   import * as icons from "lucide-svelte";
   import type { ComponentType } from "svelte";
-  import snarkdown from "snarkdown";
+  import { renderMarkdown } from "../utils/markdown";
   import { sanitize } from "../utils/sanitizer";
   import { t } from "../i18n";
 
@@ -35,6 +35,17 @@
   const isMissing = $derived(card.isMissing);
 
   const lines = $derived(card.content.split("\n"));
+
+  /** Markdown rendering state */
+  let renderedMarkdown = $state("");
+
+  $effect(() => {
+    if (card.extension === ".md") {
+      renderMarkdown(card.content).then((html) => {
+        renderedMarkdown = sanitize(html);
+      });
+    }
+  });
 
   /** Edit state */
   let isEditing = $state(false);
@@ -560,7 +571,7 @@
         >
           {#if card.extension === ".md"}
             <div class="markdown-body">
-              {@html sanitize(snarkdown(card.content))}
+              {@html renderedMarkdown}
             </div>
           {:else}
             {#each lines as line, i}
