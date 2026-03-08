@@ -1,6 +1,13 @@
 <script lang="ts">
   import type { Card } from "../types";
-  import { getState, copyCard, saveCard } from "../stores/appState.svelte";
+  import {
+    getState,
+    copyCard,
+    saveCard,
+    toggleStrikethrough,
+  } from "../stores/appState.svelte";
+  import * as icons from "lucide-svelte";
+  import type { ComponentType } from "svelte";
 
   interface Props {
     card: Card;
@@ -12,25 +19,79 @@
 
   const isFlashing = $derived(appState.flashingCardPath === card.filePath);
   const isFull = $derived(appState.cardView === "full");
-  const isEditMode = $derived(appState.appMode === "edit");
+
+  const lines = $derived(card.content.split("\n"));
 
   /** Edit state */
   let isEditing = $state(false);
   let editContent = $state("");
 
-  function handleClick() {
-    if (isEditMode) {
-      startEditing();
-    } else {
-      copyCard(card);
-    }
+  /** Hover zone tracking for click interaction */
+  let hoverZone = $state<"action" | "strike" | null>(null);
+
+  /** Dynamic Lucide icon resolution */
+  const LucideIcon = $derived(
+    card.icon && card.icon.length > 2
+      ? (icons[card.icon as keyof typeof icons] as ComponentType | undefined)
+      : null,
+  );
+
+  function getCardStyle() {
+    const parts = [];
+    if (card.color) parts.push(`--color-card-bg: ${card.color}`);
+    if (card.borderColor)
+      parts.push(`--color-card-border: ${card.borderColor}`);
+    return parts.length > 0 ? parts.join("; ") : undefined;
+  }
+
+  function handleAction() {
+    copyCard(card);
+  }
+
+  function handleEditClick(e: MouseEvent) {
+    e.stopPropagation();
+    startEditing();
   }
 
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
-      handleClick();
+      handleAction();
     }
+  }
+
+  function handleCardClick(e: MouseEvent) {
+    // Left 50% = Strikethrough toggle, Right 50% = Action (Copy)
+    const currentTarget = e.currentTarget as HTMLElement;
+    const rect = currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const isAction = x / rect.width > 0.5;
+
+    if (isAction) {
+      handleAction();
+    } else {
+      // Find which line was clicked
+      const target = e.target as HTMLElement;
+      const lineEl = target.closest(".line");
+      if (lineEl) {
+        const indexStr = lineEl.getAttribute("data-index");
+        if (indexStr) {
+          const index = parseInt(indexStr, 10);
+          toggleStrikethrough(card, index);
+        }
+      }
+    }
+  }
+
+  function handleMouseMove(e: MouseEvent) {
+    const currentTarget = e.currentTarget as HTMLElement;
+    const rect = currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    hoverZone = x / rect.width > 0.5 ? "action" : "strike";
+  }
+
+  function handleMouseLeave() {
+    hoverZone = null;
   }
 
   function startEditing() {
@@ -50,7 +111,6 @@
   }
 
   function handleEditKeydown(e: KeyboardEvent) {
-    // Ctrl+Enter to save, Escape to cancel
     if (e.key === "Escape") {
       e.preventDefault();
       cancelEditing();
@@ -66,9 +126,15 @@
   <div
     class="snippet-card editing"
     id="card-{card.filePath.replace(/[^a-zA-Z0-9]/g, '-')}"
+    style={getCardStyle()}
   >
     <!-- Card header -->
     <div class="card-header">
+      {#if LucideIcon}
+        <span class="card-icon"><LucideIcon size={16} /></span>
+      {:else if card.icon}
+        <span class="card-icon emoji">{card.icon}</span>
+      {/if}
       <h3 class="card-title">{card.name}</h3>
       <span class="card-ext">{card.extension}</span>
     </div>
@@ -95,53 +161,75 @@
   </div>
 {:else}
   <!-- Normal card -->
-  <button
-    class="snippet-card"
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <!-- We handle a11y via hotkeys globally, interactive wrapper is fine for this specialized UI -->
+  <div
+    class="snippet-card interactive"
     class:flashing={isFlashing}
-    class:edit-mode={isEditMode}
-    onclick={handleClick}
+    class:hover-action={hoverZone === "action"}
+    class:hover-strike={hoverZone === "strike"}
+    onclick={handleCardClick}
+    onmousemove={handleMouseMove}
+    onmouseleave={handleMouseLeave}
     onkeydown={handleKeydown}
-    title={isEditMode
-      ? `Натисніть, щоб редагувати: ${card.name}`
-      : `Натисніть '${card.hotkey}' або клікніть, щоб скопіювати`}
-    aria-label={isEditMode
-      ? `Редагувати сніпет: ${card.name}`
-      : `Скопіювати сніпет: ${card.name}`}
+    tabindex="0"
+    role="button"
+    title={hoverZone === "action"
+      ? `Скопіювати: ${card.name}`
+      : "Закреслити рядок"}
+    aria-label={`Копіювати сніпет: ${card.name}`}
     id="card-{card.filePath.replace(/[^a-zA-Z0-9]/g, '-')}"
+    style={getCardStyle()}
   >
     <!-- Hotkey badge -->
     {#if card.hotkey}
       <div class="card-hotkey">{card.hotkey}</div>
     {/if}
 
+    <!-- Action indicator (shows up on hover in the action zone) -->
+    {#if hoverZone === "action"}
+      <div class="action-overlay-hint">
+        <icons.Copy size={32} opacity={0.15} />
+      </div>
+    {/if}
+
     <!-- Card header -->
     <div class="card-header">
+      {#if LucideIcon}
+        <span class="card-icon"><LucideIcon size={16} /></span>
+      {:else if card.icon}
+        <span class="card-icon emoji">{card.icon}</span>
+      {/if}
       <h3 class="card-title">{card.name}</h3>
       <span class="card-ext">{card.extension}</span>
     </div>
 
-    <!-- Card content preview -->
+    <!-- Card content lines -->
     <div class="card-content" class:full={isFull}>
-      <pre class="card-text">{card.content}</pre>
+      {#each lines as line, i}
+        <div
+          class="line"
+          data-index={i}
+          class:strikethrough={card.strikethrough.includes(i)}
+        >
+          {line || " "}
+        </div>
+      {/each}
+
       {#if !isFull}
         <div class="card-fade"></div>
       {/if}
     </div>
 
-    <!-- Edit mode icon indicator -->
-    {#if isEditMode}
-      <div class="edit-indicator">
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-          <path
-            d="M8.5 2.5l3 3L4.5 12.5H1.5v-3l7-7z"
-            stroke="currentColor"
-            stroke-width="1.3"
-            stroke-linejoin="round"
-            fill="none"
-          />
-        </svg>
-      </div>
-    {/if}
+    <!-- Edit mode indicator / button -->
+    <button
+      class="edit-indicator"
+      title="Редагувати картку"
+      aria-label="Редагувати картку"
+      onclick={handleEditClick}
+    >
+      <icons.Edit3 size={14} />
+    </button>
 
     <!-- Copy indicator overlay -->
     {#if isFlashing}
@@ -149,21 +237,22 @@
         <span class="copy-icon">✓</span>
       </div>
     {/if}
-  </button>
+  </div>
 {/if}
 
 <style>
   .snippet-card {
+    --card-border-default: var(--color-border);
+
     position: relative;
     display: flex;
     flex-direction: column;
     padding: 0;
-    border: 1px solid var(--color-border);
+    border: 1px solid var(--color-card-border, var(--card-border-default));
     border-radius: 14px;
     background: var(--color-card-bg);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    cursor: pointer;
     transition: all 0.2s ease;
     overflow: hidden;
     break-inside: avoid;
@@ -172,21 +261,30 @@
     font-family: var(--font-family);
     width: 100%;
     color: var(--color-text-primary);
+    outline: none;
   }
 
-  .snippet-card:hover {
+  .snippet-card.interactive {
+    cursor: default;
+  }
+
+  .snippet-card:focus-visible {
     border-color: var(--color-accent-cyan);
+    box-shadow: 0 0 0 2px rgba(0, 210, 255, 0.3);
+  }
+
+  /* Hover states based on zone */
+  .snippet-card.hover-action {
+    cursor: pointer;
+    border-color: var(--color-card-border, var(--color-accent-cyan));
     transform: translateY(-2px);
     box-shadow:
       0 8px 32px rgba(0, 0, 0, 0.3),
       0 0 0 1px rgba(0, 210, 255, 0.1);
   }
 
-  .snippet-card.edit-mode:hover {
-    border-color: var(--color-accent-violet);
-    box-shadow:
-      0 8px 32px rgba(0, 0, 0, 0.3),
-      0 0 0 1px rgba(123, 97, 255, 0.2);
+  .snippet-card.hover-strike {
+    border-color: var(--color-card-border, var(--color-border-hover));
   }
 
   .snippet-card:active {
@@ -194,7 +292,6 @@
   }
 
   .snippet-card.editing {
-    cursor: default;
     border-color: var(--color-accent-violet);
     box-shadow: 0 0 20px rgba(123, 97, 255, 0.15);
   }
@@ -245,12 +342,28 @@
     transition:
       opacity 0.2s ease,
       background 0.2s ease;
+    z-index: 5;
   }
 
-  .snippet-card:hover .card-hotkey {
+  .snippet-card.hover-action .card-hotkey {
     opacity: 1;
     background: var(--color-accent-gradient);
     color: var(--color-bg-primary);
+  }
+
+  /* Large action hint */
+  .action-overlay-hint {
+    position: absolute;
+    left: 75%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    z-index: 2;
+    color: var(--color-accent-cyan);
+  }
+
+  .snippet-card.edit-mode .action-overlay-hint {
+    color: var(--color-accent-violet);
   }
 
   /* Card header */
@@ -260,6 +373,18 @@
     gap: 8px;
     padding: 14px 16px 8px;
     padding-right: 48px; /* space for hotkey badge */
+    pointer-events: none; /* Let clicks pass through to the base */
+  }
+
+  .card-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-secondary);
+  }
+
+  .card-icon.emoji {
+    font-size: 1.1rem;
   }
 
   .card-title {
@@ -289,6 +414,7 @@
     padding: 0 16px 14px;
     max-height: 200px;
     overflow: hidden;
+    pointer-events: auto; /* Re-enable pointer events for lines */
   }
 
   .card-content.full {
@@ -296,14 +422,32 @@
     overflow: visible;
   }
 
-  .card-text {
-    margin: 0;
+  /* Individual text lines */
+  .line {
     font-family: var(--font-mono);
     font-size: 0.75rem;
     line-height: 1.6;
     color: var(--color-text-secondary);
     white-space: pre-wrap;
     word-break: break-word;
+    border-radius: 4px;
+    padding: 0 4px;
+    margin: 0 -4px; /* offset padding */
+    transition:
+      background 0.15s ease,
+      opacity 0.2s ease;
+  }
+
+  .snippet-card.hover-strike .line:hover {
+    background: var(--color-surface-3);
+    cursor: pointer;
+  }
+
+  /* Strikethrough style */
+  .line.strikethrough {
+    text-decoration: line-through;
+    opacity: 0.4;
+    color: var(--color-text-muted);
   }
 
   /* Gradient fade for overflowing text */
@@ -315,9 +459,10 @@
     height: 48px;
     background: linear-gradient(to bottom, transparent, var(--color-card-bg));
     pointer-events: none;
+    z-index: 5;
   }
 
-  /* Edit mode indicator */
+  /* Edit button */
   .edit-indicator {
     position: absolute;
     bottom: 10px;
@@ -327,15 +472,24 @@
     justify-content: center;
     width: 28px;
     height: 28px;
+    border: none;
     border-radius: 8px;
-    background: var(--color-surface-3);
-    color: var(--color-accent-violet);
+    background: var(--color-surface-2);
+    color: var(--color-text-muted);
     opacity: 0;
-    transition: opacity 0.2s ease;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    z-index: 10;
   }
 
-  .snippet-card.edit-mode:hover .edit-indicator {
+  .snippet-card:hover .edit-indicator {
     opacity: 1;
+  }
+
+  .edit-indicator:hover {
+    background: var(--color-accent-violet);
+    color: white;
+    transform: scale(1.05);
   }
 
   /* Edit area */
@@ -426,6 +580,7 @@
     background: rgba(0, 255, 136, 0.08);
     animation: fadeIn 0.15s ease;
     pointer-events: none;
+    z-index: 10;
   }
 
   .copy-icon {

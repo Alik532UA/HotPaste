@@ -4,23 +4,50 @@
     connectDirectory,
     selectTab,
   } from "../stores/appState.svelte";
+  import * as icons from "lucide-svelte";
+  import type { ComponentType } from "svelte";
+  import type { Tab } from "../types";
 
   const appState = getState();
+
+  function getLucideIcon(iconName: string | null): ComponentType | null {
+    if (!iconName || iconName.length <= 2) return null;
+    return (
+      (icons[iconName as keyof typeof icons] as ComponentType | undefined) ||
+      null
+    );
+  }
+
+  function getTabStyle(tab: Tab) {
+    if (!tab.color) return undefined;
+    // We can use the custom color for the active underline or hover state
+    return `--tab-color: ${tab.color}`;
+  }
 </script>
 
 <div class="tab-bar" role="tablist" aria-label="Вкладки сніпетів">
   {#each appState.tabs as tab, i}
+    {@const LucideIcon = getLucideIcon(tab.icon)}
     <button
       class="tab"
       class:active={appState.activeTabIndex === i}
+      class:has-custom-color={!!tab.color}
       role="tab"
       aria-selected={appState.activeTabIndex === i}
       id="tab-{i}"
       onclick={() => selectTab(i)}
+      style={getTabStyle(tab)}
     >
       {#if tab.hotkey}
         <span class="tab-hotkey">{tab.hotkey}</span>
       {/if}
+
+      {#if LucideIcon}
+        <span class="tab-icon"><LucideIcon size={14} /></span>
+      {:else if tab.icon}
+        <span class="tab-icon emoji">{tab.icon}</span>
+      {/if}
+
       <span class="tab-name">{tab.name}</span>
       <span class="tab-count">{tab.cards.length}</span>
     </button>
@@ -78,7 +105,7 @@
     transform: translateX(-50%);
     width: 0;
     height: 2px;
-    background: var(--color-accent-gradient);
+    background: var(--tab-color, var(--color-accent-gradient));
     border-radius: 2px 2px 0 0;
     transition: width 0.25s ease;
   }
@@ -95,6 +122,12 @@
 
   .tab.active::after {
     width: 100%;
+  }
+
+  /* Custom Color tab styles */
+  .tab.has-custom-color.active {
+    background: color-mix(in srgb, var(--tab-color) 10%, transparent);
+    color: var(--tab-color);
   }
 
   .tab-hotkey {
@@ -114,8 +147,18 @@
   }
 
   .tab.active .tab-hotkey {
-    background: var(--color-accent-gradient);
+    background: var(--tab-color, var(--color-accent-gradient));
     color: var(--color-bg-primary);
+  }
+
+  .tab-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .tab-icon.emoji {
+    font-size: 1rem;
   }
 
   .tab-name {

@@ -41,8 +41,8 @@ let scale = $state(1.0);
 /** Whether a card is currently "flashing" (just copied) */
 let flashingCardPath = $state('');
 
-/** App mode: 'copy' or 'edit' */
-let appMode = $state<'copy' | 'edit'>('copy');
+/** Debounce timer for saving _hotpaste.json */
+let configSaveTimeout: ReturnType<typeof setTimeout> | null = null;
 
 /** Card view: 'short' (truncated) or 'full' (full text) */
 let cardView = $state<'short' | 'full'>('short');
@@ -76,7 +76,6 @@ export function getState() {
         get toastVisible() { return toastVisible; },
         get scale() { return scale; },
         get flashingCardPath() { return flashingCardPath; },
-        get appMode() { return appMode; },
         get cardView() { return cardView; },
         get config() { return config; },
     };
@@ -133,7 +132,13 @@ export async function copyCardByHotkey(key: string): Promise<boolean> {
 /** Copy a specific card's content to clipboard */
 export async function copyCard(card: Card): Promise<void> {
     try {
-        await navigator.clipboard.writeText(card.content);
+        // Filter out strikethrough lines
+        const lines = card.content.split('\n');
+        const activeLines = lines.filter((_, idx) => !card.strikethrough.includes(idx));
+        const textToCopy = activeLines.join('\n');
+
+        // If everything is strikethroughed, we might still copy empty string, which is fine
+        await navigator.clipboard.writeText(textToCopy);
         showFlash(card.filePath);
         showToast(`Скопійовано: ${card.name}`);
     } catch (err) {
@@ -146,12 +151,94 @@ export async function copyCard(card: Card): Promise<void> {
 export async function saveCard(card: Card, newContent: string): Promise<void> {
     try {
         await fileSystemService.writeFile(card.filePath, newContent);
+
+        // Recalculate strikethrough indices if content changed
+        if (card.strikethrough.length > 0) {
+            const oldLines = card.content.split('\n');
+            const newLines = newContent.split('\n');
+
+            // Simple approach: keep strikethroughs for lines that exactly match
+            // A more complex diff algorithm could be used, but this is safer for now
+            const newStrikethrough: number[] = [];
+            for (const oldIdx of card.strikethrough) {
+                if (oldIdx < oldLines.length) {
+                    const lineText = oldLines[oldIdx];
+                    // Find where this line went in the new text
+                    const newIdx = newLines.indexOf(lineText);
+                    if (newIdx !== -1 && !newStrikethrough.includes(newIdx)) {
+                        newStrikethrough.push(newIdx);
+                    }
+                }
+            }
+            card.strikethrough = newStrikethrough.sort((a, b) => a - b);
+            debouncedSaveTabConfig();
+        }
+
         // Update in-memory data
         card.content = newContent;
         showToast(`Збережено: ${card.name}`);
     } catch (err) {
         console.error('[HotPaste] Failed to save:', err);
         showToast('Помилка збереження!');
+    }
+}
+
+/** Toggle strikethrough state for a specific line in a card */
+export function toggleStrikethrough(card: Card, lineIndex: number): void {
+    const sIdx = card.strikethrough.indexOf(lineIndex);
+    if (sIdx === -1) {
+        card.strikethrough.push(lineIndex);
+        card.strikethrough.sort((a, b) => a - b);
+    } else {
+        card.strikethrough.splice(sIdx, 1);
+    }
+
+    // We mutated the object property directly, but Vue/Svelte 5 runes handle deep reactivity 
+    // if the object is within a $state array.
+    debouncedSaveTabConfig();
+}
+
+/** Debounced saving of the current tab's _hotpaste.json */
+function debouncedSaveTabConfig() {
+    if (configSaveTimeout) clearTimeout(configSaveTimeout);
+    configSaveTimeout = setTimeout(() => {
+        saveCurrentTabConfig();
+    }, 500);
+}
+
+/** Builds and saves config for the active tab */
+async function saveCurrentTabConfig() {
+    const tab = activeTab;
+    if (!tab) return;
+
+    try {
+        // Read existing first to not overwrite tab-level settings
+        let existingConfig = await fileSystemService.readConfig(tab.path);
+
+        if (!existingConfig.cards) {
+            existingConfig.cards = {};
+        }
+
+        // Update card configurations
+        for (const card of tab.cards) {
+            if (!existingConfig.cards[card.fileName]) {
+                existingConfig.cards[card.fileName] = {};
+            }
+
+            // Only save what's different from default/derived
+            const cInfo = existingConfig.cards[card.fileName];
+
+            // Strikethrough
+            if (card.strikethrough && card.strikethrough.length > 0) {
+                cInfo.strikethrough = [...card.strikethrough];
+            } else {
+                delete cInfo.strikethrough;
+            }
+        }
+
+        await fileSystemService.writeConfig(tab.path, existingConfig);
+    } catch (err) {
+        console.error('[HotPaste] Failed to save tab config:', err);
     }
 }
 
@@ -165,16 +252,6 @@ export function setScale(newScale: number): void {
 /** Adjust scale by delta */
 export function adjustScale(delta: number): void {
     setScale(scale + delta);
-}
-
-/** Toggle app mode between copy and edit */
-export function toggleAppMode(): void {
-    appMode = appMode === 'copy' ? 'edit' : 'copy';
-}
-
-/** Set app mode explicitly */
-export function setAppMode(mode: 'copy' | 'edit'): void {
-    appMode = mode;
 }
 
 /** Toggle card view between short and full */
@@ -255,8 +332,8 @@ export function handleGlobalKeydown(event: KeyboardEvent): void {
         return;
     }
 
-    // Card copy (letters) — only in copy mode
-    if (appMode === 'copy' && isCardHotkey(key)) {
+    // Card copy (letters)
+    if (isCardHotkey(key)) {
         event.preventDefault();
         copyCardByHotkey(key);
         return;

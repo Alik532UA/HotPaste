@@ -5,7 +5,8 @@
  * swapped between Browser (File System Access API), Node.js, or Tauri backends.
  */
 
-import type { Tab, Card } from '../types';
+import type { Tab, Card, HotPasteConfig } from '../types';
+import { CONFIG_FILENAME, DEFAULT_HOTPASTE_CONFIG } from '../types';
 import { getTabHotkey, getCardHotkey } from '../utils/keyboardLayout';
 
 /** Supported file extensions for snippets */
@@ -26,6 +27,10 @@ export interface IFileSystemService {
     readFile(path: string): Promise<string>;
     /** Write content to a file */
     writeFile(path: string, content: string): Promise<void>;
+    /** Read tab config */
+    readConfig(tabPath: string): Promise<HotPasteConfig>;
+    /** Write tab config */
+    writeConfig(tabPath: string, config: HotPasteConfig): Promise<void>;
     /** Get the root directory name */
     getRootName(): string;
 }
@@ -69,18 +74,26 @@ export class BrowserFileSystemService implements IFileSystemService {
         const tabs: Tab[] = [];
         const rootFiles: Card[] = [];
 
+        // Read root config if exists
+        const rootConfig = await this.readConfigInternal(this.rootHandle);
+
         // Iterate over entries in the root directory
         // @ts-ignore — entries() may not be in all TS lib definitions
         for await (const [name, handle] of this.rootHandle.entries()) {
             if (handle.kind === 'directory') {
                 // Subdirectory = Tab
-                const cards = await this.readCardsFromDirectory(handle as FileSystemDirectoryHandle, name);
+                const dirHandle = handle as FileSystemDirectoryHandle;
+                const config = await this.readConfigInternal(dirHandle);
+                const cards = await this.readCardsFromDirectory(dirHandle, name, config);
+
                 if (cards.length > 0) {
                     tabs.push({
-                        name: this.cleanName(name),
-                        hotkey: '',
+                        name: config.tab?.displayName || this.cleanName(name),
+                        hotkey: '', // will be assigned later
                         cards,
                         path: name,
+                        icon: config.tab?.icon || null,
+                        color: config.tab?.color || null,
                     });
                 }
             } else if (handle.kind === 'file') {
@@ -89,36 +102,66 @@ export class BrowserFileSystemService implements IFileSystemService {
                 if (SUPPORTED_EXTENSIONS.includes(ext)) {
                     const file = await (handle as FileSystemFileHandle).getFile();
                     const content = await file.text();
+
+                    const cardConfig = rootConfig.cards?.[name] || {};
+
                     rootFiles.push({
-                        name: this.cleanName(name),
+                        name: cardConfig.displayName || this.cleanName(name),
                         content,
-                        hotkey: '',
+                        hotkey: cardConfig.hotkey || '',
                         filePath: name,
+                        fileName: name,
                         extension: ext,
+                        icon: cardConfig.icon || null,
+                        color: cardConfig.color || null,
+                        borderColor: cardConfig.borderColor || null,
+                        strikethrough: cardConfig.strikethrough || [],
                     });
                 }
             }
         }
 
-        // Sort tabs alphabetically
+        // Sort tabs alphabetically by original path, unless config dictates otherwise (can be added later)
         tabs.sort((a, b) => a.path.localeCompare(b.path));
 
         // If there are root-level files, add them as the first tab
         if (rootFiles.length > 0) {
             tabs.unshift({
-                name: '📄 Файли',
+                name: rootConfig.tab?.displayName || '📄 Файли',
                 hotkey: '',
                 cards: rootFiles,
                 path: '__root__',
+                icon: rootConfig.tab?.icon || null,
+                color: rootConfig.tab?.color || null,
             });
         }
 
-        // Assign hotkeys to tabs
+        // Assign automatic hotkeys, respecting custom ones from config
         tabs.forEach((tab, i) => {
             tab.hotkey = getTabHotkey(i);
-            // Assign hotkeys to cards within each tab
-            tab.cards.forEach((card, j) => {
-                card.hotkey = getCardHotkey(j);
+
+            // Collect used hotkeys in this tab to avoid collisions
+            const usedHotkeys = new Set<string>();
+            tab.cards.forEach(card => {
+                if (card.hotkey) {
+                    usedHotkeys.add(card.hotkey.toLowerCase());
+                }
+            });
+
+            // Assign hotkeys to cards that don't have them
+            let autoHotkeyIndex = 0;
+            tab.cards.forEach(card => {
+                if (!card.hotkey) {
+                    let nextHotkey = getCardHotkey(autoHotkeyIndex);
+                    // Skip hotkeys that are already custom assigned
+                    while (usedHotkeys.has(nextHotkey) && nextHotkey !== '') {
+                        autoHotkeyIndex++;
+                        nextHotkey = getCardHotkey(autoHotkeyIndex);
+                    }
+                    card.hotkey = nextHotkey;
+                    usedHotkeys.add(nextHotkey);
+                    autoHotkeyIndex++;
+                }
             });
         });
 
@@ -126,67 +169,111 @@ export class BrowserFileSystemService implements IFileSystemService {
     }
 
     async readFile(path: string): Promise<string> {
-        if (!this.rootHandle) throw new Error('No directory access.');
-
-        const parts = path.split('/');
-        let dirHandle: FileSystemDirectoryHandle = this.rootHandle;
-
-        // Navigate to the correct subdirectory
-        for (let i = 0; i < parts.length - 1; i++) {
-            dirHandle = await dirHandle.getDirectoryHandle(parts[i]);
-        }
-
-        const fileHandle = await dirHandle.getFileHandle(parts[parts.length - 1]);
+        const fileHandle = await this.getFileHandleFromPath(path);
         const file = await fileHandle.getFile();
         return file.text();
     }
 
     async writeFile(path: string, content: string): Promise<void> {
-        if (!this.rootHandle) throw new Error('No directory access.');
-
-        const parts = path.split('/');
-        let dirHandle: FileSystemDirectoryHandle = this.rootHandle;
-
-        // Navigate to the correct subdirectory
-        for (let i = 0; i < parts.length - 1; i++) {
-            dirHandle = await dirHandle.getDirectoryHandle(parts[i]);
-        }
-
-        const fileHandle = await dirHandle.getFileHandle(parts[parts.length - 1]);
-        // @ts-ignore — createWritable may not be in all TS lib definitions
+        const fileHandle = await this.getFileHandleFromPath(path);
+        // @ts-ignore
         const writable = await fileHandle.createWritable();
         await writable.write(content);
         await writable.close();
     }
 
+    async readConfig(tabPath: string): Promise<HotPasteConfig> {
+        if (!this.rootHandle) throw new Error('No directory access.');
+
+        let dirHandle = this.rootHandle;
+        if (tabPath !== '__root__') {
+            dirHandle = await this.rootHandle.getDirectoryHandle(tabPath);
+        }
+
+        return this.readConfigInternal(dirHandle);
+    }
+
+    async writeConfig(tabPath: string, config: HotPasteConfig): Promise<void> {
+        if (!this.rootHandle) throw new Error('No directory access.');
+
+        let dirHandle = this.rootHandle;
+        if (tabPath !== '__root__') {
+            dirHandle = await this.rootHandle.getDirectoryHandle(tabPath);
+        }
+
+        const fileHandle = await dirHandle.getFileHandle(CONFIG_FILENAME, { create: true });
+        // @ts-ignore
+        const writable = await fileHandle.createWritable();
+        await writable.write(JSON.stringify(config, null, 2));
+        await writable.close();
+    }
+
     // --- Private helpers ---
+
+    private async readConfigInternal(dirHandle: FileSystemDirectoryHandle): Promise<HotPasteConfig> {
+        try {
+            const fileHandle = await dirHandle.getFileHandle(CONFIG_FILENAME);
+            const file = await fileHandle.getFile();
+            const text = await file.text();
+            const parsed = JSON.parse(text);
+            return {
+                tab: parsed.tab || {},
+                cards: parsed.cards || {},
+            };
+        } catch (err) {
+            // File doesn't exist or is invalid JSON
+            return { tab: {}, cards: {} };
+        }
+    }
+
+    private async getFileHandleFromPath(path: string): Promise<FileSystemFileHandle> {
+        if (!this.rootHandle) throw new Error('No directory access.');
+
+        const parts = path.split('/');
+        let dirHandle: FileSystemDirectoryHandle = this.rootHandle;
+
+        for (let i = 0; i < parts.length - 1; i++) {
+            dirHandle = await dirHandle.getDirectoryHandle(parts[i]);
+        }
+
+        return await dirHandle.getFileHandle(parts[parts.length - 1]);
+    }
 
     private async readCardsFromDirectory(
         dirHandle: FileSystemDirectoryHandle,
-        dirPath: string
+        dirPath: string,
+        config: HotPasteConfig
     ): Promise<Card[]> {
         const cards: Card[] = [];
 
         // @ts-ignore
         for await (const [name, handle] of dirHandle.entries()) {
-            if (handle.kind === 'file') {
+            if (handle.kind === 'file' && name !== CONFIG_FILENAME) {
                 const ext = this.getExtension(name);
                 if (SUPPORTED_EXTENSIONS.includes(ext)) {
                     const file = await (handle as FileSystemFileHandle).getFile();
                     const content = await file.text();
+
+                    const cardConfig = config.cards?.[name] || {};
+
                     cards.push({
-                        name: this.cleanName(name),
+                        name: cardConfig.displayName || this.cleanName(name),
                         content,
-                        hotkey: '',
+                        hotkey: cardConfig.hotkey || '',
                         filePath: `${dirPath}/${name}`,
+                        fileName: name,
                         extension: ext,
+                        icon: cardConfig.icon || null,
+                        color: cardConfig.color || null,
+                        borderColor: cardConfig.borderColor || null,
+                        strikethrough: cardConfig.strikethrough || [],
                     });
                 }
             }
         }
 
-        // Sort cards alphabetically by name
-        cards.sort((a, b) => a.filePath.localeCompare(b.filePath));
+        // Sort cards alphabetically by original filename
+        cards.sort((a, b) => a.fileName.localeCompare(b.fileName));
         return cards;
     }
 
@@ -196,10 +283,8 @@ export class BrowserFileSystemService implements IFileSystemService {
     }
 
     private cleanName(name: string): string {
-        // Remove extension
         const lastDot = name.lastIndexOf('.');
         const withoutExt = lastDot >= 0 ? name.slice(0, lastDot) : name;
-        // Remove leading numbers/underscores used for sorting (e.g., "01_General" → "General")
         return withoutExt.replace(/^\d+[_\-\s]*/, '');
     }
 }

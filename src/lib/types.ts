@@ -1,7 +1,11 @@
 /** Types for the HotPaste application */
 
+// ============================================
+// Card & Tab runtime types
+// ============================================
+
 export interface Card {
-  /** Display name (derived from filename without extension) */
+  /** Display name (from config or derived from filename) */
   name: string;
   /** Full text content of the snippet */
   content: string;
@@ -9,12 +13,22 @@ export interface Card {
   hotkey: string;
   /** Relative file path from root directory */
   filePath: string;
+  /** Just the filename (e.g. "greeting.txt") */
+  fileName: string;
   /** File extension (.txt, .md, etc.) */
   extension: string;
+  /** Icon (emoji or lucide icon name) */
+  icon: string | null;
+  /** Card background color (CSS color or null = default) */
+  color: string | null;
+  /** Card border color (CSS color or null = default) */
+  borderColor: string | null;
+  /** Indices of strikethrough lines (0-based) */
+  strikethrough: number[];
 }
 
 export interface Tab {
-  /** Display name (derived from folder or file name) */
+  /** Display name (from config or derived from folder name) */
   name: string;
   /** Assigned keyboard hotkey ('1'-'9', '0') */
   hotkey: string;
@@ -22,22 +36,60 @@ export interface Tab {
   cards: Card[];
   /** Original directory/file handle path */
   path: string;
+  /** Tab icon (emoji or null) */
+  icon: string | null;
+  /** Tab color (CSS color or null) */
+  color: string | null;
 }
+
+// ============================================
+// _hotpaste.json config types (persisted)
+// ============================================
+
+export interface CardConfigEntry {
+  displayName?: string | null;
+  hotkey?: string | null;
+  icon?: string | null;
+  color?: string | null;
+  borderColor?: string | null;
+  strikethrough?: number[];
+}
+
+export interface TabConfigEntry {
+  icon?: string | null;
+  color?: string | null;
+  displayName?: string | null;
+}
+
+export interface HotPasteConfig {
+  tab?: TabConfigEntry;
+  cards?: Record<string, CardConfigEntry>;
+}
+
+/** Default empty config */
+export const DEFAULT_HOTPASTE_CONFIG: HotPasteConfig = {
+  tab: {},
+  cards: {},
+};
+
+// ============================================
+// App-level config (localStorage)
+// ============================================
 
 export interface AppConfig {
   /** Global scale factor (1.0 = default) */
   scale: number;
-  /** Custom hotkey overrides for tabs: { tabPath: hotkey } */
-  tabHotkeys: Record<string, string>;
-  /** Custom hotkey overrides for cards: { cardFilePath: hotkey } */
-  cardHotkeys: Record<string, string>;
   /** Saved card sizes: { cardFilePath: { width, height } } */
   cardSizes: Record<string, { width: number; height: number }>;
 }
 
 export const DEFAULT_CONFIG: AppConfig = {
   scale: 1.0,
-  tabHotkeys: {},
-  cardHotkeys: {},
   cardSizes: {},
 };
+
+/** Config filename used in each tab directory */
+export const CONFIG_FILENAME = '_hotpaste.json';
+
+/** CSS variable for action zone width (left side of card) */
+export const ACTION_ZONE_WIDTH = '50%';
