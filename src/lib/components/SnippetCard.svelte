@@ -239,6 +239,15 @@
       {/if}
     </div>
 
+    <!-- Drag handle (dots) -->
+    <div
+      class="drag-handle"
+      title="Затисніть щоб перемістити"
+      aria-label="Перемістити"
+    >
+      <icons.GripVertical size={16} />
+    </div>
+
     <!-- Edit mode indicator / button -->
     <button
       class="edit-indicator"
@@ -283,9 +292,7 @@
   }
 
   .snippet-card.interactive {
-    cursor: pointer;
-    user-select: none;
-    -webkit-user-select: none;
+    cursor: default;
   }
 
   .snippet-card:focus-visible {
@@ -478,34 +485,57 @@
     z-index: 5;
   }
 
-  /* Edit button */
-  .edit-indicator {
+  /* Edit Indicator & Drag Handle (Overlay Buttons) */
+  .edit-indicator,
+  .drag-handle {
     position: absolute;
-    bottom: 10px;
-    right: 10px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-muted);
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 28px;
-    height: 28px;
-    border: none;
-    border-radius: 8px;
-    background: var(--color-surface-2);
-    color: var(--color-text-muted);
     opacity: 0;
-    transition: all 0.2s ease;
-    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     z-index: 10;
   }
 
-  .snippet-card:hover .edit-indicator {
+  .edit-indicator {
+    bottom: 8px;
+    right: 8px;
+    cursor: pointer;
+  }
+
+  .drag-handle {
+    top: 8px;
+    right: 8px;
+    cursor: grab;
+  }
+
+  .drag-handle:active {
+    cursor: grabbing;
+  }
+
+  .snippet-card:hover .edit-indicator,
+  .snippet-card:hover .drag-handle {
     opacity: 1;
+    transform: translateY(0);
   }
 
   .edit-indicator:hover {
-    background: var(--color-accent-violet);
-    color: white;
-    transform: scale(1.05);
+    background: var(--color-accent-blue);
+    color: var(--color-bg-primary);
+    border-color: transparent;
+    transform: scale(1.1);
+  }
+
+  .drag-handle:hover {
+    background: var(--color-surface-3);
+    color: var(--color-text-primary);
+    transform: scale(1.1);
   }
 
   /* Edit area */

@@ -8,12 +8,17 @@ export function draggable(node: HTMLElement, index: number) {
     function handleDragStart(e: DragEvent) {
         if (!e.dataTransfer) return;
 
-        // This stops child elements (like buttons) from triggering drag
-        if ((e.target as HTMLElement).tagName.toLowerCase() === 'button' ||
-            (e.target as HTMLElement).tagName.toLowerCase() === 'textarea') {
+        // Only allow dragging if the target is the drag-handle or if we are not clicking on text that might be selectable
+        const target = e.target as HTMLElement;
+
+        // Don't drag if clicking buttons, textareas, etc
+        if (target.closest('button') || target.closest('textarea')) {
             e.preventDefault();
             return;
         }
+
+        // To prevent text selection drag from triggering card drag...
+        // Svelte handles it reasonably but let's be safe.
 
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('text/plain', index.toString());
