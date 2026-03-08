@@ -2,6 +2,7 @@
   import { AlertTriangle, RefreshCw } from "lucide-svelte";
   import type { Card } from "../../types";
   import { t } from "../../i18n";
+  import { logService } from "../../services/logService";
 
   interface Props {
     card: Card;
@@ -10,6 +11,10 @@
   }
 
   let { card, error, reset }: Props = $props();
+
+  $effect(() => {
+    logService.log("error", `Rendering error in card: ${card.name}`, error);
+  });
 </script>
 
 <div class="card-error-fallback" data-testid="card-error-fallback">

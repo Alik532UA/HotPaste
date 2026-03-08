@@ -10,7 +10,13 @@ export const en = {
         empty: "Nothing found",
         loading: "Loading...",
         default: "Default",
-        disable: "Disable"
+        disable: "Disable",
+        selected: "selected",
+        move: "Move",
+        retry: "Retry"
+    },
+    errors: {
+        rendering: "Rendering error"
     },
     app: {
         title: "HotPaste",
@@ -38,7 +44,11 @@ export const en = {
         add: "Create new tab",
         settings: "Tab settings",
         empty: "This tab is empty",
-        emptyHint: "Add .txt or .md files to this folder"
+        emptyHint: "Add .txt or .md files to this folder",
+        displayName: "Display name",
+        dirName: "Folder name",
+        icon: "Icon",
+        color: "Tab color"
     },
     cards: {
         settings: "Card settings",

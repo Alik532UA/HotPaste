@@ -11,5 +11,6 @@ export const t = {
     get tabs() { return translations[language.current].tabs; },
     get cards() { return translations[language.current].cards; },
     get modals() { return translations[language.current].modals; },
-    get menu() { return translations[language.current].menu; }
+    get menu() { return translations[language.current].menu; },
+    get errors() { return translations[language.current].errors; }
 };

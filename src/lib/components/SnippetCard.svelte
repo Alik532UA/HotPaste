@@ -11,14 +11,16 @@
     startEditingCard,
     stopEditingCard,
     openHotkeyPicker,
+    toggleCardSelection,
   } from "../stores/appState.svelte";
   import { logService } from "../services/logService";
-  import { Edit3, Menu, Copy, FileX, Keyboard, Link, Trash2 } from "lucide-svelte";
+  import { Edit3, Menu, Copy, FileX, Keyboard, Link, Trash2, Check } from "lucide-svelte";
   import * as icons from "lucide-svelte";
   import type { ComponentType } from "svelte";
   import { renderMarkdown } from "../utils/markdown";
   import { sanitize } from "../utils/sanitizer";
   import { t } from "../i18n";
+  import TextHighlight from "./ui/TextHighlight.svelte";
 
   interface Props {
     card: Card;
@@ -33,6 +35,8 @@
   const isCompact = $derived(appState.cardDensity === "compact");
   const isExpanded = $derived(appState.cardDensity === "expanded");
   const isMissing = $derived(card.isMissing);
+  const isSelected = $derived(appState.selectedCardIds.has(card.id));
+  const isSelectionMode = $derived(appState.selectedCardIds.size > 0);
 
   const lines = $derived(card.content.split("\n"));
 
@@ -182,6 +186,15 @@
       `handleCardClick for card: ${card.name}, isEditing: ${isEditing}`,
     );
     if (isMissing || isEditing) return;
+
+    // Selection mode (Ctrl, Shift, or already in selection mode)
+    if (e.ctrlKey || e.shiftKey || isSelectionMode) {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleCardSelection(card.id);
+      return;
+    }
+
     const currentTarget = e.currentTarget as HTMLElement;
     const rect = currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -208,7 +221,7 @@
   }
 
   function handleMouseMove(e: MouseEvent) {
-    if (isMissing || isEditing) {
+    if (isMissing || isEditing || isSelectionMode) {
       hoverZone = null;
       return;
     }
@@ -375,8 +388,10 @@
     class:flashing={isFlashing}
     class:missing={isMissing}
     class:compact={isCompact}
-    class:hover-action={hoverZone === "action" && !isMissing}
-    class:hover-strike={hoverZone === "strike" && !isMissing}
+    class:selected={isSelected}
+    class:selection-mode={isSelectionMode}
+    class:hover-action={hoverZone === "action" && !isMissing && !isSelectionMode}
+    class:hover-strike={hoverZone === "strike" && !isMissing && !isSelectionMode}
     onclick={handleCardClick}
     oncontextmenu={handleContextMenu}
     onmousemove={handleMouseMove}
@@ -386,16 +401,36 @@
     role="button"
     title={isMissing
       ? "File not found"
-      : hoverZone === "action"
-        ? `${t.common.copy}: ${card.name}`
-        : "Strike out line"}
+      : isSelectionMode
+        ? (isSelected ? "Deselect" : "Select")
+        : hoverZone === "action"
+          ? `${t.common.copy}: ${card.name}`
+          : "Strike out line"}
     id="card-{card.filePath.replace(/[^a-zA-Z0-9]/g, '-')}"
     style={getCardStyle()}
     data-testid="snippet-card"
     data-card-name={card.name}
   >
+    <!-- Selection Checkbox -->
+    {#if isSelectionMode || hoverZone}
+      <button 
+        class="selection-checkbox" 
+        class:checked={isSelected}
+        onclick={(e) => {
+          e.stopPropagation();
+          toggleCardSelection(card.id);
+        }}
+        title={isSelected ? "Deselect" : "Select"}
+        data-testid="selection-checkbox"
+      >
+        {#if isSelected}
+          <Check size={14} strokeWidth={3} />
+        {/if}
+      </button>
+    {/if}
+
     <!-- Action indicator -->
-    {#if hoverZone === "action" && !isMissing}
+    {#if hoverZone === "action" && !isMissing && !isSelectionMode}
       <div class="action-overlay-hint" data-testid="action-hint">
         <icons.Copy size={32} opacity={0.15} />
       </div>
@@ -411,7 +446,9 @@
         {:else if card.icon}
           <span class="card-icon emoji">{card.icon}</span>
         {/if}
-        <h3 class="card-title" data-testid="card-title">{card.name}</h3>
+        <h3 class="card-title" data-testid="card-title">
+          <TextHighlight text={card.name} query={appState.searchQuery} />
+        </h3>
         {#if isExpanded && !isMissing}
           <span class="card-ext" data-testid="card-extension"
             >{card.extension}</span
@@ -581,7 +618,7 @@
                 class:strikethrough={card.strikethrough.includes(i)}
                 data-testid="content-line"
               >
-                {line || " "}
+                <TextHighlight text={line || " "} query={appState.searchQuery} />
               </div>
             {/each}
           {/if}
@@ -675,6 +712,52 @@
   .snippet-card.editing {
     border-color: var(--color-accent-violet);
     box-shadow: 0 0 20px rgba(123, 97, 255, 0.15);
+  }
+
+  .snippet-card.selected {
+    border-color: var(--color-accent-cyan) !important;
+    background: rgba(0, 210, 255, 0.05);
+    box-shadow: 0 0 15px rgba(0, 210, 255, 0.2);
+  }
+
+  .selection-checkbox {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    width: 20px;
+    height: 20px;
+    border-radius: 6px;
+    border: 2px solid var(--color-border);
+    background: var(--color-surface-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 20;
+    padding: 0;
+    color: white;
+    transition: all 0.2s;
+  }
+
+  .selection-checkbox.checked {
+    background: var(--color-accent-cyan);
+    border-color: var(--color-accent-cyan);
+  }
+
+  .selection-checkbox:hover {
+    transform: scale(1.1);
+    border-color: var(--color-accent-cyan);
+  }
+
+  /* Shift header content if checkbox is visible or in selection mode */
+  .selection-mode .card-header,
+  .snippet-card:hover .card-header {
+    padding-left: 40px;
+  }
+
+  .snippet-card.compact.selection-mode .card-content,
+  .snippet-card.compact:hover .card-content {
+    padding-left: 24px;
   }
 
   .snippet-card.flashing {

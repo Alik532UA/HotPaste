@@ -23,6 +23,7 @@
   import DebugListener from "./lib/components/DebugListener.svelte";
   import DynamicBackground from "./lib/components/DynamicBackground.svelte";
   import SegmentedToggle from "./lib/components/ui/SegmentedToggle.svelte";
+  import BatchActionBar from "./lib/components/ui/BatchActionBar.svelte";
   import { theme } from "./lib/states/theme.svelte";
   import { background } from "./lib/states/background.svelte";
   import { language } from "./lib/i18n/language.svelte";
@@ -298,6 +299,8 @@
 
 <!-- Toast Notification -->
 <Toast />
+
+<BatchActionBar />
 
 <ContextMenu />
 

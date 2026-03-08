@@ -10,10 +10,88 @@
   function handleDrop(fromIndex: number, toIndex: number) {
     moveCard(fromIndex, toIndex);
   }
+
+  function handleGridKeydown(e: KeyboardEvent) {
+    const keys = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"];
+    if (!keys.includes(e.key)) return;
+
+    const activeEl = document.activeElement as HTMLElement;
+    if (!activeEl || !activeEl.classList.contains("snippet-card")) return;
+
+    const gridElements = Array.from(document.querySelectorAll(".snippet-card.interactive")) as HTMLElement[];
+    const currentIndex = gridElements.indexOf(activeEl);
+    if (currentIndex === -1) return;
+
+    e.preventDefault();
+
+    let nextIndex = currentIndex;
+    const activeRect = activeEl.getBoundingClientRect();
+    const activeCenter = {
+      x: activeRect.left + activeRect.width / 2,
+      y: activeRect.top + activeRect.height / 2
+    };
+
+    if (e.key === "Home") {
+      nextIndex = 0;
+    } else if (e.key === "End") {
+      nextIndex = gridElements.length - 1;
+    } else {
+      // Spatial navigation
+      let bestDist = Infinity;
+      let candidateIndex = -1;
+
+      for (let i = 0; i < gridElements.length; i++) {
+        if (i === currentIndex) continue;
+        const targetEl = gridElements[i];
+        const targetRect = targetEl.getBoundingClientRect();
+        const targetCenter = {
+          x: targetRect.left + targetRect.width / 2,
+          y: targetRect.top + targetRect.height / 2
+        };
+
+        const dx = targetCenter.x - activeCenter.x;
+        const dy = targetCenter.y - activeCenter.y;
+
+        let isCorrectDirection = false;
+        if (e.key === "ArrowRight") isCorrectDirection = dx > 10 && Math.abs(dy) < targetRect.height;
+        if (e.key === "ArrowLeft") isCorrectDirection = dx < -10 && Math.abs(dy) < targetRect.height;
+        if (e.key === "ArrowDown") isCorrectDirection = dy > 10 && Math.abs(dx) < 50;
+        if (e.key === "ArrowUp") isCorrectDirection = dy < -10 && Math.abs(dx) < 50;
+
+        if (isCorrectDirection) {
+          const dist = dx * dx + dy * dy;
+          if (dist < bestDist) {
+            bestDist = dist;
+            candidateIndex = i;
+          }
+        }
+      }
+
+      if (candidateIndex !== -1) {
+        nextIndex = candidateIndex;
+      } else {
+        // Fallback for linear navigation if spatial fails
+        if (e.key === "ArrowRight" || e.key === "ArrowDown") nextIndex++;
+        if (e.key === "ArrowLeft" || e.key === "ArrowUp") nextIndex--;
+      }
+    }
+
+    // Clamp and focus
+    if (nextIndex < 0) nextIndex = 0;
+    if (nextIndex >= gridElements.length) nextIndex = gridElements.length - 1;
+
+    gridElements[nextIndex]?.focus();
+  }
 </script>
 
 {#if appState.filteredCards.length > 0}
-  <div class="card-grid" style="--scale: {appState.scale}" data-testid="card-grid">
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div 
+    class="card-grid" 
+    style="--scale: {appState.scale}" 
+    data-testid="card-grid"
+    onkeydown={handleGridKeydown}
+  >
     {#each appState.filteredCards as card, index (card.id)}
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div

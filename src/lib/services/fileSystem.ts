@@ -48,6 +48,8 @@ export interface IFileSystemService {
     moveFile(path: string, targetTabPath: string): Promise<string>;
     /** Get the root directory name */
     getRootName(): string;
+    /** Restore config from backup */
+    restoreFromBackup(tabPath: string): Promise<HotPasteConfig>;
 }
 
 /**
@@ -238,11 +240,56 @@ export class BrowserFileSystemService implements IFileSystemService {
             dirHandle = await this.rootHandle.getDirectoryHandle(tabPath);
         }
 
+        // 1. Create backup of current config if it exists
+        try {
+            const currentFileHandle = await dirHandle.getFileHandle(CONFIG_FILENAME);
+            const currentFile = await currentFileHandle.getFile();
+            const currentText = await currentFile.text();
+            
+            if (currentText.trim()) {
+                const backupHandle = await dirHandle.getFileHandle(`${CONFIG_FILENAME}.bak`, { create: true });
+                // @ts-ignore
+                const backupWritable = await backupHandle.createWritable();
+                await backupWritable.write(currentText);
+                await backupWritable.close();
+            }
+        } catch (e) {
+            // Config doesn't exist yet, ignore
+        }
+
+        // 2. Write new config
         const fileHandle = await dirHandle.getFileHandle(CONFIG_FILENAME, { create: true });
         // @ts-ignore
         const writable = await fileHandle.createWritable();
         await writable.write(JSON.stringify(config, null, 2));
         await writable.close();
+    }
+
+    async restoreFromBackup(tabPath: string): Promise<HotPasteConfig> {
+        if (!this.rootHandle) throw new Error('No directory access.');
+
+        let dirHandle = this.rootHandle;
+        if (tabPath !== '__root__') {
+            dirHandle = await this.rootHandle.getDirectoryHandle(tabPath);
+        }
+
+        try {
+            const backupHandle = await dirHandle.getFileHandle(`${CONFIG_FILENAME}.bak`);
+            const backupFile = await backupHandle.getFile();
+            const text = await backupFile.text();
+            const parsed = JSON.parse(text);
+            const validated = HotPasteConfigSchema.safeParse(parsed);
+            
+            if (validated.success) {
+                // Restore backup as main config
+                await this.writeConfig(tabPath, validated.data as HotPasteConfig);
+                return validated.data as HotPasteConfig;
+            }
+            throw new Error('Invalid backup format');
+        } catch (err) {
+            console.error('[FileSystem] Failed to restore from backup:', err);
+            throw err;
+        }
     }
 
     async renameFile(path: string, newName: string): Promise<string> {

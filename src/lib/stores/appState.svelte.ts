@@ -48,6 +48,9 @@ let editingCardPath = $state('');
 /** Whether a card is currently "flashing" (just copied) */
 let flashingCardPath = $state('');
 
+/** IDs of currently selected cards for batch operations */
+let selectedCardIds = $state<Set<string>>(new Set());
+
 /** Debounce timer for saving _hotpaste.json */
 let configSaveTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -96,6 +99,9 @@ const filteredCards = $derived(() => {
 /** Total number of tabs */
 const tabCount = $derived(tabs.length);
 
+/** Selected card objects */
+const selectedCards = $derived(activeCards.filter(c => selectedCardIds.has(c.id)));
+
 // --- State accessors (exported as getters for reactivity) ---
 
 export function getState() {
@@ -105,6 +111,8 @@ export function getState() {
         get activeTab() { return activeTab; },
         get activeCards() { return activeCards; },
         get filteredCards() { return filteredCards(); },
+        get selectedCardIds() { return selectedCardIds; },
+        get selectedCards() { return selectedCards; },
         get searchQuery() { return searchQuery; },
         get tabCount() { return tabCount; },
         get isConnected() { return isConnected; },
@@ -127,6 +135,81 @@ export function getState() {
 }
 
 // --- Actions ---
+
+/** Toggle selection for a single card */
+export function toggleCardSelection(id: string): void {
+    if (selectedCardIds.has(id)) {
+        selectedCardIds.delete(id);
+    } else {
+        selectedCardIds.add(id);
+    }
+}
+
+/** Clear all selections */
+export function clearSelection(): void {
+    selectedCardIds.clear();
+}
+
+/** Select all visible cards in the active tab */
+export function selectAll(): void {
+    const ids = filteredCards().map(c => c.id);
+    selectedCardIds = new Set(ids);
+}
+
+/** Batch delete selected cards */
+export async function deleteSelectedCards(): Promise<void> {
+    const count = selectedCardIds.size;
+    if (count === 0) return;
+    
+    if (!confirm(`Ви впевнені, що хочете видалити ${count} сніпетів?`)) return;
+
+    try {
+        const cardsToDelete = [...selectedCards];
+        for (const card of cardsToDelete) {
+            await fileSystemService.deleteFile(card.filePath);
+            
+            // Remove from config
+            const parts = card.filePath.split('/');
+            parts.pop();
+            const tabPath = parts.join('/') || '__root__';
+            const config = await fileSystemService.readConfig(tabPath);
+            if (config.cards && config.cards[card.fileName]) {
+                delete config.cards[card.fileName];
+                if (config.tab?.order) {
+                    config.tab.order = config.tab.order.filter(n => n !== card.fileName);
+                }
+                await fileSystemService.writeConfig(tabPath, config);
+            }
+        }
+        
+        clearSelection();
+        await refreshTabs();
+        showToast(`Видалено ${count} сніпетів`);
+    } catch (err) {
+        logService.log('error', 'Batch delete failed', err);
+        showToast('Помилка при масовому видаленні!');
+    }
+}
+
+/** Batch move selected cards to another tab */
+export async function moveSelectedCardsToTab(targetTabPath: string): Promise<void> {
+    const count = selectedCardIds.size;
+    if (count === 0) return;
+
+    try {
+        const cardsToMove = [...selectedCards];
+        for (const card of cardsToMove) {
+            await fileSystemService.moveFile(card.filePath, targetTabPath);
+        }
+        
+        clearSelection();
+        await refreshTabs();
+        showToast(`Переміщено ${count} сніпетів`);
+    } catch (err) {
+        logService.log('error', 'Batch move failed', err);
+        showToast('Помилка при масовому переміщенні!');
+    }
+}
 
 /** Set search query */
 export function setSearchQuery(query: string): void {

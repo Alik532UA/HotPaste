@@ -10,7 +10,13 @@ export const uk = {
         empty: "Нічого не знайдено",
         loading: "Завантаження...",
         default: "За замовчуванням",
-        disable: "Вимкнути"
+        disable: "Вимкнути",
+        selected: "вибрано",
+        move: "Перемістити",
+        retry: "Спробувати знову"
+    },
+    errors: {
+        rendering: "Помилка відображення"
     },
     app: {
         title: "HotPaste",
@@ -38,7 +44,11 @@ export const uk = {
         add: "Створити нову вкладку",
         settings: "Налаштувати вкладку",
         empty: "Ця вкладка порожня",
-        emptyHint: "Додайте .txt або .md файли в цю папку"
+        emptyHint: "Додайте .txt або .md файли в цю папку",
+        displayName: "Відображувана назва",
+        dirName: "Ім'я папки",
+        icon: "Іконка",
+        color: "Колір вкладки"
     },
     cards: {
         settings: "Налаштувати картку",
