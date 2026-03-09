@@ -9,8 +9,9 @@
     moveTab,
     openContextMenu,
     setSearchQuery,
+    toggleSelectionMode,
   } from "../stores/appState.svelte";
-  import { Plus, Search, X } from "lucide-svelte";
+  import { Plus, Search, X, CheckSquare } from "lucide-svelte";
   import * as icons from "lucide-svelte";
   import type { ComponentType } from "svelte";
   import type { Tab } from "../types";
@@ -141,6 +142,15 @@
 
   <!-- Search Bar -->
   <div class="search-container">
+    <button 
+      class="selection-toggle-btn" 
+      class:active={appState.isSelectionMode}
+      onclick={toggleSelectionMode}
+      title={t.common.select || 'Вибрати'}
+      data-testid="btn-selection-toggle"
+    >
+      <CheckSquare size={16} />
+    </button>
     <div class="search-wrapper">
       <Search size={14} class="search-icon" />
       <input
@@ -326,7 +336,35 @@
     display: flex;
     align-items: center;
     height: 100%;
-    padding-bottom: 6px; /* Align with tabs bottom line roughly */
+    padding-bottom: 6px;
+    gap: 8px;
+  }
+
+  .selection-toggle-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface-2);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .selection-toggle-btn:hover {
+    border-color: var(--color-accent-cyan);
+    color: var(--color-text-primary);
+    background: var(--color-surface-3);
+  }
+
+  .selection-toggle-btn.active {
+    background: rgba(0, 210, 255, 0.15);
+    border-color: var(--color-accent-cyan);
+    color: var(--color-accent-cyan);
+    box-shadow: 0 0 12px rgba(0, 210, 255, 0.2);
   }
 
   .search-wrapper {

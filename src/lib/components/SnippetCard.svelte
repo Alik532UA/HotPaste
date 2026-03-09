@@ -36,7 +36,7 @@
   const isExpanded = $derived(appState.cardDensity === "expanded");
   const isMissing = $derived(card.isMissing);
   const isSelected = $derived(appState.selectedCardIds.has(card.id));
-  const isSelectionMode = $derived(appState.selectedCardIds.size > 0);
+  const isSelectionMode = $derived(appState.isSelectionMode);
 
   const lines = $derived(card.content.split("\n"));
 
@@ -190,8 +190,8 @@
     );
     if (isMissing || isEditing) return;
 
-    // Selection mode (Ctrl, Shift, or already in selection mode)
-    if (e.ctrlKey || e.shiftKey || isSelectionMode) {
+    // Selection mode (global, Ctrl, or Shift)
+    if (isSelectionMode || e.ctrlKey || e.shiftKey) {
       e.preventDefault();
       e.stopPropagation();
       toggleCardSelection(card.id);
@@ -430,10 +430,11 @@
     data-card-name={card.name}
   >
     <!-- Selection Checkbox -->
-    {#if isSelectionMode || hoverZone}
+    {#if isSelectionMode || isSelected}
       <button 
         class="selection-checkbox" 
         class:checked={isSelected}
+        class:always-visible={isSelectionMode}
         onclick={(e) => {
           e.stopPropagation();
           toggleCardSelection(card.id);
@@ -821,12 +822,12 @@
 
   /* Shift header content if checkbox is visible or in selection mode */
   .selection-mode .card-header,
-  .snippet-card:hover .card-header {
+  .snippet-card.selected .card-header {
     padding-left: 40px;
   }
 
   .snippet-card.compact.selection-mode .card-content,
-  .snippet-card.compact:hover .card-content {
+  .snippet-card.compact.selected .card-content {
     padding-left: 24px;
   }
 

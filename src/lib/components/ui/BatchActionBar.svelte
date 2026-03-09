@@ -6,6 +6,7 @@
 
   const appState = getState();
   const selectedCount = $derived(appState.selectedCardIds.size);
+  const isSelectionMode = $derived(appState.isSelectionMode);
   
   let showMoveMenu = $state(false);
 
@@ -15,7 +16,7 @@
   }
 </script>
 
-{#if selectedCount > 0}
+{#if isSelectionMode || selectedCount > 0}
   <div class="batch-action-bar" transition:fly={{ y: 100, duration: 300 }} data-testid="batch-action-bar">
     <div class="selection-info" data-testid="batch-selection-info">
       <div class="icon-wrapper text-cyan">
@@ -29,13 +30,14 @@
         <button 
           class="action-btn move" 
           onclick={() => showMoveMenu = !showMoveMenu}
+          disabled={selectedCount === 0}
           data-testid="btn-batch-move"
         >
           <MoveRight size={18} />
           <span>{t.common.move || 'Перемістити'}</span>
         </button>
 
-        {#if showMoveMenu}
+        {#if showMoveMenu && selectedCount > 0}
           <div class="move-menu" data-testid="batch-move-menu">
             {#each appState.tabs as tab}
               {#if tab.path !== appState.activeTab?.path}
@@ -56,6 +58,7 @@
       <button 
         class="action-btn delete" 
         onclick={deleteSelectedCards}
+        disabled={selectedCount === 0}
         data-testid="btn-batch-delete"
       >
         <Trash2 size={18} />
@@ -138,7 +141,13 @@
     color: var(--color-text-primary);
   }
 
-  .action-btn.delete:hover {
+  .action-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+    filter: grayscale(1);
+  }
+
+  .action-btn.delete:hover:not(:disabled) {
     color: #ff4b4b;
     background: rgba(255, 75, 75, 0.1);
     border-color: rgba(255, 75, 75, 0.2);

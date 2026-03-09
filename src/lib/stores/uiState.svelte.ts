@@ -16,6 +16,7 @@ let searchQuery = $state('');
 let editingCardPath = $state('');
 let flashingCardPath = $state('');
 let selectedCardIds = $state<Set<string>>(new Set());
+let isSelectionMode = $state(false);
 
 let cardView = $state<'short' | 'full'>((localStorage.getItem('hp_card_view') as any) || 'short');
 let cardDensity = $state<'expanded' | 'normal' | 'compact'>((localStorage.getItem('hp_card_density') as any) || 'normal');
@@ -37,6 +38,7 @@ export const uiState = {
     get editingCardPath() { return editingCardPath; },
     get flashingCardPath() { return flashingCardPath; },
     get selectedCardIds() { return selectedCardIds; },
+    get isSelectionMode() { return isSelectionMode; },
     get cardView() { return cardView; },
     get cardDensity() { return cardDensity; },
     get activeTabIndex() { return activeTabIndex; },
@@ -55,6 +57,8 @@ export const uiState = {
     setCardView,
     setCardDensity,
     toggleCardView,
+    setSelectionMode,
+    toggleSelectionMode,
     selectTab,
     selectTabByHotkey,
     toggleCardSelection,
@@ -135,15 +139,29 @@ function selectTabByHotkey(code: string, max: number): boolean {
 }
 
 function toggleCardSelection(id: string): void {
-    if (selectedCardIds.has(id)) {
-        selectedCardIds.delete(id);
+    const next = new Set(selectedCardIds);
+    if (next.has(id)) {
+        next.delete(id);
     } else {
-        selectedCardIds.add(id);
+        next.add(id);
     }
+    selectedCardIds = next;
+}
+
+function setSelectionMode(value: boolean): void {
+    isSelectionMode = value;
+    if (!value) {
+        selectedCardIds.clear();
+    }
+}
+
+function toggleSelectionMode(): void {
+    setSelectionMode(!isSelectionMode);
 }
 
 function clearSelection(): void {
     selectedCardIds.clear();
+    isSelectionMode = false;
 }
 
 function selectAll(ids: string[]): void {

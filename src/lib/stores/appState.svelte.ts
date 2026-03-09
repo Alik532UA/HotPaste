@@ -41,6 +41,7 @@ export function getState() {
         get activeSettingsTab() { return uiState.activeSettingsTab; },
         get activeHotkeyPickerCard() { return uiState.activeHotkeyPickerCard; },
         get activeHotkeyConflict() { return uiState.activeHotkeyConflict; },
+        get isSelectionMode() { return uiState.isSelectionMode; },
         
         // File System State
         get tabs() { return fsState.tabs; },
@@ -98,6 +99,8 @@ export const closeHotkeyPicker = uiState.closeHotkeyPicker;
 export const closeHotkeyConflict = uiState.closeHotkeyConflict;
 export const startEditingCard = uiState.startEditingCard;
 export const stopEditingCard = uiState.stopEditingCard;
+export const setSelectionMode = uiState.setSelectionMode;
+export const toggleSelectionMode = uiState.toggleSelectionMode;
 
 export const connectDirectory = fsState.connectDirectory;
 export const refreshTabs = fsState.refreshTabs;
