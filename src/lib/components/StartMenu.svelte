@@ -470,6 +470,20 @@
     box-shadow: 0 0.3cqw 0 rgba(0, 210, 255, 0.3);
   }
 
+  .key.disabled {
+    opacity: 0.4;
+    background: rgba(255, 255, 255, 0.02);
+    border-color: rgba(255, 255, 255, 0.05);
+    cursor: default;
+    box-shadow: none;
+    pointer-events: none;
+  }
+
+  .key.disabled .key-label {
+    color: var(--color-text-muted);
+    filter: grayscale(1);
+  }
+
   .key-label {
     position: absolute;
     top: 8%;
