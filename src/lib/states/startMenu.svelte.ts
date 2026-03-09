@@ -129,8 +129,8 @@ class StartMenuState {
 
         logService.debug('startMenu', `Loading icons for ${category} (${itemsToFetch.length} items remaining)`);
 
-        // Use batch command for efficiency
-        const CHUNK_SIZE = 10;
+        // Use CHUNK_SIZE = 1 to show icons in UI one-by-one as they load
+        const CHUNK_SIZE = 1;
         for (let i = 0; i < itemsToFetch.length; i += CHUNK_SIZE) {
             const chunk = itemsToFetch.slice(i, i + CHUNK_SIZE);
             const paths = chunk.map(item => item.path);
@@ -139,7 +139,6 @@ class StartMenuState {
             
             try {
                 const results = await invoke<[string, string][]>('get_shortcut_icons_batch', { paths });
-                logService.debug('startMenu', `Received ${results.length} icons from backend for chunk of ${paths.length}`);
                 
                 const iconMap = new Map(results);
                 let updatedCount = 0;
@@ -151,13 +150,9 @@ class StartMenuState {
                         updatedCount++;
                     }
                 }
-                logService.debug('startMenu', `Updated ${updatedCount} items in chunk`);
             } catch (err) {
                 logService.error('startMenu', `Batch icon load failed for chunk in ${category}`, err);
             }
-            
-            // Small delay between chunks to keep UI responsive
-            await new Promise(r => setTimeout(r, 20));
         }
         
         logService.info('startMenu', `Finished loading icons for ${category}`);

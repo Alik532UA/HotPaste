@@ -19,8 +19,8 @@ let logs = $state<LogEntry[]>([]);
 export const logConfig: Record<string, boolean> = {
     app: false,
     appstate: false,
-    filesystem: true,
-    ui: true,
+    filesystem: false,
+    ui: false,
     hotkeys: false,
     fsstate: false,
     hotkeystate: false,

@@ -11,6 +11,9 @@ use windows_sys::Win32::Graphics::Dwm::DwmSetWindowAttribute;
 use std::sync::OnceLock;
 use std::process::{Command, Stdio};
 use std::io::{BufRead, BufReader};
+use std::time::Duration;
+use tokio::time::timeout;
+use futures::future::join_all;
 
 static APP_HANDLE: OnceLock<AppHandle> = OnceLock::new();
 static IS_MINIMAL: AtomicBool = AtomicBool::new(true);
@@ -253,14 +256,50 @@ async fn get_shortcut_icons_batch(app: AppHandle, paths: Vec<String>) -> Result<
             return Ok(results);
         }
 
-        for chunk in missing_paths.chunks(20) {
-            let paths_json = serde_json::to_string(chunk).map_err(|e| e.to_string())?;
-            let utf16_json: Vec<u16> = paths_json.encode_utf16().collect();
-            let u8_json: Vec<u8> = utf16_json.iter().flat_map(|&u| u.to_le_bytes().to_vec()).collect();
-            let paths_b64 = general_purpose::STANDARD.encode(&u8_json);
+        // Process missing icons PARALLEL, 1-by-1, with 3s timeout
+        let futures = missing_paths.into_iter().map(|path| {
+            let cache_dir_clone = cache_dir.clone();
+            async move {
+                let path_clone = path.clone();
+                let result = timeout(Duration::from_secs(3), async {
+                    extract_single_icon(path_clone).await
+                }).await;
 
-            let script = format!(
-                r##"[Console]::OutputEncoding = [System.Text.Encoding]::UTF8;
+                match result {
+                    Ok(Ok(b64)) => {
+                        let hash = format!("{:x}", md5::compute(path.as_bytes()));
+                        let cache_file = cache_dir_clone.join(format!("{}.png", hash));
+                        if let Ok(binary_data) = general_purpose::STANDARD.decode(&b64) {
+                            let _ = std::fs::write(&cache_file, binary_data);
+                        }
+                        Some((path, b64))
+                    }
+                    Ok(Err(e)) => {
+                        println!("[ICONS_ERROR] Failed for {}: {}", path, e);
+                        None
+                    }
+                    Err(_) => {
+                        println!("[ICONS_TIMEOUT] 3s timeout reached for {}", path);
+                        None
+                    }
+                }
+            }
+        });
+
+        let extracted: Vec<(String, String)> = join_all(futures).await.into_iter().flatten().collect();
+        results.extend(extracted);
+
+        Ok(results)
+    }
+    #[cfg(not(target_os = "windows"))]
+    { Err("Not supported".to_string()) }
+}
+
+async fn extract_single_icon(path: String) -> Result<String, String> {
+    use base64::{Engine as _, engine::general_purpose};
+    
+    let script = format!(
+        r##"[Console]::OutputEncoding = [System.Text.Encoding]::UTF8;
 [void][Reflection.Assembly]::LoadWithPartialName('System.Drawing');
 
 if (-not ([System.Management.Automation.PSTypeName]'JumboIcon').Type) {{
@@ -299,160 +338,169 @@ public class JumboIcon {{
     [DllImport("gdi32.dll")]
     public static extern bool DeleteObject(IntPtr hObject);
 
+    [StructLayout(LayoutKind.Sequential)]
+    public struct BITMAP {{
+        public int bmType;
+        public int bmWidth;
+        public int bmHeight;
+        public int bmWidthBytes;
+        public ushort bmPlanes;
+        public ushort bmBitsPixel;
+        public IntPtr bmBits;
+    }}
+
+    [DllImport("gdi32.dll")]
+    public static extern int GetObject(IntPtr hgdiobj, int cbBuffer, out BITMAP lpvObject);
+
     public static string GetBase64(string path, int targetSize) {{
         if (string.IsNullOrEmpty(path)) return "";
-        IntPtr hBitmap = IntPtr.Zero;
-        try {{
-            // Modern Shell API for high-quality images (Vista+)
-            IShellItemImageFactory factory;
-            Guid guid = new Guid("bcc18b79-ba16-442f-80c4-8a59c30c463b");
-            int hr = SHCreateItemFromParsingName(path, IntPtr.Zero, guid, out factory);
-            
-            if (hr == 0 && factory != null) {{
-                SIZE size = new SIZE {{ cx = targetSize, cy = targetSize }};
-                // SIIGBF_RESIZETOFIT = 0, SIIGBF_BIGGERSIZEOK = 1, SIIGBF_ICONONLY = 4
-                hr = factory.GetImage(size, 0x1 | 0x4, out hBitmap);
-                if (hr == 0 && hBitmap != IntPtr.Zero) {{
-                    using (Bitmap bmp = Bitmap.FromHbitmap(hBitmap)) {{
-                        DeleteObject(hBitmap);
-                        Console.WriteLine("DIAG: Factory returned " + bmp.Width + "x" + bmp.Height + " for " + path);
-                        using (System.IO.MemoryStream ms = new System.IO.MemoryStream()) {{
-                            bmp.Save(ms, ImageFormat.Png);
-                            return Convert.ToBase64String(ms.ToArray());
-                        }}
-                    }}
-                }}
-            }}
-        }} catch (Exception ex) {{
-            Console.WriteLine("DIAG: Factory failed for " + path + ": " + ex.Message);
-        }} finally {{
-            if (hBitmap != IntPtr.Zero) DeleteObject(hBitmap);
-        }}
-
-        // LAST RESORT Fallback
-        try {{
-            using (Icon assocIcon = Icon.ExtractAssociatedIcon(path)) {{
-                if (assocIcon != null) {{
-                    using (Bitmap bmp = assocIcon.ToBitmap()) {{
-                        Console.WriteLine("DIAG: Final fallback 32x32 for " + path);
-                        using (System.IO.MemoryStream ms = new System.IO.MemoryStream()) {{
-                            bmp.Save(ms, ImageFormat.Png);
-                            return Convert.ToBase64String(ms.ToArray());
-                        }}
-                    }}
-                }}
-            }}
-        }} catch {{ }}
-        
-        return "";
-    }}
-}}
-"@ -ReferencedAssemblies System.Drawing, System.Windows.Forms
-    }} catch {{
-        Write-Host "DIAG: Add-Type failed: $($_.Exception.Message)"
-    }}
-}}
-
-$jsonRaw = [System.Convert]::FromBase64String('{}')
-$json = [System.Text.Encoding]::Unicode.GetString($jsonRaw)
-$paths = $json | ConvertFrom-Json
-$out = @{{}}
-$wsh = New-Object -ComObject WScript.Shell
-
-# Crucial: Unroll array if PS 5.1 returned it as a single object
-foreach ($p in @($paths)) {{
-    try {{
-        if (-not (Test-Path $p)) {{
-            Write-Host "DIAG: Path not found: $p"
-            continue
-        }}
-        $t = $p
-        if ($p.EndsWith('.lnk')) {{
+        string b64 = ExtractAndProcess(path, targetSize);
+        if (targetSize > 48 && !string.IsNullOrEmpty(b64)) {{
             try {{
-                $link = $wsh.CreateShortcut($p)
-                if ($link.TargetPath -and (Test-Path $link.TargetPath)) {{ 
-                    $t = $link.TargetPath 
+                byte[] data = Convert.FromBase64String(b64);
+                using (var ms = new System.IO.MemoryStream(data))
+                using (var bmp = new Bitmap(ms)) {{
+                    float density = GetSolidDensity(bmp);
+                    if (density < 0.20f) {{
+                        string fallbackB64 = ExtractAndProcess(path, 48);
+                        if (!string.IsNullOrEmpty(fallbackB64)) return fallbackB64;
+                    }}
                 }}
             }} catch {{ }}
         }}
-        $base64 = [JumboIcon]::GetBase64($t, 256)
-        if ([string]::IsNullOrEmpty($base64) -and $t -ne $p) {{ 
-            $base64 = [JumboIcon]::GetBase64($p, 256) 
+        return b64;
+    }}
+
+    private static string ExtractAndProcess(string path, int size) {{
+        IntPtr hBitmap = IntPtr.Zero;
+        try {{
+            IShellItemImageFactory factory;
+            Guid guid = new Guid("bcc18b79-ba16-442f-80c4-8a59c30c463b");
+            int hr = SHCreateItemFromParsingName(path, IntPtr.Zero, guid, out factory);
+            if (hr == 0 && factory != null) {{
+                SIZE s = new SIZE {{ cx = size, cy = size }};
+                hr = factory.GetImage(s, 0x4, out hBitmap);
+                if (hr == 0 && hBitmap != IntPtr.Zero) {{
+                    BITMAP bm;
+                    GetObject(hBitmap, Marshal.SizeOf(typeof(BITMAP)), out bm);
+                    Bitmap finalBmp = null;
+                    if (bm.bmBitsPixel == 32 && bm.bmBits != IntPtr.Zero) {{
+                        using (Bitmap temp = new Bitmap(bm.bmWidth, bm.bmHeight, bm.bmWidthBytes, PixelFormat.Format32bppArgb, bm.bmBits)) {{
+                            finalBmp = new Bitmap(temp);
+                            finalBmp.RotateFlip(RotateFlipType.RotateNoneFlipY);
+                        }}
+                    }} else {{
+                        finalBmp = Bitmap.FromHbitmap(hBitmap);
+                    }}
+                    try {{
+                        if (finalBmp != null) {{
+                            Bitmap croppedBmp = CropTransparent(finalBmp, 25);
+                            try {{
+                                using (System.IO.MemoryStream ms = new System.IO.MemoryStream()) {{
+                                    croppedBmp.Save(ms, ImageFormat.Png);
+                                    return Convert.ToBase64String(ms.ToArray());
+                                }}
+                            }} finally {{
+                                if (croppedBmp != finalBmp) croppedBmp.Dispose();
+                            }}
+                        }}
+                    }} finally {{
+                        if (finalBmp != null) finalBmp.Dispose();
+                        DeleteObject(hBitmap);
+                    }}
+                }}
+            }}
+        }} catch {{ }} finally {{ if (hBitmap != IntPtr.Zero) DeleteObject(hBitmap); }}
+        if (size <= 48) {{
+            try {{
+                using (Icon assocIcon = Icon.ExtractAssociatedIcon(path)) {{
+                    if (assocIcon != null) {{
+                        using (Bitmap bmp = assocIcon.ToBitmap())
+                        using (System.IO.MemoryStream ms = new System.IO.MemoryStream()) {{
+                            bmp.Save(ms, ImageFormat.Png);
+                            return Convert.ToBase64String(ms.ToArray());
+                        }}
+                    }}
+                }}
+            }} catch {{ }}
         }}
-        if (![string]::IsNullOrEmpty($base64)) {{ 
-            $out[$p] = $base64 
-            Write-Host "DIAG: Success for $p"
-        }} else {{
-            Write-Host "DIAG: Failed extraction for $p"
-        }}
-    }} catch {{ 
-        Write-Host "DIAG: Error for $p : $($_.Exception.Message)"
+        return "";
+    }}
+
+    private static float GetSolidDensity(Bitmap bmp) {{
+        int w = bmp.Width;
+        int h = bmp.Height;
+        BitmapData data = bmp.LockBits(new Rectangle(0, 0, w, h), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+        try {{
+            int solidPixels = 0;
+            int[] pixels = new int[w * h];
+            Marshal.Copy(data.Scan0, pixels, 0, pixels.Length);
+            for (int i = 0; i < pixels.Length; i++) {{ if (((pixels[i] >> 24) & 0xFF) > 30) solidPixels++; }}
+            return (float)solidPixels / (w * h);
+        }} finally {{ bmp.UnlockBits(data); }}
+    }}
+
+    private static Bitmap CropTransparent(Bitmap bmp, int threshold) {{
+        int w = bmp.Width;
+        int h = bmp.Height;
+        BitmapData data = bmp.LockBits(new Rectangle(0, 0, w, h), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+        try {{
+            int top = h, bottom = 0, left = w, right = 0;
+            int[] pixels = new int[w * h];
+            Marshal.Copy(data.Scan0, pixels, 0, pixels.Length);
+            for (int y = 0; y < h; y++) {{
+                for (int x = 0; x < w; x++) {{
+                    int alpha = (pixels[y * w + x] >> 24) & 0xFF;
+                    if (alpha > threshold) {{
+                        if (x < left) left = x; if (x > right) right = x;
+                        if (y < top) top = y; if (y > bottom) bottom = y;
+                    }}
+                }}
+            }}
+            if (right < left || bottom < top) return bmp;
+            int cropW = right - left + 1; int cropH = bottom - top + 1;
+            if (cropW == w && cropH == h) return bmp;
+            return bmp.Clone(new Rectangle(left, top, cropW, cropH), bmp.PixelFormat);
+        }} catch {{ return bmp; }} finally {{ bmp.UnlockBits(data); }}
     }}
 }}
+"@ -ReferencedAssemblies System.Drawing, System.Windows.Forms
+    }} catch {{ }}
+}}
 
-Write-Output "---JSON_START---"
-if ($out.Count -eq 0) {{
-    Write-Output "{{}}"
-}} else {{
-    $out | ConvertTo-Json -Compress
+$p = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('{}'))
+if (Test-Path -LiteralPath $p) {{
+    $b64 = [JumboIcon]::GetBase64($p, 256)
+    if ([string]::IsNullOrEmpty($b64) -and $p.EndsWith('.lnk')) {{
+        try {{
+            $wsh = New-Object -ComObject WScript.Shell
+            $link = $wsh.CreateShortcut($p)
+            if ($link.TargetPath -and (Test-Path -LiteralPath $link.TargetPath)) {{ 
+                $b64 = [JumboIcon]::GetBase64($link.TargetPath, 256)
+            }}
+        }} catch {{ }}
+    }}
+    if (![string]::IsNullOrEmpty($b64)) {{ Write-Output "---B64_START---$b64" }}
 }}
 "##,
-                paths_b64
-            );
+        general_purpose::STANDARD.encode(path.as_bytes())
+    );
 
-            let utf16_script: Vec<u16> = script.encode_utf16().collect();
-            let u8_script: Vec<u8> = utf16_script.iter().flat_map(|&u| u.to_le_bytes().to_vec()).collect();
-            let encoded_script = general_purpose::STANDARD.encode(&u8_script);
+    let utf16_script: Vec<u16> = script.encode_utf16().collect();
+    let u8_script: Vec<u8> = utf16_script.iter().flat_map(|&u| u.to_le_bytes().to_vec()).collect();
+    let encoded_script = general_purpose::STANDARD.encode(&u8_script);
 
-            let output = Command::new("powershell")
-                .args(["-NoProfile", "-NonInteractive", "-EncodedCommand", &encoded_script])
-                .output()
-                .map_err(|e| e.to_string())?;
+    let output = Command::new("powershell")
+        .args(["-NoProfile", "-NonInteractive", "-EncodedCommand", &encoded_script])
+        .output()
+        .map_err(|e| e.to_string())?;
 
-            let result_str = String::from_utf8_lossy(&output.stdout).to_string();
-            let stderr_str = String::from_utf8_lossy(&output.stderr).to_string();
-            
-            for line in result_str.lines() {
-                if line.starts_with("DIAG:") {
-                    println!("[ICONS_DIAG] {}", line);
-                }
-            }
-
-            if !stderr_str.is_empty() {
-                println!("[ICONS_BATCH_STDERR] {}", stderr_str);
-            }
-
-            println!("[ICONS_BATCH] stdout length: {}, exit: {:?}", result_str.len(), output.status.code());
-            
-            if let Some(json_index) = result_str.find("---JSON_START---") {
-                let json_str = &result_str[json_index + "---JSON_START---".len()..].trim();
-                
-                if !json_str.is_empty() {
-                    match serde_json::from_str::<std::collections::HashMap<String, String>>(json_str) {
-                        Ok(map) => {
-                            println!("[ICONS_BATCH] Parsed {} icon entries", map.len());
-                            for (p, b64) in map {
-                                if let Ok(binary_data) = general_purpose::STANDARD.decode(&b64) {
-                                    let hash = format!("{:x}", md5::compute(p.as_bytes()));
-                                    let cache_file = cache_dir.join(format!("{}.png", hash));
-                                    let _ = std::fs::write(&cache_file, binary_data);
-                                }
-                                results.push((p, b64));
-                            }
-                        }
-                        Err(e) => {
-                            println!("[ICONS_BATCH] JSON parse error: {}", e);
-                            println!("[ICONS_BATCH] Raw json_str: {:?}", json_str);
-                        }
-                    }
-                }
-            }
-        }
-
-        Ok(results)
+    let result_str = String::from_utf8_lossy(&output.stdout).to_string();
+    if let Some(idx) = result_str.find("---B64_START---") {
+        return Ok(result_str[idx + "---B64_START---".len()..].trim().to_string());
     }
-    #[cfg(not(target_os = "windows"))]
-    { Err("Not supported".to_string()) }
+
+    Err("Icon not found in output".to_string())
 }
 
 #[tauri::command]
@@ -471,7 +519,7 @@ async fn clear_icon_cache(app: AppHandle) -> Result<(), String> {
     let docs = app.path().document_dir().map_err(|e| e.to_string())?;
     let cache_dir = docs.join("HotPaste").join("start").join("icon-cache");
     if cache_dir.exists() {
-        std::fs::remove_dir_all(&cache_dir).map_err(|e| e.to_string())?;
+        let _ = std::fs::remove_dir_all(&cache_dir);
         let _ = std::fs::create_dir_all(&cache_dir);
     }
     Ok(())
