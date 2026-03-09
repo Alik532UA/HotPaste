@@ -12,6 +12,7 @@
   } from "./lib/stores/appState.svelte";
   import TabBar from "./lib/components/TabBar.svelte";
   import CardGrid from "./lib/components/CardGrid.svelte";
+  import StartMenu from "./lib/components/StartMenu.svelte";
   import Toast from "./lib/components/Toast.svelte";
   import EmptyState from "./lib/components/EmptyState.svelte";
   import FAB from "./lib/components/FAB.svelte";
@@ -28,12 +29,19 @@
   import { theme } from "./lib/states/theme.svelte";
   import { background } from "./lib/states/background.svelte";
   import { language } from "./lib/i18n/language.svelte";
-  import { initUrlSync, restoreTabFromUrl } from "./lib/services/urlSync.svelte";
+  import {
+    initUrlSync,
+    restoreTabFromUrl,
+  } from "./lib/services/urlSync.svelte";
   import { t } from "./lib/i18n";
   import { logService } from "./lib/services/logService.svelte";
   import { Sparkles, Waves, Shapes, CircleOff, Moon, Sun } from "lucide-svelte";
 
   const appState = getState();
+
+  // Determine if running in Tauri environment
+  // @ts-ignore
+  const isTauri = !!(typeof window !== "undefined" && (window.__TAURI_INTERNALS__ || window.__TAURI__));
 
   /** Scale dragging logic */
   let isDraggingScale = $state(false);
@@ -98,55 +106,69 @@
     language.init();
     background.init();
     initUrlSync();
-    
+
     // Auto-connect and setup if in Tauri
     const initTauri = async () => {
       // Improved check for Tauri v2
       // @ts-ignore
       const isTauri = !!(window.__TAURI_INTERNALS__ || window.__TAURI__);
-      
-      logService.log('app', `Environment check: isTauri=${isTauri}`);
+
+      logService.log("app", `Environment check: isTauri=${isTauri}`);
 
       if (isTauri) {
-        logService.log('app', 'Running in Tauri environment - connecting...');
-        
+        logService.log("app", "Running in Tauri environment - connecting...");
+
         // Setup programmatic drag as a backup if attribute fails
-        window.addEventListener('mousedown', async (e) => {
+        window.addEventListener("mousedown", async (e) => {
           const target = e.target as HTMLElement;
-          if (target.hasAttribute('data-tauri-drag-region') || target.closest('[data-tauri-drag-region]')) {
+          if (
+            target.hasAttribute("data-tauri-drag-region") ||
+            target.closest("[data-tauri-drag-region]")
+          ) {
             try {
-              const { getCurrentWindow } = await import('@tauri-apps/api/window');
+              const { getCurrentWindow } = await import(
+                "@tauri-apps/api/window"
+              );
               const appWindow = getCurrentWindow();
               // Only start dragging if it's the primary mouse button and not on an interactive element
-              if (e.button === 0 && !target.closest('button, input, a')) {
+              if (e.button === 0 && !target.closest("button, input, a")) {
                 await appWindow.startDragging();
               }
             } catch (err) {
-              logService.error('drag', 'Failed to start dragging programmatically', err);
+              logService.error(
+                "drag",
+                "Failed to start dragging programmatically",
+                err,
+              );
             }
           }
         });
         try {
           await connectDirectory();
-          logService.log('app', `Connected successfully, appState.isConnected=${appState.isConnected}`);
+          logService.log(
+            "app",
+            `Connected successfully, appState.isConnected=${appState.isConnected}`,
+          );
         } catch (err) {
-          logService.error('app', 'Failed to connect directory in Tauri', err);
+          logService.error("app", "Failed to connect directory in Tauri", err);
         }
-        
+
         // Setup autostart dynamically to avoid breaking web build
         try {
           // Standard dynamic import allow Vite to bundle this properly
-          const { enable, isEnabled } = await import("@tauri-apps/plugin-autostart");
+          const { enable, isEnabled } = await import(
+            "@tauri-apps/plugin-autostart"
+          );
           const autostartActive = await isEnabled();
           if (!autostartActive) {
             await enable();
-            logService.log('app', 'Autostart enabled');
+            logService.log("app", "Autostart enabled");
           }
         } catch (err) {
-          logService.error('app', 'Failed to setup autostart', err);
+          logService.error("app", "Failed to setup autostart", err);
         }
       } else {
-        logService.log('app', 'Running in Web environment');
+        logService.log("app", "Running in Web environment");
         handleRefreshTabs();
       }
     };
@@ -165,19 +187,29 @@
   // Options for Segmented Controls
   const themeOptions = [
     { id: "dark", label: "", icon: Moon },
-    { id: "light", label: "", icon: Sun }
+    { id: "light", label: "", icon: Sun },
   ];
 
   const langOptions = [
     { id: "uk", label: "UK" },
-    { id: "en", label: "EN" }
+    { id: "en", label: "EN" },
   ];
 
   const bgOptions = [
     { id: "none", label: "Off", icon: CircleOff },
     { id: "waves", label: "", icon: Waves, iconClass: "lucide-waves" },
-    { id: "particles", label: "", icon: Sparkles, iconClass: "lucide-sparkles" },
-    { id: "floating_shapes", label: "", icon: Shapes, iconClass: "lucide-shapes" }
+    {
+      id: "particles",
+      label: "",
+      icon: Sparkles,
+      iconClass: "lucide-sparkles",
+    },
+    {
+      id: "floating_shapes",
+      label: "",
+      icon: Shapes,
+      iconClass: "lucide-shapes",
+    },
   ];
 </script>
 
@@ -186,7 +218,9 @@
 <div class="theme-transition-overlay" class:active={theme.isChanging}></div>
 
 <div class="app-content" class:language-changing={language.isChanging}>
-  <svelte:boundary onerror={(err) => logService.log('error', 'Global rendering error', err)}>
+  <svelte:boundary
+    onerror={(err) => logService.log("error", "Global rendering error", err)}
+  >
     {#if !appState.isConnected}
       <!-- Landing / Empty State -->
       <EmptyState />
@@ -194,13 +228,25 @@
       <!-- Main App Layout -->
       <div class="app-shell" data-testid="app-shell">
         <!-- Top Header -->
-        <header class="app-header" data-tauri-drag-region data-testid="app-header">
+        <header
+          class="app-header"
+          data-tauri-drag-region
+          data-testid="app-header"
+        >
           <!-- Full-height drag handle for better target area -->
           <div class="drag-layer" data-tauri-drag-region></div>
-          
+
           <div class="header-content">
-            <div class="header-left" data-tauri-drag-region data-testid="header-left">
-              <h1 class="app-logo" data-tauri-drag-region data-testid="app-logo">
+            <div
+              class="header-left"
+              data-tauri-drag-region
+              data-testid="header-left"
+            >
+              <h1
+                class="app-logo"
+                data-tauri-drag-region
+                data-testid="app-logo"
+              >
                 <span class="logo-icon" data-tauri-drag-region>⚡</span>
                 {t.app.title}
               </h1>
@@ -214,11 +260,16 @@
             </div>
 
             <!-- View toggles (center) -->
-            <div class="header-center" data-tauri-drag-region data-testid="header-center">
-              <SegmentedToggle 
+            <div
+              class="header-center"
+              data-tauri-drag-region
+              data-testid="header-center"
+            >
+              <SegmentedToggle
+                id="card-view"
                 options={[
                   { id: "short", label: t.app.viewShort },
-                  { id: "full", label: t.app.viewFull }
+                  { id: "full", label: t.app.viewFull },
                 ]}
                 value={appState.cardView}
                 onSelect={(id) => setCardView(id)}
@@ -226,11 +277,12 @@
 
               <div class="header-divider" data-tauri-drag-region></div>
 
-              <SegmentedToggle 
+              <SegmentedToggle
+                id="card-density"
                 options={[
                   { id: "compact", label: t.app.densityCompact },
                   { id: "normal", label: t.app.densityNormal },
-                  { id: "expanded", label: t.app.densityExpanded }
+                  { id: "expanded", label: t.app.densityExpanded },
                 ]}
                 value={appState.cardDensity}
                 onSelect={(id) => setCardDensity(id)}
@@ -238,21 +290,27 @@
             </div>
 
             <!-- Global Actions (right) -->
-            <div class="header-right" data-tauri-drag-region data-testid="header-right">
-              
-              <SegmentedToggle 
+            <div
+              class="header-right"
+              data-tauri-drag-region
+              data-testid="header-right"
+            >
+              <SegmentedToggle
+                id="theme"
                 options={themeOptions}
                 value={theme.current}
                 onSelect={() => theme.toggle()}
               />
 
-              <SegmentedToggle 
+              <SegmentedToggle
+                id="language"
                 options={langOptions}
                 value={language.current}
                 onSelect={(id) => language.set(id)}
               />
 
-              <SegmentedToggle 
+              <SegmentedToggle
+                id="background"
                 options={bgOptions}
                 value={background.type}
                 onSelect={(id) => background.set(id)}
@@ -350,7 +408,11 @@
 
         <!-- Main Content -->
         <main class="app-main" data-testid="app-main">
-          <CardGrid />
+          {#if isTauri && appState.activeTabIndex === 0}
+            <StartMenu />
+          {:else}
+            <CardGrid />
+          {/if}
         </main>
 
         <!-- Floating Action Button for creating new card -->
@@ -402,7 +464,59 @@
     user-select: none;
     cursor: default;
     position: relative;
-    overflow: hidden;
+    z-index: 100; /* Ensure header and its dropdowns are above app content */
+  }
+
+  /* Progressive Collapse for Segmented Toggles */
+
+  /* 1. Background (collapses first) */
+  @media (max-width: 1450px) {
+    :global([data-testid="segmented-wrapper-background"] .view-full) {
+      display: none !important;
+    }
+    :global([data-testid="segmented-wrapper-background"] .view-compact) {
+      display: flex !important;
+    }
+  }
+
+  /* 2. Language */
+  @media (max-width: 1350px) {
+    :global([data-testid="segmented-wrapper-language"] .view-full) {
+      display: none !important;
+    }
+    :global([data-testid="segmented-wrapper-language"] .view-compact) {
+      display: flex !important;
+    }
+  }
+
+  /* 3. Theme */
+  @media (max-width: 1270px) {
+    :global([data-testid="segmented-wrapper-theme"] .view-full) {
+      display: none !important;
+    }
+    :global([data-testid="segmented-wrapper-theme"] .view-compact) {
+      display: flex !important;
+    }
+  }
+
+  /* 4. Card Density */
+  @media (max-width: 1220px) {
+    :global([data-testid="segmented-wrapper-card-density"] .view-full) {
+      display: none !important;
+    }
+    :global([data-testid="segmented-wrapper-card-density"] .view-compact) {
+      display: flex !important;
+    }
+  }
+
+  /* 5. Card View (collapses last) */
+  @media (max-width: 1100px) {
+    :global([data-testid="segmented-wrapper-card-view"] .view-full) {
+      display: none !important;
+    }
+    :global([data-testid="segmented-wrapper-card-view"] .view-compact) {
+      display: flex !important;
+    }
   }
 
   .drag-layer {

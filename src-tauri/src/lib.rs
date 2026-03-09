@@ -83,8 +83,12 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, Some(vec!["--minimized"])))
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            let _ = app.get_webview_window("main").expect("no main").show();
-            let _ = app.get_webview_window("main").expect("no main").set_focus();
+            if let Some(window) = app.get_webview_window("main") {
+                resize_to_90_percent(&window);
+                let _ = window.show();
+                let _ = window.set_focus();
+                let _ = window.center();
+            }
         }))
         .setup(|app| {
             let handle = app.handle().clone();
@@ -119,6 +123,9 @@ pub fn run() {
                 .build(app)?;
 
             let window = app.get_webview_window("main").unwrap();
+            resize_to_90_percent(&window);
+            let _ = window.show();
+            let _ = window.center();
 
             #[cfg(target_os = "windows")]
             {
@@ -169,9 +176,22 @@ fn toggle_window(app: &AppHandle) {
         if is_visible {
             let _ = window.hide();
         } else {
+            resize_to_90_percent(&window);
             let _ = window.show();
             let _ = window.set_focus();
             let _ = window.center();
         }
+    }
+}
+
+fn resize_to_90_percent(window: &tauri::WebviewWindow) {
+    if let Ok(Some(monitor)) = window.primary_monitor() {
+        let size = monitor.size();
+        let new_width = (size.width as f64 * 0.9) as u32;
+        let new_height = (size.height as f64 * 0.9) as u32;
+        let _ = window.set_size(tauri::Size::Physical(tauri::PhysicalSize {
+            width: new_width,
+            height: new_height,
+        }));
     }
 }

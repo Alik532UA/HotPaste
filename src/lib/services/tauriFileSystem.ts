@@ -33,7 +33,7 @@ export class TauriFileSystemService implements IFileSystemService {
     }
 
     getRootName(): string {
-        return 'HotPaste';
+        return 'default-project';
     }
 
     async requestAccess(): Promise<boolean> {
@@ -45,7 +45,7 @@ export class TauriFileSystemService implements IFileSystemService {
             const docs = await path.documentDir();
             logService.log('fileSystem', `Tauri documents dir: ${docs}`);
 
-            this.rootPath = await path.join(docs, 'HotPaste');
+            this.rootPath = await path.join(docs, 'HotPaste', 'default-project');
             logService.log('fileSystem', `Tauri target root path: ${this.rootPath}`);
             
             const rootExists = await fs.exists(this.rootPath);
@@ -136,6 +136,20 @@ export class TauriFileSystemService implements IFileSystemService {
                 path: '__root__',
                 icon: rootConfig.tab?.icon || null,
                 color: rootConfig.tab?.color || null,
+            });
+        }
+
+        // Always prepend Start tab as the very first one, but ONLY in Tauri environment
+        const isTauri = !!(typeof window !== 'undefined' && ((window as any).__TAURI_INTERNALS__ || (window as any).__TAURI__));
+        if (isTauri) {
+            tabs.unshift({
+                name: 'Start',
+                displayName: 'Start',
+                hotkey: '',
+                cards: [], // No physical cards, UI will be custom
+                path: '__start__',
+                icon: '⚡',
+                color: 'var(--color-accent-cyan)',
             });
         }
 

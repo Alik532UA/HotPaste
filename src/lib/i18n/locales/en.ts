@@ -6,6 +6,7 @@ export const en = {
         edit: "Edit",
         settings: "Settings",
         copy: "Copy",
+        select: "Select",
         search: "Search snippets...",
         empty: "Nothing found",
         loading: "Loading...",

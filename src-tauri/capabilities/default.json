@@ -28,7 +28,9 @@
       "identifier": "fs:scope",
       "allow": [
         { "path": "$DOCUMENT/HotPaste" },
-        { "path": "$DOCUMENT/HotPaste/**" }
+        { "path": "$DOCUMENT/HotPaste/**" },
+        { "path": "$DOCUMENT/HotPaste/default-project" },
+        { "path": "$DOCUMENT/HotPaste/default-project/**" }
       ]
     }
   ]
