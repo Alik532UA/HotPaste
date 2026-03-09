@@ -211,6 +211,7 @@ async fn get_system_shortcuts() -> Result<Vec<ShortcutInfo>, String> {
 async fn get_local_shortcuts(app: AppHandle) -> Result<Vec<ShortcutInfo>, String> {
     #[cfg(target_os = "windows")]
     {
+        use base64::{Engine as _, engine::general_purpose};
         let docs = app.path().document_dir().map_err(|e| e.to_string())?;
         let start_path = docs.join("HotPaste").join("start");
         
@@ -219,17 +220,24 @@ async fn get_local_shortcuts(app: AppHandle) -> Result<Vec<ShortcutInfo>, String
             return Ok(vec![]);
         }
 
+        // Pass the start_path itself as Base64 to avoid ANY encoding issues in the script body
+        let start_path_b64 = general_purpose::STANDARD.encode(start_path.to_string_lossy().as_bytes());
+
+        let script = format!(
+            "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8;
+             $root = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('{}'));
+             Get-ChildItem -Path $root -Recurse | Where-Object {{ $_.Extension -match 'lnk|exe' }} | ForEach-Object {{
+                [PSCustomObject]@{{ Name=$_.BaseName; Path=$_.FullName; Icon=$null }}
+             }} | ConvertTo-Json",
+            start_path_b64
+        );
+
+        let utf16_script: Vec<u16> = script.encode_utf16().collect();
+        let u8_script: Vec<u8> = utf16_script.iter().flat_map(|&u| u.to_le_bytes().to_vec()).collect();
+        let encoded_script = general_purpose::STANDARD.encode(&u8_script);
+
         let output = Command::new("powershell")
-            .args([
-                "-NoProfile",
-                "-Command",
-                format!(
-                    "Get-ChildItem -Path '{}' -Recurse | Where-Object {{ $_.Extension -match 'lnk|exe' }} | ForEach-Object {{
-                        [PSCustomObject]@{{ Name=$_.BaseName; Path=$_.FullName; Icon=$null }}
-                     }} | ConvertTo-Json",
-                    start_path.to_string_lossy()
-                ).as_str()
-            ])
+            .args(["-NoProfile", "-NonInteractive", "-EncodedCommand", &encoded_script])
             .output()
             .map_err(|e| e.to_string())?;
 
@@ -243,47 +251,62 @@ async fn get_local_shortcuts(app: AppHandle) -> Result<Vec<ShortcutInfo>, String
 async fn get_shortcut_icon(path: String) -> Result<String, String> {
     #[cfg(target_os = "windows")]
     {
-        let output = Command::new("powershell")
-            .args([
-                "-NoProfile",
-                "-Command",
-                format!(
-                    "Add-Type -AssemblyName System.Drawing;
-                     $p = '{}';
-                     $t = $p;
-                     try {{
-                        if ($p -like '*.lnk') {{
-                            $s = New-Object -ComObject WScript.Shell;
-                            $l = $s.CreateShortcut($p);
-                            if ($l.TargetPath) {{ 
-                                $expanded = $s.ExpandEnvironmentStrings($l.TargetPath);
-                                if ([System.IO.File]::Exists($expanded)) {{ $t = $expanded }}
+        use base64::{Engine as _, engine::general_purpose};
+        
+        let script = format!(
+            "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8;
+             Add-Type -AssemblyName System.Drawing;
+             $p = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('{}'));
+             $t = $p;
+             try {{
+                if ($p.EndsWith('.lnk')) {{
+                    $shell = New-Object -ComObject Shell.Application;
+                    $folder = $shell.NameSpace((Split-Path $p));
+                    $item = $folder.ParseName((Split-Path $p -Leaf));
+                    if ($item -and $item.IsLink) {{
+                        $link = $item.GetLink;
+                        $target = $link.Path;
+                        if ($target -and [System.IO.File]::Exists($target)) {{
+                            $t = $target;
+                        }} else {{
+                            # Fallback to WScript if Shell.Application fails for complex links
+                            $ws = New-Object -ComObject WScript.Shell;
+                            $l = $ws.CreateShortcut($p);
+                            if ($l.TargetPath -and [System.IO.File]::Exists($l.TargetPath)) {{
+                                $t = $l.TargetPath;
                             }}
                         }}
-                        $i = [System.Drawing.Icon]::ExtractAssociatedIcon($t);
-                        $m = New-Object System.IO.MemoryStream;
-                        $i.ToBitmap().Save($m, [System.Drawing.Imaging.ImageFormat]::Png);
-                        [Convert]::ToBase64String($m.ToArray());
-                     }} catch {{
-                        try {{
-                            # Absolute fallback to original path
-                            $i = [System.Drawing.Icon]::ExtractAssociatedIcon($p);
-                            $m = New-Object System.IO.MemoryStream;
-                            $i.ToBitmap().Save($m, [System.Drawing.Imaging.ImageFormat]::Png);
-                            [Convert]::ToBase64String($m.ToArray());
-                        }} catch {{ 
-                            # Silence all errors for cleaner output
-                        }}
-                     }}",
-                    path.replace("'", "''")
-                ).as_str()
-            ])
+                    }}
+                }}
+                $i = [System.Drawing.Icon]::ExtractAssociatedIcon($t);
+                $m = New-Object System.IO.MemoryStream;
+                $i.ToBitmap().Save($m, [System.Drawing.Imaging.ImageFormat]::Png);
+                [Console]::WriteLine([Convert]::ToBase64String($m.ToArray()));
+                $m.Dispose();
+                $i.Dispose();
+             }} catch {{
+                try {{
+                    # Last fallback, might have arrow, but better than nothing
+                    $i = [System.Drawing.Icon]::ExtractAssociatedIcon($p);
+                    $m = New-Object System.IO.MemoryStream;
+                    $i.ToBitmap().Save($m, [System.Drawing.Imaging.ImageFormat]::Png);
+                    [Console]::WriteLine([Convert]::ToBase64String($m.ToArray()));
+                }} catch {{ }}
+             }}",
+            general_purpose::STANDARD.encode(path.as_bytes())
+        );
+
+        let utf16_script: Vec<u16> = script.encode_utf16().collect();
+        let u8_script: Vec<u8> = utf16_script.iter().flat_map(|&u| u.to_le_bytes().to_vec()).collect();
+        let encoded_script = general_purpose::STANDARD.encode(&u8_script);
+
+        let output = Command::new("powershell")
+            .args(["-NoProfile", "-NonInteractive", "-EncodedCommand", &encoded_script])
             .output()
             .map_err(|e| e.to_string())?;
 
         let result = String::from_utf8_lossy(&output.stdout).trim().to_string();
         if result.is_empty() {
-            log::warn!("Failed to extract icon for path: {}", path);
             return Err("Failed to extract icon".to_string());
         }
         Ok(result)
@@ -309,10 +332,11 @@ fn parse_shortcuts_json(stdout: Vec<u8>) -> Result<Vec<ShortcutInfo>, String> {
 
     for item in items {
         if let (Some(name), Some(path)) = (item["Name"].as_str(), item["Path"].as_str()) {
+            let icon = item["Icon"].as_str().map(|s| s.to_string());
             shortcuts.push(ShortcutInfo {
                 name: name.to_string(),
                 path: path.to_string(),
-                icon: None,
+                icon,
             });
         }
     }
