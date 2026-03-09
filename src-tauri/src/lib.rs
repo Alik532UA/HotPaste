@@ -76,12 +76,45 @@ unsafe extern "system" fn low_level_keyboard_proc_worker(n_code: i32, w_param: u
     CallNextHookEx(std::ptr::null_mut(), n_code, w_param, l_param)
 }
 
+#[tauri::command]
+async fn launch_start_program(app: AppHandle, name: String) -> Result<(), String> {
+    let docs = app.path().document_dir().map_err(|e| e.to_string())?;
+    let path = docs.join("HotPaste").join("start").join(name);
+    
+    if !path.exists() {
+        return Err("File not found".to_string());
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        // Use 'cmd /c start' to reliably open .lnk files on Windows
+        let status = Command::new("cmd")
+            .args(["/C", "start", "", &path.to_string_lossy()])
+            .spawn()
+            .map_err(|e| e.to_string())?;
+        log::info!("Program launched: {:?}", status);
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        // Fallback for other OS if needed (though start menu is currently Windows-centric)
+        let _ = Command::new("open")
+            .arg(&path)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_log::Builder::new().build())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, Some(vec!["--minimized"])))
+        .invoke_handler(tauri::generate_handler![launch_start_program])
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             if let Some(window) = app.get_webview_window("main") {
                 resize_to_90_percent(&window);

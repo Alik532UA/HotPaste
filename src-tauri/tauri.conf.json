@@ -31,7 +31,10 @@
     }
   },
   "plugins": {
-    "fs": {}
+    "fs": {},
+    "shell": {
+      "open": true
+    }
   },
   "bundle": {
     "active": true,

@@ -75,7 +75,7 @@ export class TauriFileSystemService implements IFileSystemService {
         const rootFiles: Card[] = [];
         const rootConfig = await this.readConfig('__root__');
 
-        for (const entry of entries) {
+        for (const entry of (entries as any[])) {
             const name = entry.name || '';
             if (entry.isDirectory) {
                 const config = await this.readConfig(name);
@@ -286,6 +286,33 @@ export class TauriFileSystemService implements IFileSystemService {
         
         await fs.rename(oldPath, newFullPath);
         return newVirtualPath;
+    }
+
+    async launchProgram(pathStr: string): Promise<void> {
+        const { open } = await import('@tauri-apps/plugin-shell');
+        await open(pathStr);
+    }
+
+    async getStartShortcuts(): Promise<string[]> {
+        if (!this.isInitialized) return [];
+        try {
+            const { fs, path } = await this.getApi();
+            const docs = await path.documentDir();
+            const startPath = await path.join(docs, 'HotPaste', 'start');
+            
+            if (!(await fs.exists(startPath))) {
+                await fs.mkdir(startPath, { recursive: true });
+                return [];
+            }
+
+            const entries = await fs.readDir(startPath);
+            return (entries as any[])
+                .filter((e: any) => e.isFile && (e.name?.toLowerCase().endsWith('.lnk') || e.name?.toLowerCase().endsWith('.exe')))
+                .map((e: any) => e.name || '');
+        } catch (err) {
+            logService.error('fileSystem', 'Failed to get start shortcuts', err);
+            return [];
+        }
     }
 
     private async resolvePath(pathStr: string): Promise<string> {

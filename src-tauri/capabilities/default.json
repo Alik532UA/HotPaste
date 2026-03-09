@@ -14,6 +14,15 @@
     "fs:default",
     "autostart:default",
     "log:default",
+    {
+      "identifier": "shell:allow-open",
+      "allow": [
+        { 
+          "path": "$DOCUMENT/HotPaste/start/**",
+          "validate": ".+"
+        }
+      ]
+    },
     "fs:allow-read-text-file",
     "fs:allow-write-text-file",
     "fs:allow-read-dir",
@@ -30,7 +39,9 @@
         { "path": "$DOCUMENT/HotPaste" },
         { "path": "$DOCUMENT/HotPaste/**" },
         { "path": "$DOCUMENT/HotPaste/default-project" },
-        { "path": "$DOCUMENT/HotPaste/default-project/**" }
+        { "path": "$DOCUMENT/HotPaste/default-project/**" },
+        { "path": "$DOCUMENT/HotPaste/start" },
+        { "path": "$DOCUMENT/HotPaste/start/**" }
       ]
     }
   ]
