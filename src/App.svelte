@@ -422,7 +422,7 @@
         {/if}
 
         <!-- Main Content -->
-        <main class="app-main" data-testid="app-main">
+        <main class="app-main" class:no-scroll={isTauri && appState.activeTabIndex === 0} data-testid="app-main">
           {#if isTauri && appState.activeTabIndex === 0}
             <StartMenu />
           {:else}
@@ -431,7 +431,7 @@
         </main>
 
         <!-- Floating Action Button for creating new card -->
-        {#if !uiState.isMinimalMode}
+        {#if !uiState.isMinimalMode && (appState.activeTabIndex !== 0 || !isTauri)}
           <FAB />
         {/if}
       </div>
@@ -695,5 +695,11 @@
     overflow-y: auto;
     background-color: transparent; /* Changed to show dynamic bg */
     position: relative;
+  }
+
+  .app-main.no-scroll {
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
   }
 </style>

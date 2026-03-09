@@ -12,7 +12,6 @@
     space?: boolean;
   }
 
-  // ... keyboardRows stays the same ...
   const keyboardRows: KeyInfo[][] = [
     [
       { label: 'Esc', code: 'Escape' },
@@ -88,7 +87,6 @@
   }
 
   function isKeyClickable(code: string): boolean {
-    // Only letters and specific symbols are allowed
     if (code.startsWith('Key')) return true;
     if (['BracketLeft', 'BracketRight', 'Backslash', 'Semicolon', 'Quote', 'Comma', 'Period', 'Slash'].includes(code)) return true;
     return false;
@@ -271,125 +269,113 @@
 </div>
 
 <style>
-  /* ... Existing styles ... */
   .start-menu-container {
     height: 100%;
+    width: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: var(--space-8);
+    padding: 3vh;
     position: relative;
+    overflow: hidden;
   }
 
   .keyboard-body {
     background: var(--color-surface-1);
     border: 1px solid var(--color-border);
-    padding: var(--space-8);
-    border-radius: 40px;
+    padding: 1.5%;
+    border-radius: 2vw;
     box-shadow: 0 30px 70px rgba(0, 0, 0, 0.4);
-    width: 100%;
-    max-width: 1100px;
+    
+    /* Robust multi-axis scaling */
+    width: min(95%, calc(85vh * 2.5)); 
+    aspect-ratio: 2.5;
+    
+    display: flex;
+    flex-direction: column;
+    margin: auto;
+    container-type: inline-size;
   }
 
   .keyboard-container {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    padding: var(--space-6);
+    gap: 2%;
+    padding: 1.5%;
     background: var(--color-bg-primary);
-    border-radius: 24px;
+    border-radius: 1.5cqw;
     border: 1px solid var(--color-border);
+    flex: 1;
+    min-height: 0;
   }
 
   .keyboard-row {
     display: flex;
     justify-content: center;
-    gap: 8px;
+    gap: 1%;
+    flex: 1;
+    min-height: 0;
   }
 
   .key {
-    min-width: 52px;
-    height: 52px;
+    flex: 1;
+    min-width: 0;
+    height: 100%;
     background: var(--color-surface-2);
     border: 1px solid var(--color-border);
-    border-radius: 12px;
+    border-radius: 0.8cqw;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     position: relative;
     cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 4px 0 var(--color-border);
+    transition: all 0.15s ease;
+    box-shadow: 0 0.3cqw 0 var(--color-border);
     overflow: hidden;
     padding: 0;
+  }
+
+  .key.wide {
+    flex: 1.7;
+  }
+
+  .key.space {
+    flex: 6.5;
   }
 
   .key:hover {
     background: var(--color-surface-3);
     border-color: var(--color-accent-cyan);
-    transform: translateY(-4px);
-    box-shadow: 0 8px 20px rgba(0, 210, 255, 0.2), 0 0 0 var(--color-border);
+    box-shadow: 0 0.3cqw 0 var(--color-accent-cyan);
   }
 
   .key:active, .key.selected {
     transform: translateY(2px);
-    box-shadow: 0 0 0 var(--color-border);
+    box-shadow: 0 1px 0 var(--color-accent-cyan);
     border-color: var(--color-accent-cyan);
   }
 
   .key.assigned {
-    border-color: rgba(0, 210, 255, 0.5);
-    background: rgba(0, 210, 255, 0.05);
-  }
-
-  .key.wide {
-    min-width: 85px;
-    flex-grow: 1;
-  }
-
-  .key.space {
-    min-width: 320px;
-    flex-grow: 4;
-  }
-
-  .key.disabled {
-    opacity: 0.4;
-    cursor: default;
-    background: var(--color-bg-primary);
-    box-shadow: none;
-  }
-
-  .key.disabled .key-label {
-    color: var(--color-text-muted);
-  }
-
-  .start-menu-container.minimal {
-    position: fixed;
-    inset: 0;
-    z-index: 9999;
-    background: var(--color-bg-primary);
-    padding: 0;
-  }
-
-  .start-menu-container.minimal .keyboard-body {
-    border-radius: 0;
-    border: none;
-    background: transparent;
-    box-shadow: none;
-    max-width: none;
+    border-color: var(--color-accent-cyan);
+    background: rgba(0, 210, 255, 0.03);
+    box-shadow: 0 0.3cqw 0 rgba(0, 210, 255, 0.3);
   }
 
   .key-label {
     position: absolute;
-    top: 6px;
-    left: 6px;
-    font-size: 0.65rem;
+    top: 8%;
+    left: 8%;
+    font-size: 1cqw;
     font-weight: 800;
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
     text-transform: uppercase;
     z-index: 2;
     line-height: 1;
+  }
+
+  .key:hover .key-label {
+    color: var(--color-text-secondary);
   }
 
   .key-app-icon-container {
@@ -398,29 +384,21 @@
     justify-content: center;
     width: 100%;
     height: 100%;
-    padding-top: 8px; /* Offset for label */
+    padding-top: 10%;
   }
 
   .key-app-icon {
-    width: 24px;
-    height: 24px;
+    width: 45%;
+    height: 45%;
     object-fit: contain;
-    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
   }
 
   .key-app-icon-fallback {
+    width: 35%;
+    height: 35%;
     color: var(--color-accent-cyan);
-    opacity: 0.6;
-  }
-
-  .key.assigned {
-    border-color: var(--color-accent-cyan);
-    background: rgba(0, 210, 255, 0.05);
-    box-shadow: 0 4px 0 rgba(0, 210, 255, 0.3);
-  }
-
-  .key.assigned .key-label {
-    color: var(--color-accent-cyan);
+    opacity: 0.4;
   }
 
   /* Assignment Menu */
@@ -437,9 +415,9 @@
   }
 
   .assignment-modal {
-    width: 90%;
-    height: 90%;
-    max-width: 1600px;
+    width: 95%;
+    height: 95%;
+    max-width: 1800px;
     background: var(--color-surface-1);
     border: 1px solid var(--color-border);
     border-radius: 32px;
@@ -494,12 +472,11 @@
     color: var(--color-text-primary);
   }
 
-  /* Grid Layout */
   .modal-layout {
     display: flex;
     gap: var(--space-8);
     flex: 1;
-    min-height: 0; /* Important for inner scrolling */
+    min-height: 0;
   }
 
   .category-switcher {

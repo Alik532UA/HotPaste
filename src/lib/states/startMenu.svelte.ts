@@ -95,6 +95,9 @@ class StartMenuState {
     private async loadIconsForList(list: ShortcutInfo[]) {
         const { invoke } = await import('@tauri-apps/api/core');
         
+        const category = list.length > 0 ? list[0].type : 'unknown';
+        logService.debug('startMenu', `Starting icon load for category: ${category} (${list.length} items)`);
+
         // Load one by one to keep UI responsive and show progress
         for (const item of list) {
             if (item.icon) continue; // Skip if already has icon
@@ -102,11 +105,14 @@ class StartMenuState {
                 const iconBase64 = await invoke<string>('get_shortcut_icon', { path: item.path });
                 if (iconBase64) {
                     item.icon = iconBase64;
+                } else {
+                    logService.warn('startMenu', `Empty icon returned for: ${item.name} (${item.path})`);
                 }
             } catch (err) {
-                // Silently skip if icon fails
+                logService.error('startMenu', `Failed to load icon for ${item.name}: ${err}`, { path: item.path });
             }
         }
+        logService.debug('startMenu', `Finished icon load for category: ${category}`);
     }
 
     assignKey(keyCode: string, shortcut: ShortcutInfo | 'none') {

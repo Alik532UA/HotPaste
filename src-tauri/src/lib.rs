@@ -200,22 +200,32 @@ async fn get_shortcut_icon(path: String) -> Result<String, String> {
                 "-Command",
                 format!(
                     "Add-Type -AssemblyName System.Drawing;
-                     $sh = New-Object -ComObject WScript.Shell;
-                     $targetPath = '{}';
+                     $p = '{}';
+                     $t = $p;
                      try {{
-                        if ($targetPath.ToLower().EndsWith('.lnk')) {{
-                            $lnk = $sh.CreateShortcut($targetPath);
-                            $rawTarget = $lnk.TargetPath;
-                            if ($rawTarget) {{
-                                $expanded = $sh.ExpandEnvironmentStrings($rawTarget);
-                                if ([System.IO.File]::Exists($expanded)) {{ $targetPath = $expanded }}
+                        if ($p -like '*.lnk') {{
+                            $s = New-Object -ComObject WScript.Shell;
+                            $l = $s.CreateShortcut($p);
+                            if ($l.TargetPath) {{ 
+                                $expanded = $s.ExpandEnvironmentStrings($l.TargetPath);
+                                if ([System.IO.File]::Exists($expanded)) {{ $t = $expanded }}
                             }}
                         }}
-                        $icon = [System.Drawing.Icon]::ExtractAssociatedIcon($targetPath);
-                        $ms = New-Object System.IO.MemoryStream;
-                        $icon.ToBitmap().Save($ms, [System.Drawing.Imaging.ImageFormat]::Png);
-                        [Convert]::ToBase64String($ms.ToArray());
-                     }} catch {{ return $null }}",
+                        $i = [System.Drawing.Icon]::ExtractAssociatedIcon($t);
+                        $m = New-Object System.IO.MemoryStream;
+                        $i.ToBitmap().Save($m, [System.Drawing.Imaging.ImageFormat]::Png);
+                        [Convert]::ToBase64String($m.ToArray());
+                     }} catch {{
+                        try {{
+                            # Absolute fallback to original path
+                            $i = [System.Drawing.Icon]::ExtractAssociatedIcon($p);
+                            $m = New-Object System.IO.MemoryStream;
+                            $i.ToBitmap().Save($m, [System.Drawing.Imaging.ImageFormat]::Png);
+                            [Convert]::ToBase64String($m.ToArray());
+                        }} catch {{ 
+                            # Silence all errors for cleaner output
+                        }}
+                     }}",
                     path.replace("'", "''")
                 ).as_str()
             ])
@@ -223,7 +233,8 @@ async fn get_shortcut_icon(path: String) -> Result<String, String> {
             .map_err(|e| e.to_string())?;
 
         let result = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        if result.is_empty() || result == "null" {
+        if result.is_empty() {
+            log::warn!("Failed to extract icon for path: {}", path);
             return Err("Failed to extract icon".to_string());
         }
         Ok(result)
