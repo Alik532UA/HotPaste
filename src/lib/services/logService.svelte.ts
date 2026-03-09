@@ -17,12 +17,12 @@ let logs = $state<LogEntry[]>([]);
 
 /** Log visibility config */
 export const logConfig: Record<string, boolean> = {
-    appState: true,
-    fileSystem: true,
-    ui: true,
+    appState: false,
+    fileSystem: false,
+    ui: false,
     hotkeys: true,
-    fsState: true,
-    hotkeyState: true,
+    fsState: false,
+    hotkeyState: false,
 };
 
 const levelStyles: Record<LogLevel, string> = {
