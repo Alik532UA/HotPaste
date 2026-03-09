@@ -101,16 +101,25 @@
     
     // Auto-connect and setup if in Tauri
     const initTauri = async () => {
+      // Improved check for Tauri v2
       // @ts-ignore
-      if (window.__TAURI__) {
-        await connectDirectory();
+      const isTauri = !!(window.__TAURI_INTERNALS__ || window.__TAURI__);
+      
+      logService.log('app', `Environment check: isTauri=${isTauri}`);
+
+      if (isTauri) {
+        logService.log('app', 'Running in Tauri environment - connecting...');
+        try {
+          await connectDirectory();
+          logService.log('app', `Connected successfully, appState.isConnected=${appState.isConnected}`);
+        } catch (err) {
+          logService.error('app', 'Failed to connect directory in Tauri', err);
+        }
         
         // Setup autostart dynamically to avoid breaking web build
         try {
-          // Hide from Vite static analysis
-          const pkg = "tauri-plugin-autostart-api";
-          // @ts-ignore
-          const { enable, isEnabled } = await import(/* @vite-ignore */ pkg);
+          // Standard dynamic import allow Vite to bundle this properly
+          const { enable, isEnabled } = await import("@tauri-apps/plugin-autostart");
           const autostartActive = await isEnabled();
           if (!autostartActive) {
             await enable();
@@ -120,6 +129,7 @@
           logService.error('app', 'Failed to setup autostart', err);
         }
       } else {
+        logService.log('app', 'Running in Web environment');
         handleRefreshTabs();
       }
     };

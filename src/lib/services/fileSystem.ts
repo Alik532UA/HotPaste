@@ -42,8 +42,10 @@ export interface IFileSystemService {
  * Factory to create the appropriate file system service.
  */
 export function createFileSystemService(): IFileSystemService {
+    // Improved check for Tauri v2
     // @ts-ignore
-    if (window.__TAURI__) {
+    const isTauri = !!(typeof window !== 'undefined' && (window.__TAURI_INTERNALS__ || window.__TAURI__));
+    if (isTauri) {
         return new TauriFileSystemService();
     }
     return new BrowserFileSystemService();

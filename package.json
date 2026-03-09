@@ -25,11 +25,12 @@
   },
   "dependencies": {
     "@tauri-apps/api": "^2.10.1",
+    "@tauri-apps/plugin-autostart": "^2.5.1",
+    "@tauri-apps/plugin-fs": "^2.4.5",
     "dompurify": "^3.3.2",
     "fuse.js": "^7.1.0",
     "lucide-svelte": "^0.577.0",
     "snarkdown": "^2.0.0",
-    "tauri-plugin-autostart-api": "^0.0.1-security",
     "zod": "^4.3.6"
   }
 }
