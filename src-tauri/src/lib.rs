@@ -41,8 +41,8 @@ fn set_rounded_corners(window: &tauri::WebviewWindow) {
 
                 if let Ok(size) = window.outer_size() {
                     let scale_factor = window.scale_factor().unwrap_or(1.0);
-                    let radius = (48.0 * scale_factor) as i32;
-                    let diameter = radius * 2;
+                    let radius = (4.0 * scale_factor) as i32;
+                    let diameter = radius * 1;
                     let rgn = CreateRoundRectRgn(0, 0, size.width as i32, size.height as i32, diameter, diameter);
                     SetWindowRgn(hwnd as _, rgn as _, 1);
                 }

@@ -366,7 +366,7 @@
     max-width: none !important;
     aspect-ratio: 2.5 !important;
     
-    border-radius: 48px !important;
+    border-radius: var(--radius-window) !important;
     border: none !important;
     margin: 0 !important;
     padding: 1.5% !important;

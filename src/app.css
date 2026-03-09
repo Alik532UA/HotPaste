@@ -52,6 +52,7 @@
   --space-8: 64px;
 
   /* Radius */
+  --radius-window: 4px;
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 16px;
@@ -155,13 +156,13 @@ html.is-tauri,
 html.is-tauri body,
 html.is-tauri #app,
 html.is-tauri .app-content {
-  border-radius: 48px !important;
+  border-radius: var(--radius-window) !important;
   overflow: hidden !important;
   background-color: transparent !important;
   margin: 0 !important;
   border: none !important;
-  clip-path: inset(0 round 48px) !important;
-  -webkit-clip-path: inset(0 round 48px) !important;
+  clip-path: inset(0 round var(--radius-window)) !important;
+  -webkit-clip-path: inset(0 round var(--radius-window)) !important;
 }
 
 /* 
@@ -171,7 +172,7 @@ html.is-tauri .app-content {
 html.is-tauri:not(.is-minimal) .app-shell,
 html.is-tauri:not(.is-minimal) .app-main {
   background-color: transparent; /* Allow DynamicBackground (at z-index -1) to show */
-  border-radius: 48px !important;
+  border-radius: var(--radius-window) !important;
   border: none !important;
 }
 
@@ -203,8 +204,8 @@ html.is-minimal .theme-transition-overlay,
   backdrop-filter: none !important;
   transition: none !important;
   /* Clip everything to ensure NO sharp corners leak through from any layer */
-  clip-path: inset(0 round 48px) !important;
-  -webkit-clip-path: inset(0 round 48px) !important;
+  clip-path: inset(0 round var(--radius-window)) !important;
+  -webkit-clip-path: inset(0 round var(--radius-window)) !important;
 }
 
 /* Ensure the window root itself is truly transparent and clipped */
@@ -240,8 +241,8 @@ html.is-minimal .theme-transition-overlay {
 .app-main.is-minimal {
   background-color: transparent !important;
   overflow: hidden !important;
-  border-radius: 48px !important;
-  clip-path: inset(0 round 48px) !important;
+  border-radius: var(--radius-window) !important;
+  clip-path: inset(0 round var(--radius-window)) !important;
   margin: 0 !important;
   transform: translateZ(0);
   pointer-events: none !important;
@@ -259,8 +260,8 @@ html.is-minimal .keyboard-body {
   opacity: 1 !important;
   visibility: visible !important;
   pointer-events: auto !important;
-  border-radius: 48px !important;
-  clip-path: inset(0 round 48px) !important;
+  border-radius: var(--radius-window) !important;
+  clip-path: inset(0 round var(--radius-window)) !important;
   margin: 0 !important;
 }
 
