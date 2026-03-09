@@ -88,13 +88,22 @@
    Transitions & Animations
    ============================================= */
 
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-body, div, button, span, header, main, footer, section {
+body,
+div,
+button,
+span,
+header,
+main,
+footer,
+section {
   transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
@@ -150,6 +159,7 @@ html.is-tauri .dynamic-bg-container,
 html.is-tauri .start-menu-container {
   border-radius: 32px !important;
   overflow: hidden !important;
+  background-color: transparent !important;
 }
 
 /* Aggressive window transparency for Minimal Mode */
@@ -212,8 +222,8 @@ html.is-minimal .theme-transition-overlay {
 .app-main.is-minimal {
   background-color: transparent !important;
   overflow: hidden !important;
-  border-radius: 24px !important;
-  clip-path: inset(1px round 24px) !important;
+  border-radius: 32px !important;
+  clip-path: inset(1px round 32px) !important;
   margin: 1px !important;
   transform: translateZ(0);
   pointer-events: none !important;
@@ -231,9 +241,10 @@ html.is-minimal .keyboard-body {
   opacity: 1 !important;
   visibility: visible !important;
   pointer-events: auto !important;
-  border-radius: 24px !important;
-  clip-path: inset(0 round 24px) !important;
-  margin: 1px !important; /* Prevent touching window edges */
+  border-radius: 32px !important;
+  clip-path: inset(0 round 32px) !important;
+  margin: 1px !important;
+  /* Prevent touching window edges */
 }
 
 /* Ensure the inner container of the keyboard is also solid */
@@ -326,37 +337,61 @@ html.is-minimal body::before {
 
 /* Floating Shapes Icon */
 .lucide-shapes {
-    transition: all 0.3s ease;
+  transition: all 0.3s ease;
 }
+
 .active .lucide-shapes {
-    animation: shapes-float 3s ease-in-out infinite;
-    color: var(--color-accent-cyan);
-    filter: drop-shadow(0 0 8px rgba(0, 210, 255, 0.5));
+  animation: shapes-float 3s ease-in-out infinite;
+  color: var(--color-accent-cyan);
+  filter: drop-shadow(0 0 8px rgba(0, 210, 255, 0.5));
 }
 
 @keyframes shapes-float {
-    0%, 100% { transform: translateY(0) rotate(0deg) scale(1.1); }
-    50% { transform: translateY(-3px) rotate(12deg) scale(1.1); }
+
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg) scale(1.1);
+  }
+
+  50% {
+    transform: translateY(-3px) rotate(12deg) scale(1.1);
+  }
 }
 
 /* Particles (Sparkles) Icon */
 .active .lucide-sparkles {
-    animation: sparkles-pulse 2s ease-in-out infinite;
-    color: var(--color-accent-cyan);
+  animation: sparkles-pulse 2s ease-in-out infinite;
+  color: var(--color-accent-cyan);
 }
 
 @keyframes sparkles-pulse {
-    0%, 100% { transform: scale(1.2); opacity: 1; }
-    50% { transform: scale(0.9); opacity: 0.6; }
+
+  0%,
+  100% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(0.9);
+    opacity: 0.6;
+  }
 }
 
 /* Waves Icon */
 .active .lucide-waves {
-    animation: waves-sway 4s ease-in-out infinite;
-    color: var(--color-accent-cyan);
+  animation: waves-sway 4s ease-in-out infinite;
+  color: var(--color-accent-cyan);
 }
 
 @keyframes waves-sway {
-    0%, 100% { transform: scaleX(1.1) translateX(0); }
-    50% { transform: scaleX(1.3) translateX(2px); }
+
+  0%,
+  100% {
+    transform: scaleX(1.1) translateX(0);
+  }
+
+  50% {
+    transform: scaleX(1.3) translateX(2px);
+  }
 }

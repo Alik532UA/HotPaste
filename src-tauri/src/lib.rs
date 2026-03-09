@@ -6,6 +6,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use windows_sys::Win32::UI::WindowsAndMessaging::*;
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::*;
 use windows_sys::Win32::Foundation::LPARAM;
+#[cfg(target_os = "windows")]
+use windows_sys::Win32::Graphics::Dwm::DwmSetWindowAttribute;
 
 use std::sync::OnceLock;
 use std::process::{Command, Stdio};
@@ -13,6 +15,35 @@ use std::io::{BufRead, BufReader};
 
 static APP_HANDLE: OnceLock<AppHandle> = OnceLock::new();
 static IS_MINIMAL: AtomicBool = AtomicBool::new(false);
+
+/// Force rounded corners on the native Win32 window via DWM API (Windows 11+).
+/// This ensures the window always has rounded corners regardless of mica/shadow state.
+#[cfg(target_os = "windows")]
+fn set_rounded_corners(window: &tauri::WebviewWindow) {
+    use raw_window_handle::HasWindowHandle;
+    if let Ok(handle) = window.window_handle() {
+        if let raw_window_handle::RawWindowHandle::Win32(win32_handle) = handle.as_raw() {
+            let hwnd = win32_handle.hwnd.get() as windows_sys::Win32::Foundation::HWND;
+            // DWMWA_WINDOW_CORNER_PREFERENCE = 33
+            // DWMWCP_ROUND = 2 (round the corners)
+            let preference: u32 = 2; // DWMWCP_ROUND
+            unsafe {
+                DwmSetWindowAttribute(
+                    hwnd,
+                    33, // DWMWA_WINDOW_CORNER_PREFERENCE
+                    &preference as *const _ as *const std::ffi::c_void,
+                    std::mem::size_of::<u32>() as u32,
+                );
+            }
+        }
+    }
+}
+
+#[cfg(target_os = "windows")]
+extern "system" {
+    fn SetWindowRgn(hwnd: *mut std::ffi::c_void, hrgn: *mut std::ffi::c_void, bRedraw: i32) -> i32;
+    fn CreateRoundRectRgn(nLeftRect: i32, nTopRect: i32, nRightRect: i32, nBottomRect: i32, nWidthEllipse: i32, nHeightEllipse: i32) -> *mut std::ffi::c_void;
+}
 
 pub fn run_hook_worker() {
     // This function runs in a separate process with NO window and NO Tauri.
@@ -277,32 +308,58 @@ async fn set_minimal_mode_tauri(window: tauri::WebviewWindow, minimal: bool) -> 
     IS_MINIMAL.store(minimal, Ordering::SeqCst);
     #[cfg(target_os = "windows")]
     {
+        // Always force rounded corners via DWM regardless of mode
+        set_rounded_corners(&window);
+        
         if minimal {
-            // Do NOT clear vibrancy, as it can reset the window to opaque gray.
-            // Instead, we just disable the shadow and resize.
+            // Disable shadow and explicitly set size to match the needed content EXACTLY
             let _ = window.set_shadow(false);
             
-            // Calculate size dynamically to match full-mode keyboard size
             if let Ok(Some(monitor)) = window.primary_monitor() {
                 let m_size = monitor.size();
                 let scale_factor = window.scale_factor().unwrap_or(1.0);
                 
-                // Full mode window is 90% of screen height.
-                // Full mode keyboard is window_height - 140px.
                 let window_h_phys = m_size.height as f64 * 0.9;
                 let offset_phys = 140.0 * scale_factor;
                 let target_h_phys = window_h_phys - offset_phys;
                 let target_w_phys = target_h_phys * 2.5;
 
-                // Add a small buffer (20px) so the sharp window edges are invisible
+                // We no longer add a 20px invisible buffer. We strictly crop the window!
+                let phys_w = target_w_phys as u32;
+                let phys_h = target_h_phys as u32;
+
                 let _ = window.set_size(tauri::Size::Physical(tauri::PhysicalSize {
-                    width: (target_w_phys + 20.0 * scale_factor) as u32,
-                    height: (target_h_phys + 20.0 * scale_factor) as u32,
+                    width: phys_w,
+                    height: phys_h,
                 }));
+
+                // Use a larger rounded corner radius on native level (32 * scale)
+                use raw_window_handle::HasWindowHandle;
+                if let Ok(handle) = window.window_handle() {
+                    if let raw_window_handle::RawWindowHandle::Win32(win32) = handle.as_raw() {
+                        let hwnd = win32.hwnd.get() as *mut std::ffi::c_void;
+                        let radius = (32.0 * scale_factor) as i32;
+                        unsafe {
+                            let rgn = CreateRoundRectRgn(0, 0, phys_w as i32, phys_h as i32, radius, radius);
+                            SetWindowRgn(hwnd, rgn, 1);
+                        }
+                    }
+                }
             }
             let _ = window.center();
         } else {
-            let _ = window_vibrancy::apply_mica(&window, None);
+            // Restore normal native window boundaries (reset region)
+            use raw_window_handle::HasWindowHandle;
+            if let Ok(handle) = window.window_handle() {
+                if let raw_window_handle::RawWindowHandle::Win32(win32) = handle.as_raw() {
+                    let hwnd = win32.hwnd.get() as *mut std::ffi::c_void;
+                    unsafe {
+                        SetWindowRgn(hwnd, std::ptr::null_mut(), 1);
+                    }
+                }
+            }
+
+            // let _ = window_vibrancy::apply_mica(&window, None);
             let _ = window.set_shadow(true);
             
             // Restore to large size
@@ -376,8 +433,8 @@ pub fn run() {
 
             #[cfg(target_os = "windows")]
             {
-                let _ = apply_mica(&window, None);
-            }
+                // let _ = apply_mica(&window, None);
+                set_rounded_corners(&window);            }
 
             // Sync visibility state
             let window_events = window.clone();
