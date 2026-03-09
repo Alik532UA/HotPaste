@@ -109,6 +109,23 @@
 
       if (isTauri) {
         logService.log('app', 'Running in Tauri environment - connecting...');
+        
+        // Setup programmatic drag as a backup if attribute fails
+        window.addEventListener('mousedown', async (e) => {
+          const target = e.target as HTMLElement;
+          if (target.hasAttribute('data-tauri-drag-region') || target.closest('[data-tauri-drag-region]')) {
+            try {
+              const { getCurrentWindow } = await import('@tauri-apps/api/window');
+              const appWindow = getCurrentWindow();
+              // Only start dragging if it's the primary mouse button and not on an interactive element
+              if (e.button === 0 && !target.closest('button, input, a')) {
+                await appWindow.startDragging();
+              }
+            } catch (err) {
+              logService.error('drag', 'Failed to start dragging programmatically', err);
+            }
+          }
+        });
         try {
           await connectDirectory();
           logService.log('app', `Connected successfully, appState.isConnected=${appState.isConnected}`);
@@ -177,146 +194,152 @@
       <!-- Main App Layout -->
       <div class="app-shell" data-testid="app-shell">
         <!-- Top Header -->
-        <header class="app-header" data-testid="app-header">
-          <div class="header-left" data-testid="header-left">
-            <h1 class="app-logo" data-testid="app-logo">
-              <span class="logo-icon">⚡</span>
-              {t.app.title}
-            </h1>
-            <div class="header-divider"></div>
-            <span
-              class="root-name"
-              title={appState.rootName}
-              data-testid="root-name-label">📂 {appState.rootName}</span
-            >
-          </div>
-
-          <!-- View toggles (center) -->
-          <div class="header-center" data-testid="header-center">
-            <SegmentedToggle 
-              options={[
-                { id: "short", label: t.app.viewShort },
-                { id: "full", label: t.app.viewFull }
-              ]}
-              value={appState.cardView}
-              onSelect={(id) => setCardView(id)}
-            />
-
-            <div class="header-divider"></div>
-
-            <SegmentedToggle 
-              options={[
-                { id: "compact", label: t.app.densityCompact },
-                { id: "normal", label: t.app.densityNormal },
-                { id: "expanded", label: t.app.densityExpanded }
-              ]}
-              value={appState.cardDensity}
-              onSelect={(id) => setCardDensity(id)}
-            />
-          </div>
-
-          <!-- Global Actions (right) -->
-          <div class="header-right" data-testid="header-right">
-            
-            <SegmentedToggle 
-              options={themeOptions}
-              value={theme.current}
-              onSelect={() => theme.toggle()}
-            />
-
-            <SegmentedToggle 
-              options={langOptions}
-              value={language.current}
-              onSelect={(id) => language.set(id)}
-            />
-
-            <SegmentedToggle 
-              options={bgOptions}
-              value={background.type}
-              onSelect={(id) => background.set(id)}
-            />
-
-            <div class="header-divider"></div>
-
-            <!-- Scale control -->
-            <div class="scale-control" data-testid="scale-control">
-              <button
-                class="scale-btn"
-                onclick={() => adjustScale(-0.1)}
-                aria-label="Зменшити масштаб"
-                data-testid="btn-scale-down"
-              >
-                -
-              </button>
+        <header class="app-header" data-tauri-drag-region data-testid="app-header">
+          <!-- Full-height drag handle for better target area -->
+          <div class="drag-layer" data-tauri-drag-region></div>
+          
+          <div class="header-content">
+            <div class="header-left" data-tauri-drag-region data-testid="header-left">
+              <h1 class="app-logo" data-tauri-drag-region data-testid="app-logo">
+                <span class="logo-icon" data-tauri-drag-region>⚡</span>
+                {t.app.title}
+              </h1>
+              <div class="header-divider" data-tauri-drag-region></div>
               <span
-                class="scale-value"
-                class:dragging={isDraggingScale}
-                onmousedown={handleScaleMouseDown}
-                oncontextmenu={(e) => {
-                  e.preventDefault();
-                  setScale(1.0);
-                }}
-                onkeydown={handleScaleKeydown}
-                role="button"
-                tabindex="0"
-                aria-label="Скинути масштаб до 100%"
-                title="Затисніть для зміни, ПКМ або Enter — скинути до 100%"
-                data-testid="scale-value"
+                class="root-name"
+                data-tauri-drag-region
+                title={appState.rootName}
+                data-testid="root-name-label">📂 {appState.rootName}</span
               >
-                {Math.round(appState.scale * 100)}%
-              </span>
-              <button
-                class="scale-btn"
-                onclick={() => adjustScale(0.1)}
-                aria-label="Збільшити масштаб"
-                data-testid="btn-scale-up"
-              >
-                +
-              </button>
             </div>
 
-            <!-- Refresh button -->
-            <button
-              class="icon-btn"
-              onclick={() => handleRefreshTabs()}
-              title={t.app.refresh}
-              aria-label={t.app.refresh}
-              data-testid="btn-refresh"
-            >
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                <path
-                  d="M14.5 3.5A7 7 0 1 0 16 9"
-                  stroke="currentColor"
-                  stroke-width="1.5"
-                  stroke-linecap="round"
-                />
-                <path
-                  d="M14.5 1v3h-3"
-                  stroke="currentColor"
-                  stroke-width="1.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
-            </button>
+            <!-- View toggles (center) -->
+            <div class="header-center" data-tauri-drag-region data-testid="header-center">
+              <SegmentedToggle 
+                options={[
+                  { id: "short", label: t.app.viewShort },
+                  { id: "full", label: t.app.viewFull }
+                ]}
+                value={appState.cardView}
+                onSelect={(id) => setCardView(id)}
+              />
 
-            <!-- Change directory -->
-            <button
-              class="icon-btn"
-              onclick={() => connectDirectory()}
-              title={t.app.changeDir}
-              aria-label={t.app.changeDir}
-              data-testid="btn-change-directory"
-            >
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                <path
-                  d="M2 4.5c0-1 .7-1.7 1.7-1.7h2.8c.4 0 .8.2 1.1.5l.7.7c.3.3.7.5 1.1.5H14.3c1 0 1.7.7 1.7 1.7v6.1c0 1-.7 1.7-1.7 1.7H3.7c-1 0-1.7-.7-1.7-1.7V4.5z"
-                  stroke="currentColor"
-                  stroke-width="1.5"
-                  fill="none"
-                />
-              </svg>
-            </button>
+              <div class="header-divider" data-tauri-drag-region></div>
+
+              <SegmentedToggle 
+                options={[
+                  { id: "compact", label: t.app.densityCompact },
+                  { id: "normal", label: t.app.densityNormal },
+                  { id: "expanded", label: t.app.densityExpanded }
+                ]}
+                value={appState.cardDensity}
+                onSelect={(id) => setCardDensity(id)}
+              />
+            </div>
+
+            <!-- Global Actions (right) -->
+            <div class="header-right" data-tauri-drag-region data-testid="header-right">
+              
+              <SegmentedToggle 
+                options={themeOptions}
+                value={theme.current}
+                onSelect={() => theme.toggle()}
+              />
+
+              <SegmentedToggle 
+                options={langOptions}
+                value={language.current}
+                onSelect={(id) => language.set(id)}
+              />
+
+              <SegmentedToggle 
+                options={bgOptions}
+                value={background.type}
+                onSelect={(id) => background.set(id)}
+              />
+
+              <div class="header-divider"></div>
+
+              <!-- Scale control -->
+              <div class="scale-control" data-testid="scale-control">
+                <button
+                  class="scale-btn"
+                  onclick={() => adjustScale(-0.1)}
+                  aria-label="Зменшити масштаб"
+                  data-testid="btn-scale-down"
+                >
+                  -
+                </button>
+                <span
+                  class="scale-value"
+                  class:dragging={isDraggingScale}
+                  onmousedown={handleScaleMouseDown}
+                  oncontextmenu={(e) => {
+                    e.preventDefault();
+                    setScale(1.0);
+                  }}
+                  onkeydown={handleScaleKeydown}
+                  role="button"
+                  tabindex="0"
+                  aria-label="Скинути масштаб до 100%"
+                  title="Затисніть для зміни, ПКМ або Enter — скинути до 100%"
+                  data-testid="scale-value"
+                >
+                  {Math.round(appState.scale * 100)}%
+                </span>
+                <button
+                  class="scale-btn"
+                  onclick={() => adjustScale(0.1)}
+                  aria-label="Збільшити масштаб"
+                  data-testid="btn-scale-up"
+                >
+                  +
+                </button>
+              </div>
+
+              <!-- Refresh button -->
+              <button
+                class="icon-btn"
+                onclick={() => handleRefreshTabs()}
+                title={t.app.refresh}
+                aria-label={t.app.refresh}
+                data-testid="btn-refresh"
+              >
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                  <path
+                    d="M14.5 3.5A7 7 0 1 0 16 9"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                  />
+                  <path
+                    d="M14.5 1v3h-3"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+
+              <!-- Change directory -->
+              <button
+                class="icon-btn"
+                onclick={() => connectDirectory()}
+                title={t.app.changeDir}
+                aria-label={t.app.changeDir}
+                data-testid="btn-change-directory"
+              >
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                  <path
+                    d="M2 4.5c0-1 .7-1.7 1.7-1.7h2.8c.4 0 .8.2 1.1.5l.7.7c.3.3.7.5 1.1.5H14.3c1 0 1.7.7 1.7 1.7v6.1c0 1-.7 1.7-1.7 1.7H3.7c-1 0-1.7-.7-1.7-1.7V4.5z"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    fill="none"
+                  />
+                </svg>
+              </button>
+            </div>
           </div>
         </header>
 
@@ -375,6 +398,28 @@
     background: var(--color-bg-secondary);
     border-bottom: 1px solid var(--color-border);
     flex-shrink: 0;
+    /* Essential for Tauri drag region in frameless windows */
+    user-select: none;
+    cursor: default;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .drag-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    /* This layer exists purely to catch drag events */
+  }
+
+  .header-content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    pointer-events: none; /* Let clicks on gaps pass to drag-layer */
   }
 
   .header-left,
@@ -383,6 +428,13 @@
     display: flex;
     align-items: center;
     gap: var(--space-4);
+    pointer-events: auto; /* Enable for tooltips and controls */
+  }
+
+  /* Specific elements should allow dragging even if they have tooltips, 
+     but we must ensure buttons/inputs remain clickable */
+  .header-left > * {
+    pointer-events: auto;
   }
 
   .app-logo {
