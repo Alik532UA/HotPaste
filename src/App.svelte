@@ -32,7 +32,6 @@
   import { t } from "./lib/i18n";
   import { logService } from "./lib/services/logService.svelte";
   import { Sparkles, Waves, Shapes, CircleOff, Moon, Sun } from "lucide-svelte";
-  import { enable, isEnabled } from "tauri-plugin-autostart-api";
 
   const appState = getState();
 
@@ -94,30 +93,38 @@
     }
   }
 
-  onMount(async () => {
+  onMount(() => {
     theme.init();
     language.init();
     background.init();
     initUrlSync();
     
     // Auto-connect and setup if in Tauri
-    // @ts-ignore
-    if (window.__TAURI__) {
-      await connectDirectory();
-      
-      // Setup autostart
-      try {
-        const autostartActive = await isEnabled();
-        if (!autostartActive) {
-          await enable();
-          logService.log('app', 'Autostart enabled');
+    const initTauri = async () => {
+      // @ts-ignore
+      if (window.__TAURI__) {
+        await connectDirectory();
+        
+        // Setup autostart dynamically to avoid breaking web build
+        try {
+          // Hide from Vite static analysis
+          const pkg = "tauri-plugin-autostart-api";
+          // @ts-ignore
+          const { enable, isEnabled } = await import(/* @vite-ignore */ pkg);
+          const autostartActive = await isEnabled();
+          if (!autostartActive) {
+            await enable();
+            logService.log('app', 'Autostart enabled');
+          }
+        } catch (err) {
+          logService.error('app', 'Failed to setup autostart', err);
         }
-      } catch (err) {
-        logService.error('app', 'Failed to setup autostart', err);
+      } else {
+        handleRefreshTabs();
       }
-    } else {
-      handleRefreshTabs();
-    }
+    };
+
+    initTauri();
 
     document.addEventListener("keydown", onKeydown);
     document.addEventListener("wheel", onWheel, { passive: false });

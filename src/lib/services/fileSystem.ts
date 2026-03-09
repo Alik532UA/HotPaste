@@ -14,7 +14,6 @@ import { logService } from './logService.svelte';
 const SUPPORTED_EXTENSIONS = ['.txt', '.md', '.prompt', '.snippet'];
 const CONFIG_FILENAME = '_hotpaste.json';
 
-import { BrowserFileSystemService } from './fileSystem';
 import { TauriFileSystemService } from './tauriFileSystem';
 
 /**
