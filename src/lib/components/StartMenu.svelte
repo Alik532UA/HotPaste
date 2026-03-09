@@ -270,25 +270,39 @@
 
 <style>
   .start-menu-container {
-    height: 100%;
+    flex: 1;
     width: 100%;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 3vh;
+    padding: 2vh;
     position: relative;
     overflow: hidden;
+    min-height: 0;
+    transition: background-color 0.2s ease;
+  }
+
+  .start-menu-container.minimal {
+    background: transparent !important;
+    background-color: transparent !important;
+    padding: 0;
   }
 
   .keyboard-body {
-    background: var(--color-surface-1);
-    border: 1px solid var(--color-border);
+    background: rgba(15, 15, 22, 0.95);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     padding: 1.5%;
     border-radius: 2vw;
-    box-shadow: 0 30px 70px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 30px 70px rgba(0, 0, 0, 0.8);
     
-    /* Robust multi-axis scaling */
-    width: min(95%, calc(85vh * 2.5)); 
+    /* 
+       The keyboard will be 95% width, BUT 
+       it will shrink if the height (available vh * 2.5 ratio) is smaller.
+       112px is Header (64px) + TabBar (48px). We use 140px for safety margins.
+    */
+    width: min(95%, calc((100vh - 140px) * 2.5));
     aspect-ratio: 2.5;
     
     display: flex;
@@ -394,7 +408,7 @@
     filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
   }
 
-  .key-app-icon-fallback {
+  :global(.key-app-icon-fallback) {
     width: 35%;
     height: 35%;
     color: var(--color-accent-cyan);

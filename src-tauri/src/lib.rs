@@ -271,6 +271,19 @@ fn parse_shortcuts_json(stdout: Vec<u8>) -> Result<Vec<ShortcutInfo>, String> {
     Ok(shortcuts)
 }
 
+#[tauri::command]
+async fn set_minimal_mode_tauri(window: tauri::WebviewWindow, minimal: bool) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        if minimal {
+            let _ = window_vibrancy::clear_vibrancy(&window);
+        } else {
+            let _ = window_vibrancy::apply_mica(&window, None);
+        }
+    }
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -284,7 +297,8 @@ pub fn run() {
             get_running_processes,
             get_system_shortcuts,
             get_local_shortcuts,
-            get_shortcut_icon
+            get_shortcut_icon,
+            set_minimal_mode_tauri
         ])
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             if let Some(window) = app.get_webview_window("main") {

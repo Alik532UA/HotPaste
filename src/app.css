@@ -139,38 +139,47 @@ body {
   overflow-x: hidden;
 }
 
-/* Tauri specific fixes for Mica effect visibility */
-html.is-tauri, 
-html.is-tauri body, 
-html.is-tauri #app,
-html.is-tauri .app-content {
+/* Aggressive window transparency for Minimal Mode */
+html.is-minimal,
+html.is-minimal body,
+html.is-minimal #app,
+html.is-minimal .app-shell,
+html.is-minimal .app-content,
+html.is-minimal .app-main,
+html.is-minimal .dynamic-bg-container,
+html.is-minimal .start-menu-container,
+html.is-minimal .theme-transition-overlay {
   background-color: transparent !important;
   background-image: none !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  overflow: hidden !important;
 }
 
-html.is-tauri body::before {
+/* 
+   Explicitly PROTECT the keyboard from transparency.
+   The keyboard must remain solid so it's visible over other apps.
+*/
+html.is-minimal .keyboard-body {
+  background: rgba(15, 15, 22, 0.98) !important; /* Keep it opaque! */
+  backdrop-filter: blur(25px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.9) !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
+/* Ensure the inner container of the keyboard is also solid */
+html.is-minimal .keyboard-container {
+  background: var(--color-bg-primary) !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+html.is-minimal body::before {
   display: none !important;
-}
-
-html.is-tauri .app-header {
-  background: rgba(15, 15, 22, 0.4);
-  backdrop-filter: blur(8px);
-}
-
-html.is-tauri .tab-bar-wrapper {
-  background: rgba(15, 15, 22, 0.2);
-}
-
-/* Subtle background texture / grid */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background-image:
-    radial-gradient(circle at 20% 20%, rgba(0, 210, 255, 0.03) 0%, transparent 50%),
-    radial-gradient(circle at 80% 80%, rgba(123, 97, 255, 0.03) 0%, transparent 50%);
-  pointer-events: none;
-  z-index: -1;
 }
 
 #app {

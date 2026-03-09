@@ -90,8 +90,8 @@
 
   // Global keyboard listener
   function onKeydown(e: KeyboardEvent) {
-    // Special handling for minimal mode on first tab
-    if (appState.activeTabIndex === 0 && (e.key === "1" || e.code === "Digit1")) {
+    // Special handling for minimal mode on first tab (ONLY IN TAURI)
+    if (isTauri && appState.activeTabIndex === 0 && (e.key === "1" || e.code === "Digit1")) {
       const target = e.target as HTMLElement;
       // Only toggle if not typing in an input/textarea
       if (!["INPUT", "TEXTAREA"].includes(target.tagName)) {
@@ -112,7 +112,29 @@
     }
   }
 
+  // Sync minimal mode class to document root for global CSS access
+  $effect(() => {
+    if (uiState.isMinimalMode) {
+      document.documentElement.classList.add("is-minimal");
+    } else {
+      document.documentElement.classList.remove("is-minimal");
+    }
+
+    // Sync transparency to Tauri window
+    if (isTauri) {
+      import("@tauri-apps/api/core").then(({ invoke }) => {
+        invoke("set_minimal_mode_tauri", { minimal: uiState.isMinimalMode })
+          .catch(err => logService.error("app", "Failed to sync minimal mode to Tauri", err));
+      });
+    }
+  });
+
   onMount(() => {
+    // Add is-tauri class to html
+    if (isTauri) {
+      document.documentElement.classList.add("is-tauri");
+    }
+    
     theme.init();
     language.init();
     background.init();
