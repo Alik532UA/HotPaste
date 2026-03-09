@@ -250,7 +250,7 @@
 
 <div class="theme-transition-overlay" class:active={theme.isChanging}></div>
 
-<div class="app-content" class:language-changing={language.isChanging}>
+<div class="app-content" class:language-changing={language.isChanging} class:is-minimal={uiState.isMinimalMode}>
   <svelte:boundary
     onerror={(err) => logService.log("error", "Global rendering error", err)}
   >
@@ -444,7 +444,7 @@
         {/if}
 
         <!-- Main Content -->
-        <main class="app-main" class:no-scroll={isTauri && appState.activeTabIndex === 0} data-testid="app-main">
+        <main class="app-main" class:is-minimal={uiState.isMinimalMode} class:no-scroll={isTauri && appState.activeTabIndex === 0} data-testid="app-main">
           {#if isTauri && appState.activeTabIndex === 0}
             <StartMenu />
           {:else}

@@ -139,6 +139,19 @@ body {
   overflow-x: hidden;
 }
 
+/* Ensure ALL Tauri windows (even non-minimal) have rounded corners */
+html.is-tauri,
+html.is-tauri body,
+html.is-tauri #app,
+html.is-tauri .app-shell,
+html.is-tauri .app-content,
+html.is-tauri .app-main,
+html.is-tauri .dynamic-bg-container,
+html.is-tauri .start-menu-container {
+  border-radius: 32px !important;
+  overflow: hidden !important;
+}
+
 /* Aggressive window transparency for Minimal Mode */
 html.is-minimal,
 html.is-minimal body,
@@ -148,13 +161,62 @@ html.is-minimal .app-content,
 html.is-minimal .app-main,
 html.is-minimal .dynamic-bg-container,
 html.is-minimal .start-menu-container,
-html.is-minimal .theme-transition-overlay {
+html.is-minimal .theme-transition-overlay,
+.app-shell.is-minimal,
+.app-content.is-minimal,
+.app-main.is-minimal,
+.start-menu-container.minimal,
+.dynamic-bg-container.minimal {
   background-color: transparent !important;
-  background-image: none !important;
   background: transparent !important;
+  background-image: none !important;
   border: none !important;
   box-shadow: none !important;
+  backdrop-filter: none !important;
+  transition: none !important;
+  /* Clip everything to ensure NO sharp corners leak through from any layer */
+  clip-path: inset(1px round 32px) !important;
+  -webkit-clip-path: inset(1px round 32px) !important;
+}
+
+/* Ensure the window root itself is truly transparent and clipped */
+html.is-minimal {
+  background-color: transparent !important;
+  background: transparent !important;
+}
+
+html.is-minimal body {
+  background-color: transparent !important;
+  background: transparent !important;
   overflow: hidden !important;
+}
+
+/* DISABLE TRANSPARENCY BUT KEEP OVERFLOW HIDDEN FOR ROUNDING */
+html.is-minimal,
+html.is-minimal body,
+html.is-minimal #app,
+html.is-minimal .app-content,
+html.is-minimal .app-shell,
+html.is-minimal .app-main,
+html.is-minimal .dynamic-bg-container,
+html.is-minimal .start-menu-container,
+html.is-minimal .theme-transition-overlay {
+  background-image: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  transition: none !important;
+}
+
+/* SPECIAL FIX FOR APP-MAIN */
+.app-main.is-minimal {
+  background-color: transparent !important;
+  overflow: hidden !important;
+  border-radius: 24px !important;
+  clip-path: inset(1px round 24px) !important;
+  margin: 1px !important;
+  transform: translateZ(0);
+  pointer-events: none !important;
 }
 
 /* 
@@ -162,13 +224,16 @@ html.is-minimal .theme-transition-overlay {
    The keyboard must remain solid so it's visible over other apps.
 */
 html.is-minimal .keyboard-body {
-  background: rgba(15, 15, 22, 0.98) !important; /* Keep it opaque! */
+  background: rgba(15, 15, 22, 0.98) !important;
   backdrop-filter: blur(25px) !important;
   border: 1px solid rgba(255, 255, 255, 0.15) !important;
   box-shadow: 0 40px 100px rgba(0, 0, 0, 0.9) !important;
   opacity: 1 !important;
   visibility: visible !important;
   pointer-events: auto !important;
+  border-radius: 24px !important;
+  clip-path: inset(0 round 24px) !important;
+  margin: 1px !important; /* Prevent touching window edges */
 }
 
 /* Ensure the inner container of the keyboard is also solid */

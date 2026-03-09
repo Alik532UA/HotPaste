@@ -12,6 +12,7 @@ use std::process::{Command, Stdio};
 use std::io::{BufRead, BufReader};
 
 static APP_HANDLE: OnceLock<AppHandle> = OnceLock::new();
+static IS_MINIMAL: AtomicBool = AtomicBool::new(false);
 
 pub fn run_hook_worker() {
     // This function runs in a separate process with NO window and NO Tauri.
@@ -273,12 +274,40 @@ fn parse_shortcuts_json(stdout: Vec<u8>) -> Result<Vec<ShortcutInfo>, String> {
 
 #[tauri::command]
 async fn set_minimal_mode_tauri(window: tauri::WebviewWindow, minimal: bool) -> Result<(), String> {
+    IS_MINIMAL.store(minimal, Ordering::SeqCst);
     #[cfg(target_os = "windows")]
     {
         if minimal {
-            let _ = window_vibrancy::clear_vibrancy(&window);
+            // Do NOT clear vibrancy, as it can reset the window to opaque gray.
+            // Instead, we just disable the shadow and resize.
+            let _ = window.set_shadow(false);
+            
+            // Calculate size dynamically to match full-mode keyboard size
+            if let Ok(Some(monitor)) = window.primary_monitor() {
+                let m_size = monitor.size();
+                let scale_factor = window.scale_factor().unwrap_or(1.0);
+                
+                // Full mode window is 90% of screen height.
+                // Full mode keyboard is window_height - 140px.
+                let window_h_phys = m_size.height as f64 * 0.9;
+                let offset_phys = 140.0 * scale_factor;
+                let target_h_phys = window_h_phys - offset_phys;
+                let target_w_phys = target_h_phys * 2.5;
+
+                // Add a small buffer (20px) so the sharp window edges are invisible
+                let _ = window.set_size(tauri::Size::Physical(tauri::PhysicalSize {
+                    width: (target_w_phys + 20.0 * scale_factor) as u32,
+                    height: (target_h_phys + 20.0 * scale_factor) as u32,
+                }));
+            }
+            let _ = window.center();
         } else {
             let _ = window_vibrancy::apply_mica(&window, None);
+            let _ = window.set_shadow(true);
+            
+            // Restore to large size
+            resize_to_90_percent(&window);
+            let _ = window.center();
         }
     }
     Ok(())
@@ -353,9 +382,29 @@ pub fn run() {
             // Sync visibility state
             let window_events = window.clone();
             window.on_window_event(move |event| {
-                if let WindowEvent::CloseRequested { api, .. } = event {
-                    api.prevent_close();
-                    let _ = window_events.hide();
+                match event {
+                    WindowEvent::CloseRequested { api, .. } => {
+                        api.prevent_close();
+                        let _ = window_events.hide();
+                    }
+                    WindowEvent::Resized(size) => {
+                        if IS_MINIMAL.load(Ordering::SeqCst) {
+                            let width = size.width as f64;
+                            let height = size.height as f64;
+                            let target_ratio = 2.5;
+                            let current_ratio = width / height;
+
+                            if (current_ratio - target_ratio).abs() > 0.01 {
+                                // Fix ratio by adjusting height
+                                let new_height = (width / target_ratio) as u32;
+                                let _ = window_events.set_size(tauri::Size::Physical(tauri::PhysicalSize {
+                                    width: size.width,
+                                    height: new_height,
+                                }));
+                            }
+                        }
+                    }
+                    _ => {}
                 }
             });
 

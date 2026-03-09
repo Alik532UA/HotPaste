@@ -40,7 +40,9 @@
     }
 
     .dynamic-bg-container.minimal {
-        background-color: transparent;
+        background-color: transparent !important;
+        background-image: none !important;
+        backdrop-filter: none !important;
     }
 
     .bg-layer {

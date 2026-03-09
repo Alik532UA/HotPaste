@@ -104,11 +104,11 @@
   });
 </script>
 
-<div class="start-menu-container" class:minimal={uiState.isMinimalMode} in:fade={{ duration: 300 }}>
-  <div class="keyboard-body" in:fly={{ y: 20, delay: 100 }}>
-    <div class="keyboard-container">
+<div class="start-menu-container" class:minimal={uiState.isMinimalMode} in:fade={{ duration: 300 }} data-tauri-drag-region>
+  <div class="keyboard-body" in:fly={{ y: 20, delay: 100 }} data-tauri-drag-region>
+    <div class="keyboard-container" data-tauri-drag-region>
       {#each keyboardRows as row}
-        <div class="keyboard-row">
+        <div class="keyboard-row" data-tauri-drag-region>
           {#each row as key}
             {@const assignment = startMenuState.assignments[key.code]}
             {@const clickable = isKeyClickable(key.code)}
@@ -284,9 +284,30 @@
   }
 
   .start-menu-container.minimal {
-    background: transparent !important;
-    background-color: transparent !important;
+    background: rgba(0, 0, 0, 0) !important;
+    background-color: rgba(0, 0, 0, 0) !important;
+    border: none !important;
+    box-shadow: none !important;
     padding: 0;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .start-menu-container.minimal .keyboard-body {
+    /* Leave a 10px gap from window edges to hide sharp OS borders */
+    width: calc(100vw - 20px) !important;
+    height: calc(100vh - 20px) !important;
+    max-width: none !important;
+    aspect-ratio: 2.5 !important;
+    
+    border-radius: 24px !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    margin: 10px !important;
+    padding: 1.5% !important;
+    box-shadow: none !important; 
   }
 
   .keyboard-body {
