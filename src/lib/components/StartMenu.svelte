@@ -61,6 +61,23 @@
 
   onMount(() => {
     startMenuState.refreshShortcuts();
+    
+    // Global keyboard listener for physical key presses
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // If assignment modal is open, we don't want to launch programs
+      if (showMenu) return;
+      
+      // Prevent browser defaults for intercepted keys (like Tab, F-keys, etc.)
+      // but only if they have an assignment to avoid breaking normal UI usage
+      const assignment = startMenuState.assignments[e.code];
+      if (assignment && isKeyClickable(e.code)) {
+        e.preventDefault();
+        handleLaunch(e.code);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   });
 
   async function handleKeyClick(key: KeyInfo) {

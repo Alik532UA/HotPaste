@@ -17,7 +17,7 @@ let editingCardPath = $state('');
 let flashingCardPath = $state('');
 let selectedCardIds = $state<Set<string>>(new Set());
 let isSelectionMode = $state(false);
-let isMinimalMode = $state(false);
+let isMinimalMode = $state(true);
 
 let cardView = $state<'short' | 'full'>((localStorage.getItem('hp_card_view') as any) || 'short');
 let cardDensity = $state<'expanded' | 'normal' | 'compact'>((localStorage.getItem('hp_card_density') as any) || 'normal');

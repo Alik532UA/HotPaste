@@ -13,7 +13,7 @@ use std::process::{Command, Stdio};
 use std::io::{BufRead, BufReader};
 
 static APP_HANDLE: OnceLock<AppHandle> = OnceLock::new();
-static IS_MINIMAL: AtomicBool = AtomicBool::new(false);
+static IS_MINIMAL: AtomicBool = AtomicBool::new(true);
 
 /// Force rounded corners and HIDE system border/shadow via DWM API (Windows 11+).
 #[cfg(target_os = "windows")]
@@ -405,7 +405,11 @@ pub fn run() {
         ])
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             if let Some(window) = app.get_webview_window("main") {
-                resize_to_90_percent(&window);
+                if IS_MINIMAL.load(Ordering::SeqCst) {
+                    resize_to_minimal(&window);
+                } else {
+                    resize_to_90_percent(&window);
+                }
                 let _ = window.show();
                 let _ = window.set_focus();
                 let _ = window.center();
@@ -444,7 +448,14 @@ pub fn run() {
                 .build(app)?;
 
             let window = app.get_webview_window("main").unwrap();
-            resize_to_90_percent(&window);
+            
+            // Set initial size based on default Minimal Mode
+            if IS_MINIMAL.load(Ordering::SeqCst) {
+                resize_to_minimal(&window);
+            } else {
+                resize_to_90_percent(&window);
+            }
+            
             let _ = window.show();
             let _ = window.center();
 
@@ -525,11 +536,35 @@ fn toggle_window(app: &AppHandle) {
         if is_visible {
             let _ = window.hide();
         } else {
-            resize_to_90_percent(&window);
+            if IS_MINIMAL.load(Ordering::SeqCst) {
+                resize_to_minimal(&window);
+            } else {
+                resize_to_90_percent(&window);
+            }
             let _ = window.show();
             let _ = window.set_focus();
             let _ = window.center();
         }
+    }
+}
+
+fn resize_to_minimal(window: &tauri::WebviewWindow) {
+    if let Ok(Some(monitor)) = window.primary_monitor() {
+        let m_size = monitor.size();
+        let scale_factor = window.scale_factor().unwrap_or(1.0);
+        
+        let window_h_phys = m_size.height as f64 * 0.7;
+        let offset_phys = 140.0 * scale_factor;
+        let target_h_phys = window_h_phys - offset_phys;
+        let target_w_phys = target_h_phys * 2.5;
+
+        let phys_w = target_w_phys as u32;
+        let phys_h = target_h_phys as u32;
+
+        let _ = window.set_size(tauri::Size::Physical(tauri::PhysicalSize {
+            width: phys_w,
+            height: phys_h,
+        }));
     }
 }
 
