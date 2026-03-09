@@ -297,15 +297,15 @@
   }
 
   .start-menu-container.minimal .keyboard-body {
-    /* Leave a 10px gap from window edges to hide sharp OS borders */
-    width: calc(100vw - 20px) !important;
-    height: calc(100vh - 20px) !important;
+    /* Fill the window completely since we handle rounding on the native level */
+    width: 100vw !important;
+    height: 100vh !important;
     max-width: none !important;
     aspect-ratio: 2.5 !important;
     
-    border-radius: 24px !important;
-    border: 1px solid rgba(255, 255, 255, 0.15) !important;
-    margin: 10px !important;
+    border-radius: 48px !important;
+    border: none !important;
+    margin: 0 !important;
     padding: 1.5% !important;
     box-shadow: none !important; 
   }

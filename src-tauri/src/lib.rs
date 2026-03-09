@@ -16,24 +16,44 @@ use std::io::{BufRead, BufReader};
 static APP_HANDLE: OnceLock<AppHandle> = OnceLock::new();
 static IS_MINIMAL: AtomicBool = AtomicBool::new(false);
 
-/// Force rounded corners on the native Win32 window via DWM API (Windows 11+).
-/// This ensures the window always has rounded corners regardless of mica/shadow state.
+/// Force rounded corners and HIDE system border/shadow via DWM API (Windows 11+).
 #[cfg(target_os = "windows")]
 fn set_rounded_corners(window: &tauri::WebviewWindow) {
     use raw_window_handle::HasWindowHandle;
     if let Ok(handle) = window.window_handle() {
         if let raw_window_handle::RawWindowHandle::Win32(win32_handle) = handle.as_raw() {
             let hwnd = win32_handle.hwnd.get() as windows_sys::Win32::Foundation::HWND;
-            // DWMWA_WINDOW_CORNER_PREFERENCE = 33
-            // DWMWCP_ROUND = 2 (round the corners)
-            let preference: u32 = 2; // DWMWCP_ROUND
+            
+            // DWMWA_WINDOW_CORNER_PREFERENCE = 33, DWMWCP_DONOTROUND = 1
+            let preference: u32 = 1; 
+            // DWMWA_BORDER_COLOR = 34, 0xFF000000 = Black (effectively invisible on dark theme)
+            let border_color: u32 = 0x00000000; 
+            // DWMWA_CAPTION_COLOR = 35, 0x00000000 = Black
+            let caption_color: u32 = 0x00000000;
+            // DWMWA_TEXT_COLOR = 36, 0x00000000 = Black
+            let text_color: u32 = 0x00000000;
+
             unsafe {
-                DwmSetWindowAttribute(
-                    hwnd,
-                    33, // DWMWA_WINDOW_CORNER_PREFERENCE
-                    &preference as *const _ as *const std::ffi::c_void,
-                    std::mem::size_of::<u32>() as u32,
-                );
+                // 1. Disable system rounding (use our custom region)
+                DwmSetWindowAttribute(hwnd, 33, &preference as *const _ as *const std::ffi::c_void, 4);
+                
+                // 2. Set border color to absolute black (removes white lines on focus loss)
+                DwmSetWindowAttribute(hwnd, 34, &border_color as *const _ as *const std::ffi::c_void, 4);
+                
+                // 3. Set caption color to absolute black
+                DwmSetWindowAttribute(hwnd, 35, &caption_color as *const _ as *const std::ffi::c_void, 4);
+                
+                // 4. Set text color to absolute black (hides title if any)
+                DwmSetWindowAttribute(hwnd, 36, &text_color as *const _ as *const std::ffi::c_void, 4);
+
+                // Apply custom region rounding (diameters = radius * 2)
+                if let Ok(size) = window.outer_size() {
+                    let scale_factor = window.scale_factor().unwrap_or(1.0);
+                    let radius = (48.0 * scale_factor) as i32;
+                    let diameter = radius * 2;
+                    let rgn = CreateRoundRectRgn(0, 0, size.width as i32, size.height as i32, diameter, diameter);
+                    SetWindowRgn(hwnd as _, rgn as _, 1);
+                }
             }
         }
     }
@@ -319,7 +339,7 @@ async fn set_minimal_mode_tauri(window: tauri::WebviewWindow, minimal: bool) -> 
                 let m_size = monitor.size();
                 let scale_factor = window.scale_factor().unwrap_or(1.0);
                 
-                let window_h_phys = m_size.height as f64 * 0.9;
+                let window_h_phys = m_size.height as f64 * 0.7;
                 let offset_phys = 140.0 * scale_factor;
                 let target_h_phys = window_h_phys - offset_phys;
                 let target_w_phys = target_h_phys * 2.5;
@@ -333,14 +353,15 @@ async fn set_minimal_mode_tauri(window: tauri::WebviewWindow, minimal: bool) -> 
                     height: phys_h,
                 }));
 
-                // Use a larger rounded corner radius on native level (32 * scale)
+                // Use a larger rounded corner radius on native level (48 * scale)
                 use raw_window_handle::HasWindowHandle;
                 if let Ok(handle) = window.window_handle() {
                     if let raw_window_handle::RawWindowHandle::Win32(win32) = handle.as_raw() {
                         let hwnd = win32.hwnd.get() as *mut std::ffi::c_void;
-                        let radius = (32.0 * scale_factor) as i32;
+                        let radius = (48.0 * scale_factor) as i32;
+                        let diameter = radius * 2;
                         unsafe {
-                            let rgn = CreateRoundRectRgn(0, 0, phys_w as i32, phys_h as i32, radius, radius);
+                            let rgn = CreateRoundRectRgn(0, 0, phys_w as i32, phys_h as i32, diameter, diameter);
                             SetWindowRgn(hwnd, rgn, 1);
                         }
                     }
@@ -348,23 +369,30 @@ async fn set_minimal_mode_tauri(window: tauri::WebviewWindow, minimal: bool) -> 
             }
             let _ = window.center();
         } else {
-            // Restore normal native window boundaries (reset region)
-            use raw_window_handle::HasWindowHandle;
-            if let Ok(handle) = window.window_handle() {
-                if let raw_window_handle::RawWindowHandle::Win32(win32) = handle.as_raw() {
-                    let hwnd = win32.hwnd.get() as *mut std::ffi::c_void;
-                    unsafe {
-                        SetWindowRgn(hwnd, std::ptr::null_mut(), 1);
+            // Restore normal native window boundaries
+            #[cfg(target_os = "windows")]
+            {
+                use raw_window_handle::HasWindowHandle;
+                if let Ok(handle) = window.window_handle() {
+                    if let raw_window_handle::RawWindowHandle::Win32(win32) = handle.as_raw() {
+                        let hwnd = win32.hwnd.get() as *mut std::ffi::c_void;
+                        unsafe {
+                            // Reset region COMPLETELY before resizing to avoid cutting
+                            SetWindowRgn(hwnd, std::ptr::null_mut(), 1);
+                        }
                     }
                 }
             }
 
-            // let _ = window_vibrancy::apply_mica(&window, None);
             let _ = window.set_shadow(true);
             
             // Restore to large size
             resize_to_90_percent(&window);
             let _ = window.center();
+            
+            // Re-apply rounding for the new large size
+            #[cfg(target_os = "windows")]
+            set_rounded_corners(&window);
         }
     }
     Ok(())
@@ -436,7 +464,7 @@ pub fn run() {
                 // let _ = apply_mica(&window, None);
                 set_rounded_corners(&window);            }
 
-            // Sync visibility state
+            // Sync visibility state and update rounded corners on resize
             let window_events = window.clone();
             window.on_window_event(move |event| {
                 match event {
@@ -444,20 +472,26 @@ pub fn run() {
                         api.prevent_close();
                         let _ = window_events.hide();
                     }
-                    WindowEvent::Resized(size) => {
-                        if IS_MINIMAL.load(Ordering::SeqCst) {
-                            let width = size.width as f64;
-                            let height = size.height as f64;
-                            let target_ratio = 2.5;
-                            let current_ratio = width / height;
+                    WindowEvent::Resized(_) => {
+                        // Always update rounded corners to match NEW size
+                        #[cfg(target_os = "windows")]
+                        set_rounded_corners(&window_events);
 
-                            if (current_ratio - target_ratio).abs() > 0.01 {
-                                // Fix ratio by adjusting height
-                                let new_height = (width / target_ratio) as u32;
-                                let _ = window_events.set_size(tauri::Size::Physical(tauri::PhysicalSize {
-                                    width: size.width,
-                                    height: new_height,
-                                }));
+                        if IS_MINIMAL.load(Ordering::SeqCst) {
+                            if let Ok(size) = window_events.outer_size() {
+                                let width = size.width as f64;
+                                let height = size.height as f64;
+                                let target_ratio = 2.5;
+                                let current_ratio = width / height;
+
+                                if (current_ratio - target_ratio).abs() > 0.01 {
+                                    // Fix ratio by adjusting height
+                                    let new_height = (width / target_ratio) as u32;
+                                    let _ = window_events.set_size(tauri::Size::Physical(tauri::PhysicalSize {
+                                        width: size.width,
+                                        height: new_height,
+                                    }));
+                                }
                             }
                         }
                     }
