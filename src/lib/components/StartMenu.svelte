@@ -1,8 +1,9 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { fade, fly } from 'svelte/transition';
-  import { Rocket, Trash2, X } from 'lucide-svelte';
-  import { startMenuState } from '../states/startMenu.svelte';
+  import { Rocket, Trash2, X, Activity, LayoutGrid, Folder } from 'lucide-svelte';
+  import { startMenuState, type ShortcutInfo } from '../states/startMenu.svelte';
+  import { uiState } from '../stores/uiState.svelte';
 
   interface KeyInfo {
     label: string;
@@ -11,7 +12,7 @@
     space?: boolean;
   }
 
-  // Keyboard layout data (Physical key codes for mapping)
+  // ... keyboardRows stays the same ...
   const keyboardRows: KeyInfo[][] = [
     [
       { label: 'Esc', code: 'Escape' },
@@ -57,6 +58,7 @@
   let hoveredKey = $state<KeyInfo | null>(null);
   let selectedKey = $state<KeyInfo | null>(null);
   let showMenu = $state(false);
+  let activeCategory = $state<'local' | 'running' | 'system'>('local');
 
   onMount(() => {
     startMenuState.refreshShortcuts();
@@ -78,42 +80,65 @@
     showMenu = true;
   }
 
-  function handleAssign(shortcut: string) {
-    if (selectedKey) {
+  function handleAssign(shortcut: ShortcutInfo | 'none') {
+    if (selectedKey && isKeyClickable(selectedKey.code)) {
       startMenuState.assignKey(selectedKey.code, shortcut);
       showMenu = false;
     }
   }
 
+  function isKeyClickable(code: string): boolean {
+    // Only letters and specific symbols are allowed
+    if (code.startsWith('Key')) return true;
+    if (['BracketLeft', 'BracketRight', 'Backslash', 'Semicolon', 'Quote', 'Comma', 'Period', 'Slash'].includes(code)) return true;
+    return false;
+  }
+
   async function handleLaunch(keyCode: string) {
     await startMenuState.launchKey(keyCode);
   }
+
+  const currentShortcuts = $derived(() => {
+    if (activeCategory === 'local') return startMenuState.availableShortcuts;
+    if (activeCategory === 'running') return startMenuState.runningProcesses;
+    if (activeCategory === 'system') return startMenuState.systemShortcuts;
+    return [];
+  });
 </script>
 
-<div class="start-menu-container" in:fade={{ duration: 300 }}>
+<div class="start-menu-container" class:minimal={uiState.isMinimalMode} in:fade={{ duration: 300 }}>
   <div class="keyboard-body" in:fly={{ y: 20, delay: 100 }}>
     <div class="keyboard-container">
       {#each keyboardRows as row}
         <div class="keyboard-row">
           {#each row as key}
             {@const assignment = startMenuState.assignments[key.code]}
+            {@const clickable = isKeyClickable(key.code)}
             <button 
               class="key" 
               class:hovered={hoveredKey?.code === key.code}
               class:assigned={!!assignment}
               class:selected={selectedKey?.code === key.code}
+              class:disabled={!clickable}
               class:wide={key.wide}
               class:space={key.space}
               onmouseenter={() => hoveredKey = key}
               onmouseleave={() => hoveredKey = null}
-              onclick={() => handleKeyClick(key)}
-              oncontextmenu={(e) => handleKeyContextMenu(e, key)}
+              onclick={() => clickable && handleKeyClick(key)}
+              oncontextmenu={(e) => clickable && handleKeyContextMenu(e, key)}
               type="button"
+              disabled={!clickable && !assignment}
+              data-testid="key-{key.code}"
             >
               <span class="key-label">{key.label}</span>
               {#if assignment}
-                <div class="key-indicator" title={assignment}></div>
-                <span class="assignment-hint">{assignment.split('.')[0]}</span>
+                <div class="key-app-icon-container">
+                  {#if assignment.icon}
+                    <img src="data:image/png;base64,{assignment.icon}" alt="" class="key-app-icon" />
+                  {:else}
+                    <Rocket size={16} class="key-app-icon-fallback" />
+                  {/if}
+                </div>
               {/if}
             </button>
           {/each}
@@ -129,6 +154,7 @@
       onclick={() => showMenu = false} 
       onkeydown={(e) => e.key === 'Escape' && (showMenu = false)}
       role="presentation"
+      data-testid="start-menu-overlay"
     >
       <div 
         class="assignment-modal" 
@@ -136,51 +162,108 @@
         onclick={(e) => e.stopPropagation()} 
         onkeydown={(e) => e.stopPropagation()}
         role="presentation"
+        data-testid="start-menu-modal"
       >
         <div class="modal-header">
           <div class="header-info">
-            <span class="key-badge">{selectedKey?.label}</span>
+            <span class="key-badge" data-testid="selected-key-label">{selectedKey?.label}</span>
             <h4>Assign Shortcut</h4>
           </div>
-          <button class="close-btn" onclick={() => showMenu = false} aria-label="Close"><X size={20} /></button>
+          <button 
+            class="close-btn" 
+            onclick={() => showMenu = false} 
+            aria-label="Close"
+            data-testid="btn-close-assignment-modal"
+          >
+            <X size={20} />
+          </button>
         </div>
 
-        <div class="shortcuts-list">
-          <button class="shortcut-item none" onclick={() => handleAssign('none')}>
-            <div class="item-icon"><Trash2 size={18} /></div>
-            <div class="item-details">
-              <span class="item-name">Unassign / Clear</span>
-              <span class="item-path">Remove program from this key</span>
-            </div>
-          </button>
+        <div class="modal-layout">
+          <aside class="category-switcher" data-testid="category-switcher">
+            <button 
+              class="cat-btn" 
+              class:active={activeCategory === 'local'} 
+              onclick={() => activeCategory = 'local'}
+              title="Documents/HotPaste/start"
+              data-testid="btn-category-local"
+            >
+              <Folder size={20} />
+              <span>Local</span>
+            </button>
+            <button 
+              class="cat-btn" 
+              class:active={activeCategory === 'running'} 
+              onclick={() => activeCategory = 'running'}
+              title="Running Processes"
+              data-testid="btn-category-running"
+            >
+              <Activity size={20} />
+              <span>Running</span>
+            </button>
+            <button 
+              class="cat-btn" 
+              class:active={activeCategory === 'system'} 
+              onclick={() => activeCategory = 'system'}
+              title="System Start Menu"
+              data-testid="btn-category-system"
+            >
+              <LayoutGrid size={20} />
+              <span>System</span>
+            </button>
+          </aside>
 
-          {#if startMenuState.availableShortcuts.length === 0}
-            <div class="empty-state">
-              <p>No .lnk files found in <code>Documents\HotPaste\start</code></p>
-              <button class="refresh-btn" onclick={() => startMenuState.refreshShortcuts()}>Refresh folder</button>
-            </div>
-          {:else}
-            {#each startMenuState.availableShortcuts as shortcut}
-              <button 
-                class="shortcut-item" 
-                class:active={startMenuState.assignments[selectedKey?.code || ''] === shortcut}
-                onclick={() => handleAssign(shortcut)}
-              >
-                <div class="item-icon"><Rocket size={18} /></div>
-                <div class="item-details">
-                  <span class="item-name">{shortcut.split('.')[0]}</span>
-                  <span class="item-path">{shortcut}</span>
-                </div>
-                {#if startMenuState.assignments[selectedKey?.code || ''] === shortcut}
-                  <div class="active-dot"></div>
-                {/if}
-              </button>
-            {/each}
-          {/if}
+          <div class="shortcuts-list" data-testid="shortcuts-grid">
+            <button 
+              class="shortcut-item none-card" 
+              onclick={() => handleAssign('none')}
+              data-testid="btn-unassign-key"
+            >
+              <div class="item-icon large"><Trash2 size={24} /></div>
+              <span class="item-name">Clear</span>
+            </button>
+
+            {#if currentShortcuts().length === 0}
+              <div class="empty-state" data-testid="shortcuts-empty-state">
+                <p>No programs found.</p>
+                <button 
+                  class="refresh-btn" 
+                  onclick={() => startMenuState.refreshShortcuts()}
+                  data-testid="btn-refresh-shortcuts"
+                >
+                  Refresh
+                </button>
+              </div>
+            {:else}
+              {#each currentShortcuts() as shortcut, i}
+                <button 
+                  class="shortcut-item card" 
+                  class:active={startMenuState.assignments[selectedKey?.code || '']?.path === shortcut.path}
+                  onclick={() => handleAssign(shortcut)}
+                  title={shortcut.path}
+                  data-testid="btn-shortcut-{i}"
+                >
+                  <div class="item-icon large">
+                    {#if shortcut.icon}
+                      <img src="data:image/png;base64,{shortcut.icon}" alt={shortcut.name} class="app-icon-img" />
+                    {:else}
+                      {#if activeCategory === 'local'}<Rocket size={28} />{/if}
+                      {#if activeCategory === 'running'}<Activity size={28} />{/if}
+                      {#if activeCategory === 'system'}<LayoutGrid size={28} />{/if}
+                    {/if}
+                  </div>
+                  <span class="item-name">{shortcut.name}</span>
+                  {#if startMenuState.assignments[selectedKey?.code || '']?.path === shortcut.path}
+                    <div class="active-badge" data-testid="active-shortcut-indicator"></div>
+                  {/if}
+                </button>
+              {/each}
+            {/if}
+          </div>
         </div>
 
         <div class="modal-footer">
-          <p>Add <code>.lnk</code> or <code>.exe</code> files to the <code>start</code> folder to see them here.</p>
+          <p>Select a program to assign it to <strong>{selectedKey?.label}</strong>.</p>
         </div>
       </div>
     </div>
@@ -188,6 +271,7 @@
 </div>
 
 <style>
+  /* ... Existing styles ... */
   .start-menu-container {
     height: 100%;
     display: flex;
@@ -269,44 +353,74 @@
     flex-grow: 4;
   }
 
+  .key.disabled {
+    opacity: 0.4;
+    cursor: default;
+    background: var(--color-bg-primary);
+    box-shadow: none;
+  }
+
+  .key.disabled .key-label {
+    color: var(--color-text-muted);
+  }
+
+  .start-menu-container.minimal {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: var(--color-bg-primary);
+    padding: 0;
+  }
+
+  .start-menu-container.minimal .keyboard-body {
+    border-radius: 0;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    max-width: none;
+  }
+
   .key-label {
-    font-size: 0.75rem;
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    font-size: 0.65rem;
     font-weight: 800;
     color: var(--color-text-secondary);
     text-transform: uppercase;
     z-index: 2;
+    line-height: 1;
   }
 
-  .assignment-hint {
-    position: absolute;
-    bottom: 4px;
-    left: 4px;
-    right: 4px;
-    font-size: 0.6rem;
+  .key-app-icon-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    padding-top: 8px; /* Offset for label */
+  }
+
+  .key-app-icon {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+  }
+
+  .key-app-icon-fallback {
     color: var(--color-accent-cyan);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    font-weight: 600;
-    text-align: center;
+    opacity: 0.6;
   }
 
-  .key-indicator {
-    position: absolute;
-    top: 6px;
-    right: 6px;
-    width: 8px;
-    height: 8px;
-    background: var(--color-accent-cyan);
-    border-radius: 50%;
-    box-shadow: 0 0 10px var(--color-accent-cyan);
-    animation: pulse 2s infinite;
+  .key.assigned {
+    border-color: var(--color-accent-cyan);
+    background: rgba(0, 210, 255, 0.05);
+    box-shadow: 0 4px 0 rgba(0, 210, 255, 0.3);
   }
 
-  @keyframes pulse {
-    0% { transform: scale(1); opacity: 1; }
-    50% { transform: scale(1.3); opacity: 0.7; }
-    100% { transform: scale(1); opacity: 1; }
+  .key.assigned .key-label {
+    color: var(--color-accent-cyan);
   }
 
   /* Assignment Menu */
@@ -323,13 +437,16 @@
   }
 
   .assignment-modal {
-    width: 100%;
-    max-width: 450px;
+    width: 90%;
+    height: 90%;
+    max-width: 1600px;
     background: var(--color-surface-1);
     border: 1px solid var(--color-border);
     border-radius: 32px;
-    padding: var(--space-6);
+    padding: var(--space-8);
     box-shadow: 0 40px 100px rgba(0, 0, 0, 0.6);
+    display: flex;
+    flex-direction: column;
   }
 
   .modal-header {
@@ -337,6 +454,7 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: var(--space-6);
+    flex-shrink: 0;
   }
 
   .header-info {
@@ -351,12 +469,12 @@
     padding: 4px 12px;
     border-radius: 8px;
     font-weight: 900;
-    font-size: 1rem;
+    font-size: 1.25rem;
   }
 
   .modal-header h4 {
     margin: 0;
-    font-size: 1.25rem;
+    font-size: 1.5rem;
     font-weight: 800;
     color: var(--color-text-primary);
   }
@@ -366,7 +484,7 @@
     border: none;
     color: var(--color-text-muted);
     cursor: pointer;
-    padding: 8px;
+    padding: 12px;
     border-radius: 50%;
     transition: all 0.2s;
   }
@@ -376,101 +494,190 @@
     color: var(--color-text-primary);
   }
 
-  .shortcuts-list {
+  /* Grid Layout */
+  .modal-layout {
+    display: flex;
+    gap: var(--space-8);
+    flex: 1;
+    min-height: 0; /* Important for inner scrolling */
+  }
+
+  .category-switcher {
     display: flex;
     flex-direction: column;
+    gap: 12px;
+    width: 120px;
+    border-right: 1px solid var(--color-border);
+    padding-right: var(--space-6);
+    flex-shrink: 0;
+  }
+
+  .cat-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     gap: 8px;
-    max-height: 400px;
+    padding: var(--space-4) var(--space-2);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--color-text-muted);
+  }
+
+  .cat-btn:hover {
+    background: var(--color-surface-2);
+    color: var(--color-text-primary);
+  }
+
+  .cat-btn.active {
+    background: rgba(0, 210, 255, 0.1);
+    border-color: var(--color-accent-cyan);
+    color: var(--color-accent-cyan);
+  }
+
+  .cat-btn span {
+    font-size: 0.75rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .shortcuts-list {
+    flex-grow: 1;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    grid-auto-rows: min-content;
+    gap: 16px;
     overflow-y: auto;
-    padding-right: 4px;
+    padding-right: 12px;
+    padding-bottom: 12px;
   }
 
   .shortcut-item {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: var(--space-4);
-    padding: var(--space-4);
+    justify-content: center;
+    gap: 12px;
+    padding: var(--space-6);
     background: var(--color-surface-2);
     border: 1px solid var(--color-border);
-    border-radius: 16px;
-    text-align: left;
+    border-radius: 24px;
     cursor: pointer;
-    transition: all 0.2s;
-    width: 100%;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    aspect-ratio: 1;
     position: relative;
+    text-align: center;
   }
 
   .shortcut-item:hover {
     border-color: var(--color-accent-cyan);
     background: var(--color-surface-3);
-    transform: translateX(4px);
+    transform: translateY(-6px);
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3);
   }
 
   .shortcut-item.active {
     border-color: var(--color-accent-cyan);
     background: rgba(0, 210, 255, 0.1);
+    box-shadow: 0 0 20px rgba(0, 210, 255, 0.2);
   }
 
-  .shortcut-item.none {
+  .shortcut-item.none-card {
     border-style: dashed;
-    margin-bottom: 8px;
+    border-width: 2px;
+    color: var(--color-error);
+    opacity: 0.8;
   }
 
-  .item-icon {
-    width: 40px;
-    height: 40px;
+  .shortcut-item.none-card:hover {
+    border-color: var(--color-error);
+    background: rgba(255, 60, 60, 0.05);
+    opacity: 1;
+  }
+
+  .item-icon.large {
+    width: 64px;
+    height: 64px;
     background: var(--color-bg-primary);
-    border-radius: 10px;
+    border-radius: 18px;
     display: flex;
     align-items: center;
     justify-content: center;
     color: var(--color-accent-cyan);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    transition: transform 0.2s;
+    overflow: hidden;
+    flex-shrink: 0;
   }
 
-  .shortcut-item.none .item-icon {
+  .app-icon-img {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+  }
+
+  .shortcut-item:hover .item-icon.large {
+    transform: scale(1.1);
+  }
+
+  .shortcut-item.none-card .item-icon.large {
     color: var(--color-error);
-  }
-
-  .item-details {
-    display: flex;
-    flex-direction: column;
+    background: transparent;
+    box-shadow: none;
+    border: 1px dashed var(--color-error);
   }
 
   .item-name {
     font-weight: 700;
-    font-size: 1rem;
+    font-size: 0.95rem;
     color: var(--color-text-primary);
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    line-height: 1.2;
   }
 
-  .item-path {
-    font-size: 0.75rem;
-    color: var(--color-text-muted);
-  }
-
-  .active-dot {
+  .active-badge {
     position: absolute;
-    right: 16px;
-    width: 10px;
-    height: 10px;
+    top: 12px;
+    right: 12px;
+    width: 14px;
+    height: 14px;
     background: var(--color-accent-cyan);
     border-radius: 50%;
     box-shadow: 0 0 10px var(--color-accent-cyan);
+    border: 2px solid var(--color-surface-1);
   }
 
   .empty-state {
+    grid-column: 1 / -1;
     text-align: center;
-    padding: var(--space-10) var(--space-4);
+    padding: var(--space-16) var(--space-4);
     color: var(--color-text-muted);
   }
 
   .refresh-btn {
-    margin-top: 12px;
+    margin-top: 16px;
     background: var(--color-surface-3);
     border: 1px solid var(--color-border);
     color: var(--color-text-primary);
-    padding: 8px 20px;
-    border-radius: 20px;
+    padding: 10px 32px;
+    border-radius: 24px;
     cursor: pointer;
+    font-weight: 700;
+    transition: all 0.2s;
+  }
+
+  .refresh-btn:hover {
+    background: var(--color-accent-cyan);
+    color: black;
   }
 
   .modal-footer {
@@ -478,19 +685,12 @@
     padding-top: var(--space-4);
     border-top: 1px solid var(--color-border);
     text-align: center;
+    flex-shrink: 0;
   }
 
   .modal-footer p {
-    font-size: 0.8rem;
+    font-size: 0.9rem;
     color: var(--color-text-muted);
     margin: 0;
-  }
-
-  code {
-    background: var(--color-surface-3);
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-family: monospace;
-    color: var(--color-accent-cyan);
   }
 </style>

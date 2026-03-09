@@ -305,10 +305,31 @@ export class TauriFileSystemService implements IFileSystemService {
                 return [];
             }
 
-            const entries = await fs.readDir(startPath);
-            return (entries as any[])
-                .filter((e: any) => e.isFile && (e.name?.toLowerCase().endsWith('.lnk') || e.name?.toLowerCase().endsWith('.exe')))
-                .map((e: any) => e.name || '');
+            const results: string[] = [];
+
+            const walk = async (currentPath: string, relativePrefix: string = '') => {
+                const entries = await fs.readDir(currentPath);
+                for (const entry of (entries as any[])) {
+                    const entryName = entry.name || '';
+                    // Skip hidden files/folders (starting with dot)
+                    if (entryName.startsWith('.')) continue;
+
+                    const entryPath = await path.join(currentPath, entryName);
+                    const relPath = relativePrefix ? `${relativePrefix}/${entryName}` : entryName;
+                    
+                    if (entry.isDirectory) {
+                        await walk(entryPath, relPath);
+                    } else if (entry.isFile) {
+                        const lowName = entryName.toLowerCase();
+                        if (lowName.endsWith('.lnk') || lowName.endsWith('.exe')) {
+                            results.push(relPath);
+                        }
+                    }
+                }
+            };
+
+            await walk(startPath);
+            return results;
         } catch (err) {
             logService.error('fileSystem', 'Failed to get start shortcuts', err);
             return [];

@@ -17,6 +17,7 @@ let editingCardPath = $state('');
 let flashingCardPath = $state('');
 let selectedCardIds = $state<Set<string>>(new Set());
 let isSelectionMode = $state(false);
+let isMinimalMode = $state(false);
 
 let cardView = $state<'short' | 'full'>((localStorage.getItem('hp_card_view') as any) || 'short');
 let cardDensity = $state<'expanded' | 'normal' | 'compact'>((localStorage.getItem('hp_card_density') as any) || 'normal');
@@ -39,6 +40,7 @@ export const uiState = {
     get flashingCardPath() { return flashingCardPath; },
     get selectedCardIds() { return selectedCardIds; },
     get isSelectionMode() { return isSelectionMode; },
+    get isMinimalMode() { return isMinimalMode; },
     get cardView() { return cardView; },
     get cardDensity() { return cardDensity; },
     get activeTabIndex() { return activeTabIndex; },
@@ -59,6 +61,8 @@ export const uiState = {
     toggleCardView,
     setSelectionMode,
     toggleSelectionMode,
+    toggleMinimalMode,
+    setMinimalMode,
     selectTab,
     selectTabByHotkey,
     toggleCardSelection,
@@ -120,6 +124,14 @@ function setCardDensity(density: 'expanded' | 'normal' | 'compact'): void {
 
 function toggleCardView(): void {
     setCardView(cardView === 'short' ? 'full' : 'short');
+}
+
+function toggleMinimalMode(): void {
+    isMinimalMode = !isMinimalMode;
+}
+
+function setMinimalMode(value: boolean): void {
+    isMinimalMode = value;
 }
 
 function selectTab(index: number, max: number): void {

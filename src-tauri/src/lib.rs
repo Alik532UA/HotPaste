@@ -80,16 +80,15 @@ unsafe extern "system" fn low_level_keyboard_proc_worker(n_code: i32, w_param: u
 async fn launch_start_program(app: AppHandle, name: String) -> Result<(), String> {
     let docs = app.path().document_dir().map_err(|e| e.to_string())?;
     let path = docs.join("HotPaste").join("start").join(name);
-    
-    if !path.exists() {
-        return Err("File not found".to_string());
-    }
+    launch_program_by_path(path.to_string_lossy().to_string()).await
+}
 
+#[tauri::command]
+async fn launch_program_by_path(path: String) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
-        // Use 'cmd /c start' to reliably open .lnk files on Windows
         let status = Command::new("cmd")
-            .args(["/C", "start", "", &path.to_string_lossy()])
+            .args(["/C", "start", "", &path])
             .spawn()
             .map_err(|e| e.to_string())?;
         log::info!("Program launched: {:?}", status);
@@ -97,7 +96,6 @@ async fn launch_start_program(app: AppHandle, name: String) -> Result<(), String
 
     #[cfg(not(target_os = "windows"))]
     {
-        // Fallback for other OS if needed (though start menu is currently Windows-centric)
         let _ = Command::new("open")
             .arg(&path)
             .spawn()
@@ -107,6 +105,161 @@ async fn launch_start_program(app: AppHandle, name: String) -> Result<(), String
     Ok(())
 }
 
+#[derive(serde::Serialize, Clone)]
+struct ShortcutInfo {
+    name: String,
+    path: String,
+    icon: Option<String>,
+}
+
+#[tauri::command]
+async fn get_running_processes() -> Result<Vec<ShortcutInfo>, String> {
+    #[cfg(target_os = "windows")]
+    {
+        let output = Command::new("powershell")
+            .args([
+                "-NoProfile",
+                "-Command",
+                "Get-Process | Where-Object { $_.MainWindowHandle -ne 0 -and $_.MainWindowTitle } | ForEach-Object {
+                    try {
+                        $p = $_.Path;
+                        if (!$p) { $p = $_.MainModule.FileName }
+                        if ($p) { [PSCustomObject]@{ Name=$_.Name; Path=$p; Icon=$null } }
+                    } catch { }
+                 } | ConvertTo-Json"
+            ])
+            .output()
+            .map_err(|e| e.to_string())?;
+
+        parse_shortcuts_json(output.stdout)
+    }
+    #[cfg(not(target_os = "windows"))]
+    { Ok(vec![]) }
+}
+
+#[tauri::command]
+async fn get_system_shortcuts() -> Result<Vec<ShortcutInfo>, String> {
+    #[cfg(target_os = "windows")]
+    {
+        let output = Command::new("powershell")
+            .args([
+                "-NoProfile",
+                "-Command",
+                "Get-ChildItem -Path @(\"$env:AppData\\Microsoft\\Windows\\Start Menu\\Programs\", \"$env:ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\") -Filter *.lnk -Recurse | ForEach-Object {
+                    [PSCustomObject]@{ Name=$_.BaseName; Path=$_.FullName; Icon=$null }
+                } | ConvertTo-Json"
+            ])
+            .output()
+            .map_err(|e| e.to_string())?;
+
+        parse_shortcuts_json(output.stdout)
+    }
+    #[cfg(not(target_os = "windows"))]
+    { Ok(vec![]) }
+}
+
+#[tauri::command]
+async fn get_local_shortcuts(app: AppHandle) -> Result<Vec<ShortcutInfo>, String> {
+    #[cfg(target_os = "windows")]
+    {
+        let docs = app.path().document_dir().map_err(|e| e.to_string())?;
+        let start_path = docs.join("HotPaste").join("start");
+        
+        if !start_path.exists() {
+            std::fs::create_dir_all(&start_path).map_err(|e| e.to_string())?;
+            return Ok(vec![]);
+        }
+
+        let output = Command::new("powershell")
+            .args([
+                "-NoProfile",
+                "-Command",
+                format!(
+                    "Get-ChildItem -Path '{}' -Recurse | Where-Object {{ $_.Extension -match 'lnk|exe' }} | ForEach-Object {{
+                        [PSCustomObject]@{{ Name=$_.BaseName; Path=$_.FullName; Icon=$null }}
+                     }} | ConvertTo-Json",
+                    start_path.to_string_lossy()
+                ).as_str()
+            ])
+            .output()
+            .map_err(|e| e.to_string())?;
+
+        parse_shortcuts_json(output.stdout)
+    }
+    #[cfg(not(target_os = "windows"))]
+    { Ok(vec![]) }
+}
+
+#[tauri::command]
+async fn get_shortcut_icon(path: String) -> Result<String, String> {
+    #[cfg(target_os = "windows")]
+    {
+        let output = Command::new("powershell")
+            .args([
+                "-NoProfile",
+                "-Command",
+                format!(
+                    "Add-Type -AssemblyName System.Drawing;
+                     $sh = New-Object -ComObject WScript.Shell;
+                     $targetPath = '{}';
+                     try {{
+                        if ($targetPath.ToLower().EndsWith('.lnk')) {{
+                            $lnk = $sh.CreateShortcut($targetPath);
+                            $rawTarget = $lnk.TargetPath;
+                            if ($rawTarget) {{
+                                $expanded = $sh.ExpandEnvironmentStrings($rawTarget);
+                                if ([System.IO.File]::Exists($expanded)) {{ $targetPath = $expanded }}
+                            }}
+                        }}
+                        $icon = [System.Drawing.Icon]::ExtractAssociatedIcon($targetPath);
+                        $ms = New-Object System.IO.MemoryStream;
+                        $icon.ToBitmap().Save($ms, [System.Drawing.Imaging.ImageFormat]::Png);
+                        [Convert]::ToBase64String($ms.ToArray());
+                     }} catch {{ return $null }}",
+                    path.replace("'", "''")
+                ).as_str()
+            ])
+            .output()
+            .map_err(|e| e.to_string())?;
+
+        let result = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if result.is_empty() || result == "null" {
+            return Err("Failed to extract icon".to_string());
+        }
+        Ok(result)
+    }
+    #[cfg(not(target_os = "windows"))]
+    { Err("Not supported".to_string()) }
+}
+
+fn parse_shortcuts_json(stdout: Vec<u8>) -> Result<Vec<ShortcutInfo>, String> {
+    let json_str = String::from_utf8_lossy(&stdout);
+    if json_str.trim().is_empty() {
+        return Ok(vec![]);
+    }
+
+    let v: serde_json::Value = serde_json::from_str(&json_str).map_err(|e| e.to_string())?;
+    let mut shortcuts = Vec::new();
+
+    let items = if let Some(array) = v.as_array() {
+        array.clone()
+    } else {
+        vec![v]
+    };
+
+    for item in items {
+        if let (Some(name), Some(path)) = (item["Name"].as_str(), item["Path"].as_str()) {
+            shortcuts.push(ShortcutInfo {
+                name: name.to_string(),
+                path: path.to_string(),
+                icon: None,
+            });
+        }
+    }
+
+    Ok(shortcuts)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -114,7 +267,14 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, Some(vec!["--minimized"])))
-        .invoke_handler(tauri::generate_handler![launch_start_program])
+        .invoke_handler(tauri::generate_handler![
+            launch_start_program, 
+            launch_program_by_path,
+            get_running_processes,
+            get_system_shortcuts,
+            get_local_shortcuts,
+            get_shortcut_icon
+        ])
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             if let Some(window) = app.get_webview_window("main") {
                 resize_to_90_percent(&window);

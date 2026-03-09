@@ -3,15 +3,28 @@ import { logService } from '../services/logService.svelte';
 
 const fs = new TauriFileSystemService();
 
+export interface ShortcutInfo {
+    name: string;
+    path: string;
+    type?: 'local' | 'running' | 'system';
+    icon?: string | null;
+}
+
 /**
  * Start Menu State — Manages virtual keyboard assignments and program launching.
  */
 class StartMenuState {
-    /** Mapping of physical key codes to shortcut filenames (.lnk) */
-    assignments = $state<Record<string, string>>({});
+    /** Mapping of physical key codes to shortcut info */
+    assignments = $state<Record<string, ShortcutInfo>>({});
     
     /** List of available .lnk files in Documents/HotPaste/start */
-    availableShortcuts = $state<string[]>([]);
+    availableShortcuts = $state<ShortcutInfo[]>([]);
+
+    /** List of currently running processes */
+    runningProcesses = $state<ShortcutInfo[]>([]);
+
+    /** List of system start menu shortcuts */
+    systemShortcuts = $state<ShortcutInfo[]>([]);
 
     constructor() {
         this.loadAssignments();
@@ -21,7 +34,14 @@ class StartMenuState {
         const stored = localStorage.getItem('hotpaste-start-assignments');
         if (stored) {
             try {
-                this.assignments = JSON.parse(stored);
+                const parsed = JSON.parse(stored);
+                // Migration: if it's old format (string), convert to ShortcutInfo
+                for (const key in parsed) {
+                    if (typeof parsed[key] === 'string') {
+                        parsed[key] = { name: parsed[key].split('.')[0], path: parsed[key], type: 'local' };
+                    }
+                }
+                this.assignments = parsed;
             } catch (err) {
                 logService.error('startMenu', 'Failed to parse assignments', err);
             }
@@ -38,19 +58,62 @@ class StartMenuState {
         if (!isTauri) return;
 
         try {
-            await fs.requestAccess();
-            this.availableShortcuts = await fs.getStartShortcuts();
-            logService.log('startMenu', `Refreshed shortcuts: ${this.availableShortcuts.length} found`);
+            const { invoke } = await import('@tauri-apps/api/core');
+            
+            logService.info('startMenu', 'Fetching shortcut metadata...');
+
+            // 1. Fetch metadata only (very fast)
+            const local = await invoke<ShortcutInfo[]>('get_local_shortcuts');
+            this.availableShortcuts = local.map(s => ({ ...s, type: 'local' }));
+            
+            const running = await invoke<ShortcutInfo[]>('get_running_processes');
+            this.runningProcesses = running.map(s => ({ ...s, type: 'running' }));
+            
+            const system = await invoke<ShortcutInfo[]>('get_system_shortcuts');
+            this.systemShortcuts = system.map(s => ({ ...s, type: 'system' }));
+
+            logService.info('startMenu', `Metadata loaded: ${local.length} local, ${running.length} running, ${system.length} system`);
+
+            // 2. Start fetching icons in background (don't await)
+            this.fetchAllIcons();
+
         } catch (err) {
             logService.error('startMenu', 'Failed to refresh shortcuts', err);
         }
     }
 
-    assignKey(keyCode: string, shortcutName: string) {
-        if (shortcutName === 'none') {
+    private async fetchAllIcons() {
+        // We load icons in parallel batches to speed up but not freeze
+        await Promise.all([
+            this.loadIconsForList(this.availableShortcuts),
+            this.loadIconsForList(this.runningProcesses),
+            this.loadIconsForList(this.systemShortcuts)
+        ]);
+        logService.info('startMenu', 'All icons loaded');
+    }
+
+    private async loadIconsForList(list: ShortcutInfo[]) {
+        const { invoke } = await import('@tauri-apps/api/core');
+        
+        // Load one by one to keep UI responsive and show progress
+        for (const item of list) {
+            if (item.icon) continue; // Skip if already has icon
+            try {
+                const iconBase64 = await invoke<string>('get_shortcut_icon', { path: item.path });
+                if (iconBase64) {
+                    item.icon = iconBase64;
+                }
+            } catch (err) {
+                // Silently skip if icon fails
+            }
+        }
+    }
+
+    assignKey(keyCode: string, shortcut: ShortcutInfo | 'none') {
+        if (shortcut === 'none') {
             delete this.assignments[keyCode];
         } else {
-            this.assignments[keyCode] = shortcutName;
+            this.assignments[keyCode] = shortcut;
         }
         this.saveAssignments();
     }
@@ -61,10 +124,14 @@ class StartMenuState {
 
         try {
             const { invoke } = await import('@tauri-apps/api/core');
-            await invoke('launch_start_program', { name: shortcut });
-            logService.log('startMenu', `Launched via Rust: ${shortcut}`);
+            if (shortcut.type === 'local') {
+                await invoke('launch_start_program', { name: shortcut.path });
+            } else {
+                await invoke('launch_program_by_path', { path: shortcut.path });
+            }
+            logService.log('startMenu', `Launched: ${shortcut.name}`);
         } catch (err) {
-            logService.error('startMenu', `Failed to launch ${shortcut}`, err);
+            logService.error('startMenu', `Failed to launch ${shortcut.name}`, err);
         }
     }
 }
