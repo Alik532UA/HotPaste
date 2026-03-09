@@ -148,20 +148,36 @@ body {
   overflow-x: hidden;
 }
 
-/* Ensure ALL Tauri windows (even non-minimal) have rounded corners and NO margins */
+/* Ensure ONLY the root Tauri window layers are truly transparent to allow rounding.
+   Inner content layers like .app-shell and .app-main MUST HAVE background 
+   so the window isn't see-through to the desktop! */
 html.is-tauri,
 html.is-tauri body,
 html.is-tauri #app,
-html.is-tauri .app-shell,
-html.is-tauri .app-content,
-html.is-tauri .app-main,
-html.is-tauri .dynamic-bg-container,
-html.is-tauri .start-menu-container {
+html.is-tauri .app-content {
   border-radius: 48px !important;
   overflow: hidden !important;
   background-color: transparent !important;
   margin: 0 !important;
   border: none !important;
+  clip-path: inset(0 round 48px) !important;
+  -webkit-clip-path: inset(0 round 48px) !important;
+}
+
+/* 
+   Content area itself should be opaque to the desktop, 
+   but it will show the DynamicBackground underneath because it's at z-index: -1.
+*/
+html.is-tauri:not(.is-minimal) .app-shell,
+html.is-tauri:not(.is-minimal) .app-main {
+  background-color: transparent; /* Allow DynamicBackground (at z-index -1) to show */
+  border-radius: 48px !important;
+  border: none !important;
+}
+
+/* The app-shell provides the base shadow and rounding for Full Mode */
+html.is-tauri:not(.is-minimal) .app-shell {
+  box-shadow: 0 30px 100px rgba(0, 0, 0, 0.7) !important;
 }
 
 /* Aggressive window transparency for Minimal Mode */

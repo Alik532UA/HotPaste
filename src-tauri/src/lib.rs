@@ -1,7 +1,6 @@
 use tauri::{AppHandle, Manager, WindowEvent};
 use tauri::tray::{TrayIconBuilder, TrayIconEvent};
 use tauri::menu::{MenuBuilder, MenuItemBuilder};
-use window_vibrancy::apply_mica;
 use std::sync::atomic::{AtomicBool, Ordering};
 use windows_sys::Win32::UI::WindowsAndMessaging::*;
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::*;
@@ -24,27 +23,25 @@ fn set_rounded_corners(window: &tauri::WebviewWindow) {
         if let raw_window_handle::RawWindowHandle::Win32(win32_handle) = handle.as_raw() {
             let hwnd = win32_handle.hwnd.get() as windows_sys::Win32::Foundation::HWND;
             
-            // DWMWA_WINDOW_CORNER_PREFERENCE = 33, DWMWCP_DONOTROUND = 1
-            let preference: u32 = 1; 
-            // DWMWA_BORDER_COLOR = 34, 0xFF000000 = Black (effectively invisible on dark theme)
-            let border_color: u32 = 0x00000000; 
-            // DWMWA_CAPTION_COLOR = 35, 0x00000000 = Black
-            let caption_color: u32 = 0x00000000;
-            // DWMWA_TEXT_COLOR = 36, 0x00000000 = Black
-            let text_color: u32 = 0x00000000;
+            let corner_preference: u32 = 2; // DWMWCP_ROUND (Standard rounding)
+            let border_color: u32 = 0x00010101; // Near Black (DWM interprets 0x00000000 as default sometimes)
+            let caption_color: u32 = 0x00010101; // Near Black
+            let dark_mode: u32 = 1; // Immersive Dark Mode
+            let nc_policy: u32 = 2; // DWMNCRP_ENABLED (Force non-client rendering policy)
 
             unsafe {
-                // 1. Disable system rounding (use our custom region)
-                DwmSetWindowAttribute(hwnd, 33, &preference as *const _ as *const std::ffi::c_void, 4);
+                // 1. Set window corner preference to round (helps DWM clip correctly)
+                DwmSetWindowAttribute(hwnd, 33, &corner_preference as *const _ as *const std::ffi::c_void, 4);
                 
-                // 2. Set border color to absolute black (removes white lines on focus loss)
+                // 2. Set border and caption to black to avoid light lines on focus loss
                 DwmSetWindowAttribute(hwnd, 34, &border_color as *const _ as *const std::ffi::c_void, 4);
-                
-                // 3. Set caption color to absolute black
                 DwmSetWindowAttribute(hwnd, 35, &caption_color as *const _ as *const std::ffi::c_void, 4);
                 
-                // 4. Set text color to absolute black (hides title if any)
-                DwmSetWindowAttribute(hwnd, 36, &text_color as *const _ as *const std::ffi::c_void, 4);
+                // 3. Force Dark Mode (fixes light lines on some versions of Win11)
+                DwmSetWindowAttribute(hwnd, 20, &dark_mode as *const _ as *const std::ffi::c_void, 4);
+                
+                // 4. Set NC rendering policy
+                DwmSetWindowAttribute(hwnd, 2, &nc_policy as *const _ as *const std::ffi::c_void, 4);
 
                 // Apply custom region rounding (diameters = radius * 2)
                 if let Ok(size) = window.outer_size() {
@@ -328,13 +325,14 @@ async fn set_minimal_mode_tauri(window: tauri::WebviewWindow, minimal: bool) -> 
     IS_MINIMAL.store(minimal, Ordering::SeqCst);
     #[cfg(target_os = "windows")]
     {
-        // Always force rounded corners via DWM regardless of mode
+        // ALWAYS disable system shadow. It causes the "white border" on Windows 11.
+        // We use CSS shadows in app.css instead for a cleaner look.
+        let _ = window.set_shadow(false);
+        
+        // Force rounded corners via DWM attribute and Region API
         set_rounded_corners(&window);
         
         if minimal {
-            // Disable shadow and explicitly set size to match the needed content EXACTLY
-            let _ = window.set_shadow(false);
-            
             if let Ok(Some(monitor)) = window.primary_monitor() {
                 let m_size = monitor.size();
                 let scale_factor = window.scale_factor().unwrap_or(1.0);
@@ -344,7 +342,6 @@ async fn set_minimal_mode_tauri(window: tauri::WebviewWindow, minimal: bool) -> 
                 let target_h_phys = window_h_phys - offset_phys;
                 let target_w_phys = target_h_phys * 2.5;
 
-                // We no longer add a 20px invisible buffer. We strictly crop the window!
                 let phys_w = target_w_phys as u32;
                 let phys_h = target_h_phys as u32;
 
@@ -352,48 +349,16 @@ async fn set_minimal_mode_tauri(window: tauri::WebviewWindow, minimal: bool) -> 
                     width: phys_w,
                     height: phys_h,
                 }));
-
-                // Use a larger rounded corner radius on native level (48 * scale)
-                use raw_window_handle::HasWindowHandle;
-                if let Ok(handle) = window.window_handle() {
-                    if let raw_window_handle::RawWindowHandle::Win32(win32) = handle.as_raw() {
-                        let hwnd = win32.hwnd.get() as *mut std::ffi::c_void;
-                        let radius = (48.0 * scale_factor) as i32;
-                        let diameter = radius * 2;
-                        unsafe {
-                            let rgn = CreateRoundRectRgn(0, 0, phys_w as i32, phys_h as i32, diameter, diameter);
-                            SetWindowRgn(hwnd, rgn, 1);
-                        }
-                    }
-                }
             }
             let _ = window.center();
         } else {
-            // Restore normal native window boundaries
-            #[cfg(target_os = "windows")]
-            {
-                use raw_window_handle::HasWindowHandle;
-                if let Ok(handle) = window.window_handle() {
-                    if let raw_window_handle::RawWindowHandle::Win32(win32) = handle.as_raw() {
-                        let hwnd = win32.hwnd.get() as *mut std::ffi::c_void;
-                        unsafe {
-                            // Reset region COMPLETELY before resizing to avoid cutting
-                            SetWindowRgn(hwnd, std::ptr::null_mut(), 1);
-                        }
-                    }
-                }
-            }
-
-            let _ = window.set_shadow(true);
-            
             // Restore to large size
             resize_to_90_percent(&window);
             let _ = window.center();
-            
-            // Re-apply rounding for the new large size
-            #[cfg(target_os = "windows")]
-            set_rounded_corners(&window);
         }
+        
+        // Final update of corners after size/position changes
+        set_rounded_corners(&window);
     }
     Ok(())
 }
@@ -461,8 +426,10 @@ pub fn run() {
 
             #[cfg(target_os = "windows")]
             {
-                // let _ = apply_mica(&window, None);
-                set_rounded_corners(&window);            }
+                // Disable system shadow early to prevent "white lines" border
+                let _ = window.set_shadow(false);
+                set_rounded_corners(&window);
+            }
 
             // Sync visibility state and update rounded corners on resize
             let window_events = window.clone();
