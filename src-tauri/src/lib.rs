@@ -1,15 +1,17 @@
-use tauri::{AppHandle, Manager, WindowEvent, WebviewWindow};
-use tauri::tray::{TrayIconBuilder, MenuItemBuilder, TrayIconEvent};
-use tauri::menu::MenuBuilder;
+use tauri::{AppHandle, Manager, WindowEvent};
+use tauri::tray::{TrayIconBuilder, TrayIconEvent, TrayIcon};
+use tauri::menu::{MenuBuilder, MenuItemBuilder};
 use window_vibrancy::apply_mica;
 use std::sync::atomic::{AtomicBool, Ordering};
 use windows_sys::Win32::UI::WindowsAndMessaging::*;
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::*;
 use windows_sys::Win32::Foundation::LPARAM;
 
+use std::sync::OnceLock;
+
 static WIN_PRESSED: AtomicBool = AtomicBool::new(false);
 static OTHER_KEY_PRESSED: AtomicBool = AtomicBool::new(false);
-static mut APP_HANDLE: Option<AppHandle> = None;
+static APP_HANDLE: OnceLock<AppHandle> = OnceLock::new();
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -21,7 +23,7 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_global_shortcut::Builder::new()
             .with_shortcut("Alt+Space").expect("invalid shortcut")
-            .with_handler(|app, shortcut| {
+            .with_handler(|app, shortcut, _event| {
                 if shortcut.to_string() == "alt+space" {
                     toggle_window(app);
                 }
@@ -30,7 +32,7 @@ pub fn run() {
         )
         .setup(|app| {
             let handle = app.handle().clone();
-            unsafe { APP_HANDLE = Some(handle.clone()); }
+            let _ = APP_HANDLE.set(handle);
 
             // Tray Menu items
             let show_item = MenuItemBuilder::with_id("show", "Show HotPaste").build(app)?;
@@ -40,17 +42,34 @@ pub fn run() {
                 .build()?;
 
             // Create System Tray
+            let tray_menu = menu.clone();
             let _tray = TrayIconBuilder::new()
                 .icon(app.default_window_icon().unwrap().clone())
-                .menu(&menu)
                 .on_menu_event(|app, event| match event.id.as_ref() {
-                    "show" => { toggle_window(app); }
+                    "show" => { 
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                            let _ = window.center();
+                        }
+                    }
                     "quit" => { std::process::exit(0); }
                     _ => {}
                 })
-                .on_tray_icon_event(|tray, event| {
-                    if let TrayIconEvent::Click { .. } = event {
-                        toggle_window(tray.app_handle());
+                .on_tray_icon_event(move |tray: &TrayIcon, event| {
+                    if let TrayIconEvent::Click { button, button_state: tauri::tray::MouseButtonState::Up, .. } = event {
+                        match button {
+                            tauri::tray::MouseButton::Left => {
+                                toggle_window(tray.app_handle());
+                            }
+                            tauri::tray::MouseButton::Right => {
+                                if let Some(window) = tray.app_handle().get_webview_window("main") {
+                                    // Pop up the menu at the current cursor position
+                                    let _ = window.popup_menu(&tray_menu);
+                                }
+                            }
+                            _ => {}
+                        }
                     }
                 })
                 .build(app)?;
@@ -62,27 +81,33 @@ pub fn run() {
                 let _ = apply_mica(&window, None);
             }
 
-            // Hide on blur
+            // Hide on blur (Temporarily disabled for UI development)
+            /*
             let win_handle = window.clone();
             window.on_window_event(move |event| {
                 match event {
                     WindowEvent::Focused(false) => {
                         let _ = win_handle.hide();
                     }
-                    WindowEvent::CloseRequested { api, .. } => {
-                        // Hide to tray instead of closing
-                        api.prevent_close();
-                        let _ = win_handle.hide();
-                    }
                     _ => {}
+                }
+            });
+            */
+
+            // Still handle close request to hide to tray
+            let win_handle_close = window.clone();
+            window.on_window_event(move |event| {
+                if let WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    let _ = win_handle_close.hide();
                 }
             });
 
             // Start Windows Keyboard Hook
             std::thread::spawn(|| unsafe {
-                let hook = SetWindowsHookExW(WH_KEYBOARD_LL, Some(low_level_keyboard_proc), 0, 0);
+                let hook = SetWindowsHookExW(WH_KEYBOARD_LL, Some(low_level_keyboard_proc), std::ptr::null_mut(), 0);
                 let mut msg = std::mem::zeroed();
-                while GetMessageW(&mut msg, 0, 0, 0) != 0 {
+                while GetMessageW(&mut msg, std::ptr::null_mut(), 0, 0) != 0 {
                     TranslateMessage(&msg);
                     DispatchMessageW(&msg);
                 }
@@ -100,11 +125,22 @@ unsafe extern "system" fn low_level_keyboard_proc(n_code: i32, w_param: usize, l
         let kb_data = *(l_param as *const KBDLLHOOKSTRUCT);
         let vk_code = kb_data.vkCode as u32;
 
+        // Ignore programmatically injected events (like our 0xFF dummy key)
+        // LLKHF_INJECTED = 0x10
+        if (kb_data.flags & 0x10) != 0 {
+            return CallNextHookEx(std::ptr::null_mut(), n_code, w_param, l_param);
+        }
+
         match w_param as u32 {
             WM_KEYDOWN | WM_SYSKEYDOWN => {
                 if vk_code == VK_LWIN as u32 || vk_code == VK_RWIN as u32 {
                     WIN_PRESSED.store(true, Ordering::SeqCst);
                     OTHER_KEY_PRESSED.store(false, Ordering::SeqCst);
+
+                    // Send a dummy key press/release (0xFF). Windows sees "Win + 0xFF"
+                    // and cancels the Start Menu opening.
+                    keybd_event(0xFF, 0, 0, 0);
+                    keybd_event(0xFF, 0, KEYEVENTF_KEYUP, 0);
                 } else if WIN_PRESSED.load(Ordering::SeqCst) {
                     OTHER_KEY_PRESSED.store(true, Ordering::SeqCst);
                 }
@@ -115,9 +151,17 @@ unsafe extern "system" fn low_level_keyboard_proc(n_code: i32, w_param: usize, l
                     let other_pressed = OTHER_KEY_PRESSED.load(Ordering::SeqCst);
 
                     if was_pressed && !other_pressed {
-                        if let Some(handle) = &APP_HANDLE {
+                        if let Some(handle) = APP_HANDLE.get() {
                             toggle_window(handle);
                         }
+                        
+                        // Send 0xFF again on KeyUp to be 100% sure
+                        keybd_event(0xFF, 0, 0, 0);
+                        keybd_event(0xFF, 0, KEYEVENTF_KEYUP, 0);
+
+                        // Release the Win key
+                        keybd_event(vk_code as u8, 0, KEYEVENTF_KEYUP, 0);
+                        
                         return 1;
                     }
                 }
@@ -125,7 +169,7 @@ unsafe extern "system" fn low_level_keyboard_proc(n_code: i32, w_param: usize, l
             _ => {}
         }
     }
-    CallNextHookEx(0, n_code, w_param, l_param)
+    CallNextHookEx(std::ptr::null_mut(), n_code, w_param, l_param)
 }
 
 fn toggle_window(app: &AppHandle) {
