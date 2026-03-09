@@ -14,6 +14,9 @@ import { logService } from './logService.svelte';
 const SUPPORTED_EXTENSIONS = ['.txt', '.md', '.prompt', '.snippet'];
 const CONFIG_FILENAME = '_hotpaste.json';
 
+import { BrowserFileSystemService } from './fileSystem';
+import { TauriFileSystemService } from './tauriFileSystem';
+
 /**
  * Interface for file system operations.
  */
@@ -34,6 +37,17 @@ export interface IFileSystemService {
     moveFile(path: string, targetTabPath: string): Promise<string>;
     getRootName(): string;
     restoreFromBackup(tabPath: string): Promise<HotPasteConfig>;
+}
+
+/**
+ * Factory to create the appropriate file system service.
+ */
+export function createFileSystemService(): IFileSystemService {
+    // @ts-ignore
+    if (window.__TAURI__) {
+        return new TauriFileSystemService();
+    }
+    return new BrowserFileSystemService();
 }
 
 export class BrowserFileSystemService implements IFileSystemService {

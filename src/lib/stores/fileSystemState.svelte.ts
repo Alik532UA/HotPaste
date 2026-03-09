@@ -3,7 +3,7 @@
  */
 
 import type { Tab, Card, HotPasteConfig } from '../types';
-import { BrowserFileSystemService, type IFileSystemService } from '../services/fileSystem';
+import { createFileSystemService, type IFileSystemService } from '../services/fileSystem';
 import { logService } from '../services/logService.svelte';
 import { uiState } from './uiState.svelte';
 import { hotkeyState } from './hotkeyState.svelte';
@@ -12,7 +12,7 @@ import { QWERTY_CODES } from '../utils/keyboardLayout';
 
 // --- Singleton state ---
 
-const fileSystemService: IFileSystemService = new BrowserFileSystemService();
+const fileSystemService: IFileSystemService = createFileSystemService();
 
 let tabs = $state<Tab[]>([]);
 let isConnected = $state(false);

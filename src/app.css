@@ -139,6 +139,28 @@ body {
   overflow-x: hidden;
 }
 
+/* Tauri specific fixes for Mica effect visibility */
+html.is-tauri, 
+html.is-tauri body, 
+html.is-tauri #app,
+html.is-tauri .app-content {
+  background-color: transparent !important;
+  background-image: none !important;
+}
+
+html.is-tauri body::before {
+  display: none !important;
+}
+
+html.is-tauri .app-header {
+  background: rgba(15, 15, 22, 0.4);
+  backdrop-filter: blur(8px);
+}
+
+html.is-tauri .tab-bar-wrapper {
+  background: rgba(15, 15, 22, 0.2);
+}
+
 /* Subtle background texture / grid */
 body::before {
   content: '';

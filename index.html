@@ -12,6 +12,11 @@
     <title>HotPaste — Менеджер сніпетів</title>
   </head>
   <body>
+    <script>
+      if (window.__TAURI__) {
+        document.documentElement.classList.add('is-tauri');
+      }
+    </script>
     <div id="app"></div>
     <script type="module" src="src/main.ts"></script>
   </body>

@@ -32,6 +32,7 @@
   import { t } from "./lib/i18n";
   import { logService } from "./lib/services/logService.svelte";
   import { Sparkles, Waves, Shapes, CircleOff, Moon, Sun } from "lucide-svelte";
+  import { enable, isEnabled } from "tauri-plugin-autostart-api";
 
   const appState = getState();
 
@@ -93,12 +94,30 @@
     }
   }
 
-  onMount(() => {
+  onMount(async () => {
     theme.init();
     language.init();
     background.init();
     initUrlSync();
-    handleRefreshTabs();
+    
+    // Auto-connect and setup if in Tauri
+    // @ts-ignore
+    if (window.__TAURI__) {
+      await connectDirectory();
+      
+      // Setup autostart
+      try {
+        const autostartActive = await isEnabled();
+        if (!autostartActive) {
+          await enable();
+          logService.log('app', 'Autostart enabled');
+        }
+      } catch (err) {
+        logService.error('app', 'Failed to setup autostart', err);
+      }
+    } else {
+      handleRefreshTabs();
+    }
 
     document.addEventListener("keydown", onKeydown);
     document.addEventListener("wheel", onWheel, { passive: false });

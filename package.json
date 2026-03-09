@@ -7,10 +7,12 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "tauri": "tauri",
     "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^6.2.1",
+    "@tauri-apps/cli": "^2.10.1",
     "@tsconfig/svelte": "^5.0.6",
     "@types/dompurify": "^3.0.5",
     "@types/node": "^24.10.1",
@@ -22,10 +24,12 @@
     "vitest": "^4.0.18"
   },
   "dependencies": {
+    "@tauri-apps/api": "^2.10.1",
     "dompurify": "^3.3.2",
     "fuse.js": "^7.1.0",
     "lucide-svelte": "^0.577.0",
     "snarkdown": "^2.0.0",
+    "tauri-plugin-autostart-api": "^0.0.1-security",
     "zod": "^4.3.6"
   }
 }
