@@ -59,6 +59,13 @@
   let showMenu = $state(false);
   let activeCategory = $state<'local' | 'running' | 'system'>('local');
 
+  // Load icons for the active category whenever it changes
+  $effect(() => {
+    if (showMenu) {
+      startMenuState.loadIconsForCategory(activeCategory);
+    }
+  });
+
   onMount(() => {
     startMenuState.refreshShortcuts();
     
@@ -81,6 +88,7 @@
   });
 
   async function handleKeyClick(key: KeyInfo) {
+    import('../services/logService.svelte').then(m => m.logService.debug('startMenu', `Key clicked: ${key.code}, showMenu: ${showMenu}`));
     const assignment = startMenuState.assignments[key.code];
     if (assignment) {
       await handleLaunch(key.code);
@@ -92,11 +100,13 @@
 
   function handleKeyContextMenu(e: MouseEvent, key: KeyInfo) {
     e.preventDefault();
+    import('../services/logService.svelte').then(m => m.logService.debug('startMenu', `Key context menu: ${key.code}`));
     selectedKey = key;
     showMenu = true;
   }
 
   function handleAssign(shortcut: ShortcutInfo | 'none') {
+    import('../services/logService.svelte').then(m => m.logService.info('startMenu', `Assigning shortcut: ${shortcut === 'none' ? 'NONE' : shortcut.name}`));
     if (selectedKey && isKeyClickable(selectedKey.code)) {
       startMenuState.assignKey(selectedKey.code, shortcut);
       showMenu = false;
@@ -110,7 +120,22 @@
   }
 
   async function handleLaunch(keyCode: string) {
+    await start_menu_launch(keyCode);
+  }
+
+  async function start_menu_launch(keyCode: string) {
     await startMenuState.launchKey(keyCode);
+  }
+
+  async function handleClearCache() {
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('clear_icon_cache');
+      import('../services/logService.svelte').then(m => m.logService.info('startMenu', 'Icon cache cleared'));
+      startMenuState.refreshShortcuts(); // Refresh icons after clearing
+    } catch (err) {
+      import('../services/logService.svelte').then(m => m.logService.error('startMenu', 'Failed to clear cache', err));
+    }
   }
 
   const currentShortcuts = $derived(() => {
@@ -121,11 +146,16 @@
   });
 </script>
 
-<div class="start-menu-container" class:minimal={uiState.isMinimalMode} in:fade={{ duration: 300 }} data-tauri-drag-region>
-  <div class="keyboard-body" in:fly={{ y: 20, delay: 100 }} data-tauri-drag-region>
-    <div class="keyboard-container" data-tauri-drag-region>
+<div class="start-menu-container" class:minimal={uiState.isMinimalMode} in:fade={{ duration: 300 }}>
+  <div 
+    class="keyboard-body" 
+    class:modal-open={showMenu}
+    in:fly={{ y: 20, delay: 100 }} 
+    data-tauri-drag-region={!showMenu ? "" : undefined}
+  >
+    <div class="keyboard-container">
       {#each keyboardRows as row}
-        <div class="keyboard-row" data-tauri-drag-region>
+        <div class="keyboard-row">
           {#each row as key}
             {@const assignment = startMenuState.assignments[key.code]}
             {@const clickable = isKeyClickable(key.code)}
@@ -166,7 +196,10 @@
     <div 
       class="assignment-overlay" 
       transition:fade={{ duration: 200 }} 
-      onclick={() => showMenu = false} 
+      onclick={() => {
+        import('../services/logService.svelte').then(m => m.logService.debug('startMenu', 'Overlay clicked - closing modal'));
+        showMenu = false;
+      }} 
       onkeydown={(e) => e.key === 'Escape' && (showMenu = false)}
       role="presentation"
       data-testid="start-menu-overlay"
@@ -174,7 +207,10 @@
       <div 
         class="assignment-modal" 
         transition:fly={{ y: 20 }} 
-        onclick={(e) => e.stopPropagation()} 
+        onclick={(e) => {
+          e.stopPropagation();
+          import('../services/logService.svelte').then(m => m.logService.debug('startMenu', 'Modal content clicked - propagation stopped'));
+        }} 
         onkeydown={(e) => e.stopPropagation()}
         role="presentation"
         data-testid="start-menu-modal"
@@ -184,14 +220,24 @@
             <span class="key-badge" data-testid="selected-key-label">{selectedKey?.label}</span>
             <h4>Assign Shortcut</h4>
           </div>
-          <button 
-            class="close-btn" 
-            onclick={() => showMenu = false} 
-            aria-label="Close"
-            data-testid="btn-close-assignment-modal"
-          >
-            <X size={20} />
-          </button>
+          <div class="header-actions">
+            <button 
+              class="action-icon-btn" 
+              onclick={handleClearCache} 
+              title="Clear Icon Cache"
+              data-testid="btn-clear-cache"
+            >
+              <Trash2 size={18} />
+            </button>
+            <button 
+              class="close-btn" 
+              onclick={() => showMenu = false} 
+              aria-label="Close"
+              data-testid="btn-close-assignment-modal"
+            >
+              <X size={20} />
+            </button>
+          </div>
         </div>
 
         <div class="modal-layout">
@@ -334,6 +380,9 @@
     padding: 1.5%;
     border-radius: 2vw;
     box-shadow: 0 30px 70px rgba(0, 0, 0, 0.8);
+    position: relative;
+    z-index: 1;
+    transition: filter 0.3s ease, transform 0.3s ease;
     
     /* 
        The keyboard will be 95% width, BUT 
@@ -347,6 +396,13 @@
     flex-direction: column;
     margin: auto;
     container-type: inline-size;
+  }
+
+  .keyboard-body.modal-open {
+    pointer-events: none;
+    visibility: hidden; /* This completely removes interactivity while modal is open */
+    opacity: 0;
+    transition: opacity 0.2s, visibility 0.2s;
   }
 
   .keyboard-container {
@@ -444,6 +500,7 @@
     height: 45%;
     object-fit: contain;
     filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+    image-rendering: -webkit-optimize-contrast;
   }
 
   :global(.key-app-icon-fallback) {
@@ -462,8 +519,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1000;
-    border-radius: 24px;
+    z-index: 10000; /* Increased */
+    border-radius: inherit;
+    pointer-events: auto !important;
   }
 
   .assignment-modal {
@@ -477,6 +535,8 @@
     box-shadow: 0 40px 100px rgba(0, 0, 0, 0.6);
     display: flex;
     flex-direction: column;
+    pointer-events: auto !important;
+    z-index: 10001;
   }
 
   .modal-header {
@@ -507,6 +567,30 @@
     font-size: 1.5rem;
     font-weight: 800;
     color: var(--color-text-primary);
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .action-icon-btn {
+    background: transparent;
+    border: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    padding: 10px;
+    border-radius: 50%;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .action-icon-btn:hover {
+    background: rgba(255, 60, 60, 0.1);
+    color: var(--color-error);
   }
 
   .close-btn {
@@ -643,9 +727,12 @@
   }
 
   .app-icon-img {
-    width: 40px;
-    height: 40px;
+    max-width: 40px;
+    max-height: 40px;
+    width: auto;
+    height: auto;
     object-fit: contain;
+    image-rendering: -webkit-optimize-contrast;
   }
 
   .shortcut-item:hover .item-icon.large {

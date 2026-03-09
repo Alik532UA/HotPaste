@@ -7,6 +7,9 @@ import type { Card, Tab } from '../types';
 
 // --- State ---
 
+// Better environment check for Tauri v2
+const isTauri = typeof window !== 'undefined' && (!!(window as any).__TAURI_INTERNALS__ || !!(window as any).__TAURI__);
+
 let toastMessage = $state('');
 let toastVisible = $state(false);
 let toastTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -17,7 +20,7 @@ let editingCardPath = $state('');
 let flashingCardPath = $state('');
 let selectedCardIds = $state<Set<string>>(new Set());
 let isSelectionMode = $state(false);
-let isMinimalMode = $state(true);
+let isMinimalMode = $state(isTauri);
 
 let cardView = $state<'short' | 'full'>((localStorage.getItem('hp_card_view') as any) || 'short');
 let cardDensity = $state<'expanded' | 'normal' | 'compact'>((localStorage.getItem('hp_card_density') as any) || 'normal');

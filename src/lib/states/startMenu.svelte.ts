@@ -74,45 +74,93 @@ class StartMenuState {
 
             logService.info('startMenu', `Metadata loaded: ${local.length} local, ${running.length} running, ${system.length} system`);
 
-            // 2. Start fetching icons in background (don't await)
-            this.fetchAllIcons();
+            // 2. Fetch icons for assignments first (highest priority)
+            this.loadAssignmentIcons();
 
         } catch (err) {
             logService.error('startMenu', 'Failed to refresh shortcuts', err);
         }
     }
 
-    private async fetchAllIcons() {
-        // We load icons in parallel batches to speed up but not freeze
-        await Promise.all([
-            this.loadIconsForList(this.availableShortcuts),
-            this.loadIconsForList(this.runningProcesses),
-            this.loadIconsForList(this.systemShortcuts)
-        ]);
-        logService.info('startMenu', 'All icons loaded');
+    /**
+     * Call this when a category becomes active to load its icons
+     */
+    async loadIconsForCategory(category: 'local' | 'running' | 'system') {
+        const list = category === 'local' ? this.availableShortcuts : 
+                     category === 'running' ? this.runningProcesses : 
+                     this.systemShortcuts;
+        
+        await this.loadIconsForList(list);
+    }
+
+    private async loadAssignmentIcons() {
+        const pathsToFetch = Object.values(this.assignments)
+            .filter(a => !a.icon)
+            .map(a => a.path);
+        
+        if (pathsToFetch.length === 0) return;
+
+        logService.debug('startMenu', `Loading icons for ${pathsToFetch.length} assignments`);
+        
+        // Update assignments with icons once loaded
+        for (const key in this.assignments) {
+            const assignment = this.assignments[key];
+            if (!assignment.icon) {
+                try {
+                    const { invoke } = await import('@tauri-apps/api/core');
+                    const icon = await invoke<string>('get_shortcut_icon', { path: assignment.path });
+                    if (icon) assignment.icon = icon;
+                } catch (err) {
+                    logService.error('startMenu', `Failed to load icon for assigned key ${key}`, err);
+                }
+            }
+        }
     }
 
     private async loadIconsForList(list: ShortcutInfo[]) {
-        const { invoke } = await import('@tauri-apps/api/core');
+        if (list.length === 0) return;
         
-        const category = list.length > 0 ? list[0].type : 'unknown';
-        logService.debug('startMenu', `Starting icon load for category: ${category} (${list.length} items)`);
+        const { invoke } = await import('@tauri-apps/api/core');
+        const category = list[0].type || 'unknown';
+        
+        // Check if we already have icons for most items
+        const itemsToFetch = list.filter(item => !item.icon);
+        if (itemsToFetch.length === 0) return;
 
-        // Load one by one to keep UI responsive and show progress
-        for (const item of list) {
-            if (item.icon) continue; // Skip if already has icon
+        logService.debug('startMenu', `Loading icons for ${category} (${itemsToFetch.length} items remaining)`);
+
+        // Use batch command for efficiency
+        const CHUNK_SIZE = 10;
+        for (let i = 0; i < itemsToFetch.length; i += CHUNK_SIZE) {
+            const chunk = itemsToFetch.slice(i, i + CHUNK_SIZE);
+            const paths = chunk.map(item => item.path);
+            
+            logService.debug('startMenu', `Sending ${paths.length} paths to backend for icons`, paths);
+            
             try {
-                const iconBase64 = await invoke<string>('get_shortcut_icon', { path: item.path });
-                if (iconBase64) {
-                    item.icon = iconBase64;
-                } else {
-                    logService.warn('startMenu', `Empty icon returned for: ${item.name} (${item.path})`);
+                const results = await invoke<[string, string][]>('get_shortcut_icons_batch', { paths });
+                logService.debug('startMenu', `Received ${results.length} icons from backend for chunk of ${paths.length}`);
+                
+                const iconMap = new Map(results);
+                let updatedCount = 0;
+                
+                for (const item of chunk) {
+                    const icon = iconMap.get(item.path);
+                    if (icon) {
+                        item.icon = icon;
+                        updatedCount++;
+                    }
                 }
+                logService.debug('startMenu', `Updated ${updatedCount} items in chunk`);
             } catch (err) {
-                logService.error('startMenu', `Failed to load icon for ${item.name}: ${err}`, { path: item.path });
+                logService.error('startMenu', `Batch icon load failed for chunk in ${category}`, err);
             }
+            
+            // Small delay between chunks to keep UI responsive
+            await new Promise(r => setTimeout(r, 20));
         }
-        logService.debug('startMenu', `Finished icon load for category: ${category}`);
+        
+        logService.info('startMenu', `Finished loading icons for ${category}`);
     }
 
     assignKey(keyCode: string, shortcut: ShortcutInfo | 'none') {

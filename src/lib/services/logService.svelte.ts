@@ -19,12 +19,12 @@ let logs = $state<LogEntry[]>([]);
 export const logConfig: Record<string, boolean> = {
     app: false,
     appstate: false,
-    filesystem: false,
-    ui: false,
+    filesystem: true,
+    ui: true,
     hotkeys: false,
     fsstate: false,
     hotkeystate: false,
-    startmenu: true, // Only this for now
+    startmenu: true,
 };
 
 const levelStyles: Record<LogLevel, string> = {

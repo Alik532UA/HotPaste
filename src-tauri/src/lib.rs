@@ -24,26 +24,18 @@ fn set_rounded_corners(window: &tauri::WebviewWindow) {
             let hwnd = win32_handle.hwnd.get() as windows_sys::Win32::Foundation::HWND;
             
             let corner_preference: u32 = 2; // DWMWCP_ROUND (Standard rounding)
-            let border_color: u32 = 0x00010101; // Near Black (DWM interprets 0x00000000 as default sometimes)
+            let border_color: u32 = 0x00010101; // Near Black
             let caption_color: u32 = 0x00010101; // Near Black
             let dark_mode: u32 = 1; // Immersive Dark Mode
-            let nc_policy: u32 = 2; // DWMNCRP_ENABLED (Force non-client rendering policy)
+            let nc_policy: u32 = 2; // DWMNCRP_ENABLED
 
             unsafe {
-                // 1. Set window corner preference to round (helps DWM clip correctly)
                 DwmSetWindowAttribute(hwnd, 33, &corner_preference as *const _ as *const std::ffi::c_void, 4);
-                
-                // 2. Set border and caption to black to avoid light lines on focus loss
                 DwmSetWindowAttribute(hwnd, 34, &border_color as *const _ as *const std::ffi::c_void, 4);
                 DwmSetWindowAttribute(hwnd, 35, &caption_color as *const _ as *const std::ffi::c_void, 4);
-                
-                // 3. Force Dark Mode (fixes light lines on some versions of Win11)
                 DwmSetWindowAttribute(hwnd, 20, &dark_mode as *const _ as *const std::ffi::c_void, 4);
-                
-                // 4. Set NC rendering policy
                 DwmSetWindowAttribute(hwnd, 2, &nc_policy as *const _ as *const std::ffi::c_void, 4);
 
-                // Apply custom region rounding (diameters = radius * 2)
                 if let Ok(size) = window.outer_size() {
                     let scale_factor = window.scale_factor().unwrap_or(1.0);
                     let radius = (48.0 * scale_factor) as i32;
@@ -63,8 +55,6 @@ extern "system" {
 }
 
 pub fn run_hook_worker() {
-    // This function runs in a separate process with NO window and NO Tauri.
-    // This is the most reliable way to capture the Win key on Windows.
     unsafe {
         let hook = SetWindowsHookExW(WH_KEYBOARD_LL, Some(low_level_keyboard_proc_worker), std::ptr::null_mut(), 0);
         let mut msg = std::mem::zeroed();
@@ -96,7 +86,6 @@ unsafe extern "system" fn low_level_keyboard_proc_worker(n_code: i32, w_param: u
                     WIN_PRESSED.store(true, Ordering::SeqCst);
                     OTHER_KEY_PRESSED.store(false, Ordering::SeqCst);
                 } else if WIN_PRESSED.load(Ordering::SeqCst) {
-                    // Any other key pressed while Win is down means it's a combination
                     OTHER_KEY_PRESSED.store(true, Ordering::SeqCst);
                 }
             }
@@ -106,14 +95,9 @@ unsafe extern "system" fn low_level_keyboard_proc_worker(n_code: i32, w_param: u
                     let other_pressed = OTHER_KEY_PRESSED.load(Ordering::SeqCst);
 
                     if was_pressed && !other_pressed {
-                        // It was a standalone Win key press.
-                        // Poison the sequence ONLY NOW to prevent Start Menu.
                         keybd_event(0xFF, 0, 0, 0);
                         keybd_event(0xFF, 0, KEYEVENTF_KEYUP, 0);
-                        
                         println!("TOGGLE");
-                        
-                        // Release Win for the system
                         keybd_event(vk_code as u8, 0, KEYEVENTF_KEYUP, 0);
                         return 1;
                     }
@@ -136,25 +120,15 @@ async fn launch_start_program(app: AppHandle, name: String) -> Result<(), String
 async fn launch_program_by_path(path: String) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
-        let status = Command::new("cmd")
+        let _ = Command::new("cmd")
             .args(["/C", "start", "", &path])
             .spawn()
             .map_err(|e| e.to_string())?;
-        log::info!("Program launched: {:?}", status);
     }
-
-    #[cfg(not(target_os = "windows"))]
-    {
-        let _ = Command::new("open")
-            .arg(&path)
-            .spawn()
-            .map_err(|e| e.to_string())?;
-    }
-
     Ok(())
 }
 
-#[derive(serde::Serialize, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
 struct ShortcutInfo {
     name: String,
     path: String,
@@ -220,15 +194,14 @@ async fn get_local_shortcuts(app: AppHandle) -> Result<Vec<ShortcutInfo>, String
             return Ok(vec![]);
         }
 
-        // Pass the start_path itself as Base64 to avoid ANY encoding issues in the script body
         let start_path_b64 = general_purpose::STANDARD.encode(start_path.to_string_lossy().as_bytes());
 
         let script = format!(
-            "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8;
+            r##"[Console]::OutputEncoding = [System.Text.Encoding]::UTF8;
              $root = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('{}'));
              Get-ChildItem -Path $root -Recurse | Where-Object {{ $_.Extension -match 'lnk|exe' }} | ForEach-Object {{
                 [PSCustomObject]@{{ Name=$_.BaseName; Path=$_.FullName; Icon=$null }}
-             }} | ConvertTo-Json",
+             }} | ConvertTo-Json"##,
             start_path_b64
         );
 
@@ -248,71 +221,260 @@ async fn get_local_shortcuts(app: AppHandle) -> Result<Vec<ShortcutInfo>, String
 }
 
 #[tauri::command]
-async fn get_shortcut_icon(path: String) -> Result<String, String> {
+async fn get_shortcut_icons_batch(app: AppHandle, paths: Vec<String>) -> Result<Vec<(String, String)>, String> {
     #[cfg(target_os = "windows")]
     {
         use base64::{Engine as _, engine::general_purpose};
+        use md5;
+
+        let docs = app.path().document_dir().map_err(|e| e.to_string())?;
+        let cache_dir = docs.join("HotPaste").join("start").join("icon-cache");
+        if !cache_dir.exists() {
+            let _ = std::fs::create_dir_all(&cache_dir);
+        }
         
-        let script = format!(
-            "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8;
-             Add-Type -AssemblyName System.Drawing;
-             $p = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('{}'));
-             $t = $p;
-             try {{
-                if ($p.EndsWith('.lnk')) {{
-                    $shell = New-Object -ComObject Shell.Application;
-                    $folder = $shell.NameSpace((Split-Path $p));
-                    $item = $folder.ParseName((Split-Path $p -Leaf));
-                    if ($item -and $item.IsLink) {{
-                        $link = $item.GetLink;
-                        $target = $link.Path;
-                        if ($target -and [System.IO.File]::Exists($target)) {{
-                            $t = $target;
-                        }} else {{
-                            # Fallback to WScript if Shell.Application fails for complex links
-                            $ws = New-Object -ComObject WScript.Shell;
-                            $l = $ws.CreateShortcut($p);
-                            if ($l.TargetPath -and [System.IO.File]::Exists($l.TargetPath)) {{
-                                $t = $l.TargetPath;
-                            }}
+        let mut results = Vec::new();
+        let mut missing_paths = Vec::new();
+
+        for path in &paths {
+            let hash = format!("{:x}", md5::compute(path.as_bytes()));
+            let cache_file = cache_dir.join(format!("{}.png", hash));
+            
+            if cache_file.exists() {
+                if let Ok(data) = std::fs::read(&cache_file) {
+                    results.push((path.clone(), general_purpose::STANDARD.encode(data)));
+                    continue;
+                }
+            }
+            missing_paths.push(path.clone());
+        }
+
+        if missing_paths.is_empty() {
+            return Ok(results);
+        }
+
+        for chunk in missing_paths.chunks(20) {
+            let paths_json = serde_json::to_string(chunk).map_err(|e| e.to_string())?;
+            let utf16_json: Vec<u16> = paths_json.encode_utf16().collect();
+            let u8_json: Vec<u8> = utf16_json.iter().flat_map(|&u| u.to_le_bytes().to_vec()).collect();
+            let paths_b64 = general_purpose::STANDARD.encode(&u8_json);
+
+            let script = format!(
+                r##"[Console]::OutputEncoding = [System.Text.Encoding]::UTF8;
+[void][Reflection.Assembly]::LoadWithPartialName('System.Drawing');
+
+if (-not ([System.Management.Automation.PSTypeName]'JumboIcon').Type) {{
+    try {{
+        Add-Type -TypeDefinition @"
+#pragma warning disable
+using System;
+using System.Runtime.InteropServices;
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
+using System.Collections.Generic;
+
+public class JumboIcon {{
+    [StructLayout(LayoutKind.Sequential)]
+    public struct SIZE {{
+        public int cx;
+        public int cy;
+    }}
+
+    [ComImport]
+    [Guid("bcc18b79-ba16-442f-80c4-8a59c30c463b")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    public interface IShellItemImageFactory {{
+        [PreserveSig]
+        int GetImage([In, MarshalAs(UnmanagedType.Struct)] SIZE size, [In] int flags, [Out] out IntPtr phbm);
+    }}
+
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode, PreserveSig = false)]
+    public static extern int SHCreateItemFromParsingName(
+        [In, MarshalAs(UnmanagedType.LPWStr)] string pszPath,
+        [In] IntPtr pbc,
+        [In, MarshalAs(UnmanagedType.LPStruct)] Guid riid,
+        [Out, MarshalAs(UnmanagedType.Interface)] out IShellItemImageFactory ppv);
+
+    [DllImport("gdi32.dll")]
+    public static extern bool DeleteObject(IntPtr hObject);
+
+    public static string GetBase64(string path, int targetSize) {{
+        if (string.IsNullOrEmpty(path)) return "";
+        IntPtr hBitmap = IntPtr.Zero;
+        try {{
+            // Modern Shell API for high-quality images (Vista+)
+            IShellItemImageFactory factory;
+            Guid guid = new Guid("bcc18b79-ba16-442f-80c4-8a59c30c463b");
+            int hr = SHCreateItemFromParsingName(path, IntPtr.Zero, guid, out factory);
+            
+            if (hr == 0 && factory != null) {{
+                SIZE size = new SIZE {{ cx = targetSize, cy = targetSize }};
+                // SIIGBF_RESIZETOFIT = 0, SIIGBF_BIGGERSIZEOK = 1, SIIGBF_ICONONLY = 4
+                hr = factory.GetImage(size, 0x1 | 0x4, out hBitmap);
+                if (hr == 0 && hBitmap != IntPtr.Zero) {{
+                    using (Bitmap bmp = Bitmap.FromHbitmap(hBitmap)) {{
+                        DeleteObject(hBitmap);
+                        Console.WriteLine("DIAG: Factory returned " + bmp.Width + "x" + bmp.Height + " for " + path);
+                        using (System.IO.MemoryStream ms = new System.IO.MemoryStream()) {{
+                            bmp.Save(ms, ImageFormat.Png);
+                            return Convert.ToBase64String(ms.ToArray());
                         }}
                     }}
                 }}
-                $i = [System.Drawing.Icon]::ExtractAssociatedIcon($t);
-                $m = New-Object System.IO.MemoryStream;
-                $i.ToBitmap().Save($m, [System.Drawing.Imaging.ImageFormat]::Png);
-                [Console]::WriteLine([Convert]::ToBase64String($m.ToArray()));
-                $m.Dispose();
-                $i.Dispose();
-             }} catch {{
-                try {{
-                    # Last fallback, might have arrow, but better than nothing
-                    $i = [System.Drawing.Icon]::ExtractAssociatedIcon($p);
-                    $m = New-Object System.IO.MemoryStream;
-                    $i.ToBitmap().Save($m, [System.Drawing.Imaging.ImageFormat]::Png);
-                    [Console]::WriteLine([Convert]::ToBase64String($m.ToArray()));
-                }} catch {{ }}
-             }}",
-            general_purpose::STANDARD.encode(path.as_bytes())
-        );
+            }}
+        }} catch (Exception ex) {{
+            Console.WriteLine("DIAG: Factory failed for " + path + ": " + ex.Message);
+        }} finally {{
+            if (hBitmap != IntPtr.Zero) DeleteObject(hBitmap);
+        }}
 
-        let utf16_script: Vec<u16> = script.encode_utf16().collect();
-        let u8_script: Vec<u8> = utf16_script.iter().flat_map(|&u| u.to_le_bytes().to_vec()).collect();
-        let encoded_script = general_purpose::STANDARD.encode(&u8_script);
+        // LAST RESORT Fallback
+        try {{
+            using (Icon assocIcon = Icon.ExtractAssociatedIcon(path)) {{
+                if (assocIcon != null) {{
+                    using (Bitmap bmp = assocIcon.ToBitmap()) {{
+                        Console.WriteLine("DIAG: Final fallback 32x32 for " + path);
+                        using (System.IO.MemoryStream ms = new System.IO.MemoryStream()) {{
+                            bmp.Save(ms, ImageFormat.Png);
+                            return Convert.ToBase64String(ms.ToArray());
+                        }}
+                    }}
+                }}
+            }}
+        }} catch {{ }}
+        
+        return "";
+    }}
+}}
+"@ -ReferencedAssemblies System.Drawing, System.Windows.Forms
+    }} catch {{
+        Write-Host "DIAG: Add-Type failed: $($_.Exception.Message)"
+    }}
+}}
 
-        let output = Command::new("powershell")
-            .args(["-NoProfile", "-NonInteractive", "-EncodedCommand", &encoded_script])
-            .output()
-            .map_err(|e| e.to_string())?;
+$jsonRaw = [System.Convert]::FromBase64String('{}')
+$json = [System.Text.Encoding]::Unicode.GetString($jsonRaw)
+$paths = $json | ConvertFrom-Json
+$out = @{{}}
+$wsh = New-Object -ComObject WScript.Shell
 
-        let result = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        if result.is_empty() {
-            return Err("Failed to extract icon".to_string());
+# Crucial: Unroll array if PS 5.1 returned it as a single object
+foreach ($p in @($paths)) {{
+    try {{
+        if (-not (Test-Path $p)) {{
+            Write-Host "DIAG: Path not found: $p"
+            continue
+        }}
+        $t = $p
+        if ($p.EndsWith('.lnk')) {{
+            try {{
+                $link = $wsh.CreateShortcut($p)
+                if ($link.TargetPath -and (Test-Path $link.TargetPath)) {{ 
+                    $t = $link.TargetPath 
+                }}
+            }} catch {{ }}
+        }}
+        $base64 = [JumboIcon]::GetBase64($t, 256)
+        if ([string]::IsNullOrEmpty($base64) -and $t -ne $p) {{ 
+            $base64 = [JumboIcon]::GetBase64($p, 256) 
+        }}
+        if (![string]::IsNullOrEmpty($base64)) {{ 
+            $out[$p] = $base64 
+            Write-Host "DIAG: Success for $p"
+        }} else {{
+            Write-Host "DIAG: Failed extraction for $p"
+        }}
+    }} catch {{ 
+        Write-Host "DIAG: Error for $p : $($_.Exception.Message)"
+    }}
+}}
+
+Write-Output "---JSON_START---"
+if ($out.Count -eq 0) {{
+    Write-Output "{{}}"
+}} else {{
+    $out | ConvertTo-Json -Compress
+}}
+"##,
+                paths_b64
+            );
+
+            let utf16_script: Vec<u16> = script.encode_utf16().collect();
+            let u8_script: Vec<u8> = utf16_script.iter().flat_map(|&u| u.to_le_bytes().to_vec()).collect();
+            let encoded_script = general_purpose::STANDARD.encode(&u8_script);
+
+            let output = Command::new("powershell")
+                .args(["-NoProfile", "-NonInteractive", "-EncodedCommand", &encoded_script])
+                .output()
+                .map_err(|e| e.to_string())?;
+
+            let result_str = String::from_utf8_lossy(&output.stdout).to_string();
+            let stderr_str = String::from_utf8_lossy(&output.stderr).to_string();
+            
+            for line in result_str.lines() {
+                if line.starts_with("DIAG:") {
+                    println!("[ICONS_DIAG] {}", line);
+                }
+            }
+
+            if !stderr_str.is_empty() {
+                println!("[ICONS_BATCH_STDERR] {}", stderr_str);
+            }
+
+            println!("[ICONS_BATCH] stdout length: {}, exit: {:?}", result_str.len(), output.status.code());
+            
+            if let Some(json_index) = result_str.find("---JSON_START---") {
+                let json_str = &result_str[json_index + "---JSON_START---".len()..].trim();
+                
+                if !json_str.is_empty() {
+                    match serde_json::from_str::<std::collections::HashMap<String, String>>(json_str) {
+                        Ok(map) => {
+                            println!("[ICONS_BATCH] Parsed {} icon entries", map.len());
+                            for (p, b64) in map {
+                                if let Ok(binary_data) = general_purpose::STANDARD.decode(&b64) {
+                                    let hash = format!("{:x}", md5::compute(p.as_bytes()));
+                                    let cache_file = cache_dir.join(format!("{}.png", hash));
+                                    let _ = std::fs::write(&cache_file, binary_data);
+                                }
+                                results.push((p, b64));
+                            }
+                        }
+                        Err(e) => {
+                            println!("[ICONS_BATCH] JSON parse error: {}", e);
+                            println!("[ICONS_BATCH] Raw json_str: {:?}", json_str);
+                        }
+                    }
+                }
+            }
         }
-        Ok(result)
+
+        Ok(results)
     }
     #[cfg(not(target_os = "windows"))]
     { Err("Not supported".to_string()) }
+}
+
+#[tauri::command]
+async fn get_shortcut_icon(app: AppHandle, path: String) -> Result<String, String> {
+    let results = get_shortcut_icons_batch(app, vec![path.clone()]).await?;
+    for (p, b64) in results {
+        if p == path {
+            return Ok(b64);
+        }
+    }
+    Err("Failed to get icon".to_string())
+}
+
+#[tauri::command]
+async fn clear_icon_cache(app: AppHandle) -> Result<(), String> {
+    let docs = app.path().document_dir().map_err(|e| e.to_string())?;
+    let cache_dir = docs.join("HotPaste").join("start").join("icon-cache");
+    if cache_dir.exists() {
+        std::fs::remove_dir_all(&cache_dir).map_err(|e| e.to_string())?;
+        let _ = std::fs::create_dir_all(&cache_dir);
+    }
+    Ok(())
 }
 
 fn parse_shortcuts_json(stdout: Vec<u8>) -> Result<Vec<ShortcutInfo>, String> {
@@ -349,11 +511,7 @@ async fn set_minimal_mode_tauri(window: tauri::WebviewWindow, minimal: bool) -> 
     IS_MINIMAL.store(minimal, Ordering::SeqCst);
     #[cfg(target_os = "windows")]
     {
-        // ALWAYS disable system shadow. It causes the "white border" on Windows 11.
-        // We use CSS shadows in app.css instead for a cleaner look.
         let _ = window.set_shadow(false);
-        
-        // Force rounded corners via DWM attribute and Region API
         set_rounded_corners(&window);
         
         if minimal {
@@ -376,12 +534,9 @@ async fn set_minimal_mode_tauri(window: tauri::WebviewWindow, minimal: bool) -> 
             }
             let _ = window.center();
         } else {
-            // Restore to large size
             resize_to_90_percent(&window);
             let _ = window.center();
         }
-        
-        // Final update of corners after size/position changes
         set_rounded_corners(&window);
     }
     Ok(())
@@ -401,6 +556,8 @@ pub fn run() {
             get_system_shortcuts,
             get_local_shortcuts,
             get_shortcut_icon,
+            get_shortcut_icons_batch,
+            clear_icon_cache,
             set_minimal_mode_tauri
         ])
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
@@ -419,10 +576,9 @@ pub fn run() {
             let handle = app.handle().clone();
             let _ = APP_HANDLE.set(handle);
 
-            // Tray Menu
-            let show_item = MenuItemBuilder::with_id("show", "Show HotPaste").build(app)?;
-            let quit_item = MenuItemBuilder::with_id("quit", "Quit").build(app)?;
-            let menu = MenuBuilder::new(app).items(&[&show_item, &quit_item]).build()?;
+            let show_item = MenuItemBuilder::with_id("show", "Show HotPaste").build(app).expect("failed to build menu item");
+            let quit_item = MenuItemBuilder::with_id("quit", "Quit").build(app).expect("failed to build menu item");
+            let menu = MenuBuilder::new(app).items(&[&show_item, &quit_item]).build().expect("failed to build menu");
             let tray_menu = menu.clone();
 
             let _tray = TrayIconBuilder::new()
@@ -445,11 +601,10 @@ pub fn run() {
                         }
                     }
                 })
-                .build(app)?;
+                .build(app).expect("failed to build tray icon");
 
             let window = app.get_webview_window("main").unwrap();
             
-            // Set initial size based on default Minimal Mode
             if IS_MINIMAL.load(Ordering::SeqCst) {
                 resize_to_minimal(&window);
             } else {
@@ -461,12 +616,10 @@ pub fn run() {
 
             #[cfg(target_os = "windows")]
             {
-                // Disable system shadow early to prevent "white lines" border
                 let _ = window.set_shadow(false);
                 set_rounded_corners(&window);
             }
 
-            // Sync visibility state and update rounded corners on resize
             let window_events = window.clone();
             window.on_window_event(move |event| {
                 match event {
@@ -475,7 +628,6 @@ pub fn run() {
                         let _ = window_events.hide();
                     }
                     WindowEvent::Resized(_) => {
-                        // Always update rounded corners to match NEW size
                         #[cfg(target_os = "windows")]
                         set_rounded_corners(&window_events);
 
@@ -487,7 +639,6 @@ pub fn run() {
                                 let current_ratio = width / height;
 
                                 if (current_ratio - target_ratio).abs() > 0.01 {
-                                    // Fix ratio by adjusting height
                                     let new_height = (width / target_ratio) as u32;
                                     let _ = window_events.set_size(tauri::Size::Physical(tauri::PhysicalSize {
                                         width: size.width,
@@ -501,7 +652,6 @@ pub fn run() {
                 }
             });
 
-            // SPAWN THE WORKER PROCESS
             let current_exe = std::env::current_exe().unwrap();
             std::thread::spawn(move || {
                 let mut child = Command::new(current_exe)
