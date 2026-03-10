@@ -106,6 +106,11 @@ export const en = {
         clearCache: "Data Cleanup",
         clearCacheDesc: "Reset all local settings, cache, and sessions. Your text files will not be affected.",
         clearCacheBtn: "Clear all",
-        clearCacheConfirm: "Are you sure you want to clear all data? This will not delete your snippet files, but will reset all app settings, including the folder path."
+        clearCacheConfirm: "Are you sure you want to clear all data? This will not delete your snippet files, but will reset all app settings, including the folder path.",
+        modeToggle: "Mode Toggle",
+        modeToggleDesc: "Choose the key(s) to quickly switch between Full and Minimal modes",
+        modeToggleSpace: "[Space] & [F11]",
+        modeToggleOnlySpace: "Only [Space]",
+        modeToggleOnlyF11: "Only [F11]"
     }
 };

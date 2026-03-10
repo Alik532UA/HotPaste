@@ -156,13 +156,7 @@ function setMinimalMode(value: boolean): void {
 function selectTab(index: number, max: number, tabType?: 'snippets' | 'keyboard', isExplicitClick: boolean = false): void {
     logService.info('ui', `selectTab: index=${index}, tabType=${tabType}, currentActive=${activeTabIndex}, isExplicit=${isExplicitClick}`);
     if (index >= 0 && index < max) {
-        if (index === activeTabIndex) {
-            if (isExplicitClick) {
-                // Manual toggle only when EXPLICITLY clicking the current tab
-                isMinimalMode = !isMinimalMode;
-                logService.info('ui', `selectTab (toggle): isMinimalMode=${isMinimalMode}`);
-            }
-        } else {
+        if (index !== activeTabIndex) {
             activeTabIndex = index;
             // Use defaults from config
             if (tabType === 'keyboard') {

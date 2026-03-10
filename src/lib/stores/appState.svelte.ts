@@ -211,7 +211,17 @@ export function handleGlobalKeydown(event: KeyboardEvent): void {
         return;
     }
 
-    if (event.code === 'Space') {
+    // Toggle Minimal/Full mode
+    const toggleConfig = configState.config.toggleModeHotkey;
+    const isSpace = event.code === 'Space';
+    const isF11 = event.code === 'F11';
+
+    const shouldToggle = 
+        (toggleConfig === 'space_f11' && (isSpace || isF11)) ||
+        (toggleConfig === 'space' && isSpace) ||
+        (toggleConfig === 'f11' && isF11);
+
+    if (shouldToggle) {
         event.preventDefault();
         uiState.toggleMinimalMode();
         return;

@@ -22,6 +22,11 @@ export const configState = {
     setDefaultModeKeyboard(mode: 'full' | 'minimal') {
         config.defaultModeKeyboard = mode;
         saveConfig();
+    },
+
+    setToggleModeHotkey(mode: 'space_f11' | 'space' | 'f11') {
+        config.toggleModeHotkey = mode;
+        saveConfig();
     }
 };
 

@@ -129,6 +129,8 @@ export interface AppConfig {
   defaultModeSnippets: 'full' | 'minimal';
   /** Default display mode for Keyboard tabs */
   defaultModeKeyboard: 'full' | 'minimal';
+  /** Mode toggle hotkey: [Space] and [F11], only [Space], or only [F11] */
+  toggleModeHotkey: 'space_f11' | 'space' | 'f11';
 }
 
 export const DEFAULT_CONFIG: AppConfig = {
@@ -136,6 +138,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   cardSizes: {},
   defaultModeSnippets: 'full',
   defaultModeKeyboard: 'minimal',
+  toggleModeHotkey: 'space_f11',
 };
 
 /** Config filename used in each tab directory */

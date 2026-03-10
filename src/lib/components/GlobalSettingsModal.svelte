@@ -68,6 +68,29 @@
     <div class="divider"></div>
 
     <section class="settings-section">
+      <h3 class="section-title">
+        <Maximize2 size={18} />
+        {t.settings.modeToggle}
+      </h3>
+      <p class="section-desc">{t.settings.modeToggleDesc}</p>
+      
+      <div class="setting-row">
+        <SegmentedToggle
+          id="mode-toggle-hotkey"
+          options={[
+            { id: "space_f11", label: t.settings.modeToggleSpace },
+            { id: "space", label: t.settings.modeToggleOnlySpace },
+            { id: "f11", label: t.settings.modeToggleOnlyF11 },
+          ]}
+          value={configState.config.toggleModeHotkey}
+          onSelect={(id) => configState.setToggleModeHotkey(id as any)}
+        />
+      </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <section class="settings-section">
       <h3 class="section-title danger">
         <Trash2 size={18} />
         {t.settings.clearCache}
