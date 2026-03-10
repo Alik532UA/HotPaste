@@ -208,6 +208,17 @@ html.is-minimal .theme-transition-overlay,
   -webkit-clip-path: inset(0 round var(--radius-window)) !important;
 }
 
+/* Ensure modals and overlays are ALWAYS interactive, even in Minimal Mode */
+.assignment-overlay,
+.assignment-modal,
+.modal-content,
+.base-modal,
+.modal-layout,
+.shortcuts-list {
+  pointer-events: auto !important;
+  visibility: visible !important;
+}
+
 /* Ensure the window root itself is truly transparent and clipped */
 html.is-minimal {
   background-color: transparent !important;

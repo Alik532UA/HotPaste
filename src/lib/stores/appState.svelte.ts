@@ -186,6 +186,18 @@ export function handleGlobalKeydown(event: KeyboardEvent): void {
 
     if (event.ctrlKey || event.metaKey || event.altKey) return;
 
+    if (event.code === 'Escape') {
+        event.preventDefault();
+        import('@tauri-apps/api/core').then(({ invoke }) => {
+            invoke('hide_window').catch(() => {
+                import('@tauri-apps/api/window').then(({ getCurrentWindow }) => {
+                    getCurrentWindow().hide();
+                });
+            });
+        });
+        return;
+    }
+
     const code = event.code;
     if (selectTabByHotkey(code)) {
         event.preventDefault();

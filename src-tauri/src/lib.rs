@@ -590,6 +590,11 @@ async fn set_minimal_mode_tauri(window: tauri::WebviewWindow, minimal: bool) -> 
     Ok(())
 }
 
+#[tauri::command]
+async fn hide_window(window: tauri::WebviewWindow) {
+    let _ = window.hide();
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -606,7 +611,8 @@ pub fn run() {
             get_shortcut_icon,
             get_shortcut_icons_batch,
             clear_icon_cache,
-            set_minimal_mode_tauri
+            set_minimal_mode_tauri,
+            hide_window
         ])
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             if let Some(window) = app.get_webview_window("main") {

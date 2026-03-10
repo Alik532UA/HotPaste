@@ -93,8 +93,13 @@
     // Special handling for minimal mode on first tab (ONLY IN TAURI)
     if (isTauri && appState.activeTabIndex === 0 && (e.key === "1" || e.code === "Digit1")) {
       const target = e.target as HTMLElement;
+      const isInput = target && (
+        ["INPUT", "TEXTAREA"].includes(target.tagName.toUpperCase()) ||
+        target.isContentEditable
+      );
+      
       // Only toggle if not typing in an input/textarea
-      if (!["INPUT", "TEXTAREA"].includes(target.tagName)) {
+      if (!isInput) {
         e.preventDefault();
         uiState.toggleMinimalMode();
         return;

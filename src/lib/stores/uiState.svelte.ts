@@ -130,16 +130,27 @@ function toggleCardView(): void {
 }
 
 function toggleMinimalMode(): void {
+    // Only allow enabling Minimal Mode on the first tab (Keyboard)
+    if (!isMinimalMode && activeTabIndex !== 0) return;
     isMinimalMode = !isMinimalMode;
 }
 
 function setMinimalMode(value: boolean): void {
+    // Only allow enabling Minimal Mode on the first tab (Keyboard)
+    if (value && activeTabIndex !== 0) return;
     isMinimalMode = value;
 }
 
 function selectTab(index: number, max: number): void {
     if (index >= 0 && index < max) {
         activeTabIndex = index;
+        
+        // Auto-switch mode based on tab
+        if (index === 0) {
+            isMinimalMode = true;
+        } else {
+            isMinimalMode = false;
+        }
     }
 }
 
@@ -147,7 +158,7 @@ function selectTabByHotkey(code: string, max: number): boolean {
     if (!isTabHotkey(code)) return false;
     const index = TAB_CODES.indexOf(code);
     if (index >= 0 && index < max) {
-        activeTabIndex = index;
+        selectTab(index, max);
         return true;
     }
     return false;
