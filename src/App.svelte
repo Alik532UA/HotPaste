@@ -206,6 +206,7 @@
             target.closest(".drag-handle") || 
             target.closest(".card-wrapper") || 
             target.closest(".tab") ||
+            target.closest(".scale-control") ||
             target.closest("[draggable='true']") ||
             target.draggable === true
           ) {
@@ -371,7 +372,7 @@
                 <div class="header-divider"></div>
 
                 <!-- Scale control -->
-                <div class="scale-control" data-testid="scale-control">
+                <div class="scale-control" data-testid="scale-control" data-tauri-drag-region="false">
                   <button class="scale-btn" onclick={() => adjustScale(-0.1)} title="Зменшити масштаб" data-testid="btn-scale-down">-</button>
                   <span class="scale-value" class:dragging={isDraggingScale} onmousedown={handleScaleMouseDown} oncontextmenu={(e) => { e.preventDefault(); setScale(1.0); }} onkeydown={handleScaleKeydown} role="button" tabindex="0" title="Затисніть для зміни, ПКМ — скинути" data-testid="scale-value">
                     <MousePointer2 size={12} class="drag-icon" />

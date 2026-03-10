@@ -341,7 +341,9 @@
     padding: 2cqmin;
     box-shadow: var(--shadow-lg);
     pointer-events: auto;
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+    transition:
+      transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+      opacity 0.3s ease;
     container-type: size;
     display: flex;
     align-items: center;
@@ -358,7 +360,7 @@
   .keyboard-container {
     display: flex;
     flex-direction: column;
-    gap: 0.8cqmin;
+    gap: 0.4cqmin;
     width: 100%;
     height: 100%;
     justify-content: space-between;
@@ -366,7 +368,7 @@
 
   .keyboard-row {
     display: flex;
-    gap: 0.8cqmin;
+    gap: 3.8cqmin;
     width: 100%;
     height: 14%;
   }
