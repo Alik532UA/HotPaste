@@ -23,7 +23,8 @@
         "alwaysOnTop": true,
         "skipTaskbar": true,
         "visible": false,
-        "devtools": true
+        "devtools": true,
+        "dragDropEnabled": false
       }
     ],
     "withGlobalTauri": true,
