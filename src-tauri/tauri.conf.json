@@ -22,7 +22,8 @@
         "center": true,
         "alwaysOnTop": true,
         "skipTaskbar": true,
-        "visible": false
+        "visible": false,
+        "devtools": true
       }
     ],
     "withGlobalTauri": true,
