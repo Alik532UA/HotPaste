@@ -469,18 +469,32 @@ public class JumboIcon {{
 }}
 
 $p = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('{}'))
+$b64 = ""
+
+# 1. Try direct path first (if file exists)
 if (Test-Path -LiteralPath $p) {{
     $b64 = [JumboIcon]::GetBase64($p, 256)
-    if ([string]::IsNullOrEmpty($b64) -and $p.EndsWith('.lnk')) {{
-        try {{
-            $wsh = New-Object -ComObject WScript.Shell
-            $link = $wsh.CreateShortcut($p)
-            if ($link.TargetPath -and (Test-Path -LiteralPath $link.TargetPath)) {{ 
-                $b64 = [JumboIcon]::GetBase64($link.TargetPath, 256)
-            }}
-        }} catch {{ }}
-    }}
-    if (![string]::IsNullOrEmpty($b64)) {{ Write-Output "---B64_START---$b64" }}
+}}
+
+# 2. If failed (or virtual path), try via shell:AppsFolder
+if ([string]::IsNullOrEmpty($b64)) {{
+    $virtualPath = "shell:AppsFolder\$p"
+    $b64 = [JumboIcon]::GetBase64($virtualPath, 256)
+}}
+
+# 3. Fallback for .lnk if it's a real file path
+if ([string]::IsNullOrEmpty($b64) -and (Test-Path -LiteralPath $p) -and $p.EndsWith('.lnk')) {{
+    try {{
+        $wsh = New-Object -ComObject WScript.Shell
+        $link = $wsh.CreateShortcut($p)
+        if ($link.TargetPath -and (Test-Path -LiteralPath $link.TargetPath)) {{ 
+            $b64 = [JumboIcon]::GetBase64($link.TargetPath, 256)
+        }}
+    }} catch {{ }}
+}}
+
+if (![string]::IsNullOrEmpty($b64)) {{ 
+    Write-Output "---B64_START---$b64" 
 }}
 "##,
         general_purpose::STANDARD.encode(path.as_bytes())
