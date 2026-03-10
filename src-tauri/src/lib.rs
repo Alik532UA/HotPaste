@@ -525,6 +525,27 @@ async fn clear_icon_cache(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+async fn get_system_apps() -> Result<Vec<ShortcutInfo>, String> {
+    #[cfg(target_os = "windows")]
+    {
+        let output = Command::new("powershell")
+            .args([
+                "-NoProfile",
+                "-Command",
+                "Get-StartApps | ForEach-Object {
+                    [PSCustomObject]@{ Name=$_.Name; Path=$_.AppID; Icon=$null }
+                } | ConvertTo-Json"
+            ])
+            .output()
+            .map_err(|e| e.to_string())?;
+
+        parse_shortcuts_json(output.stdout)
+    }
+    #[cfg(not(target_os = "windows"))]
+    { Ok(vec![]) }
+}
+
 fn parse_shortcuts_json(stdout: Vec<u8>) -> Result<Vec<ShortcutInfo>, String> {
     let json_str = String::from_utf8_lossy(&stdout);
     if json_str.trim().is_empty() {
@@ -608,6 +629,7 @@ pub fn run() {
             get_running_processes,
             get_system_shortcuts,
             get_local_shortcuts,
+            get_system_apps,
             get_shortcut_icon,
             get_shortcut_icons_batch,
             clear_icon_cache,

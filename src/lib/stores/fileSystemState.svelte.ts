@@ -12,7 +12,13 @@ import { QWERTY_CODES } from '../utils/keyboardLayout';
 
 // --- Singleton state ---
 
-const fileSystemService: IFileSystemService = createFileSystemService();
+let _fileSystemService: IFileSystemService | null = null;
+function getFSService() {
+    if (!_fileSystemService) {
+        _fileSystemService = createFileSystemService();
+    }
+    return _fileSystemService;
+}
 
 let tabs = $state<Tab[]>([]);
 let isConnected = $state(false);
@@ -30,6 +36,7 @@ export const fsState = {
     
     // Actions
     connectDirectory,
+    connectDefaultProject,
     refreshTabs,
     saveCard,
     deleteCard,
@@ -42,6 +49,7 @@ export const fsState = {
     deleteTab,
     renamePhysicalTab,
     updateTabSettings,
+    updateTabAssignment,
     duplicateTab,
     moveTab,
     toggleStrikethrough,
@@ -58,23 +66,32 @@ export const fsState = {
 // --- Implementations ---
 
 async function connectDirectory(): Promise<void> {
-    const granted = await fileSystemService.requestAccess();
+    const granted = await getFSService().requestAccess();
     if (!granted) return;
 
     isConnected = true;
-    rootName = fileSystemService.getRootName();
+    rootName = getFSService().getRootName();
+    await refreshTabs();
+}
+
+async function connectDefaultProject(): Promise<void> {
+    const success = await getFSService().setProjectRoot('default-project');
+    if (!success) return;
+
+    isConnected = true;
+    rootName = getFSService().getRootName() + '/default-project';
     await refreshTabs();
 }
 
 async function refreshTabs(): Promise<void> {
-    if (!fileSystemService.hasAccess()) return;
+    if (!getFSService().hasAccess()) return;
 
     logService.info('fsState', 'Refreshing tabs from disk...');
     const oldActivePath = fsState.activeTab?.path;
     const oldActiveIndex = uiState.activeTabIndex;
     logService.info('fsState', `refreshTabs: oldActivePath=${oldActivePath}, oldActiveIndex=${oldActiveIndex}`);
 
-    const loadedTabs = await fileSystemService.readDirectory();
+    const loadedTabs = await getFSService().readDirectory();
 
     for (const tab of loadedTabs) {
         await reconcileTabMetadata(tab);
@@ -104,7 +121,7 @@ async function refreshTabs(): Promise<void> {
 
 async function reconcileTabMetadata(tab: Tab): Promise<void> {
     try {
-        const config = await fileSystemService.readConfig(tab.path);
+        const config = await getFSService().readConfig(tab.path);
         if (!config.cards || Object.keys(config.cards).length === 0) return;
 
         const diskFileNames = new Set(tab.cards.map(c => c.fileName));
@@ -177,7 +194,7 @@ async function reconcileTabMetadata(tab: Tab): Promise<void> {
         });
 
         if (modified) {
-            await fileSystemService.writeConfig(tab.path, config);
+            await getFSService().writeConfig(tab.path, config);
         }
     } catch (err) {
         logService.log('error', 'Metadata reconciliation failed', err);
@@ -189,7 +206,7 @@ async function saveCurrentTabConfig() {
     if (!tab) return;
 
     try {
-        let existingConfig = await fileSystemService.readConfig(tab.path);
+        let existingConfig = await getFSService().readConfig(tab.path);
         if (!existingConfig.cards) existingConfig.cards = {};
         if (!existingConfig.tab) existingConfig.tab = {};
 
@@ -210,7 +227,7 @@ async function saveCurrentTabConfig() {
             if (Object.keys(cInfo).length === 0) delete existingConfig.cards[card.fileName];
         }
 
-        await fileSystemService.writeConfig(tab.path, existingConfig);
+        await getFSService().writeConfig(tab.path, existingConfig);
     } catch (err) {
         logService.log('error', 'Failed to save tab config', err);
     }
@@ -249,7 +266,7 @@ async function saveCard(card: Card, newContent: string): Promise<void> {
             card.name = fileName.replace(/\.[^/.]+$/, "");
         }
 
-        await fileSystemService.writeFile(card.filePath, newContent);
+        await getFSService().writeFile(card.filePath, newContent);
         card.content = newContent;
         if (card.isNewMock) delete card.isNewMock;
 
@@ -265,15 +282,15 @@ async function saveCard(card: Card, newContent: string): Promise<void> {
 async function deleteCard(card: Card): Promise<void> {
     if (!confirm(`Ви впевнені, що хочете видалити сніпет "${card.name}"?`)) return;
     try {
-        await fileSystemService.deleteFile(card.filePath);
+        await getFSService().deleteFile(card.filePath);
         const parts = card.filePath.split('/');
         parts.pop();
         const tabPath = parts.join('/') || '__root__';
-        const config = await fileSystemService.readConfig(tabPath);
+        const config = await getFSService().readConfig(tabPath);
         if (config.cards && config.cards[card.fileName]) {
             delete config.cards[card.fileName];
             if (config.tab?.order) config.tab.order = config.tab.order.filter(n => n !== card.fileName);
-            await fileSystemService.writeConfig(tabPath, config);
+            await getFSService().writeConfig(tabPath, config);
         }
         await refreshTabs();
         uiState.showToast(`Видалено: ${card.name}`);
@@ -288,14 +305,14 @@ async function duplicateCard(card: Card): Promise<void> {
         const ext = card.extension;
         const nameWithoutExt = card.fileName.slice(0, -ext.length);
         const newFileName = `${nameWithoutExt}_copy${ext}`;
-        await fileSystemService.copyFile(card.filePath, newFileName);
+        await getFSService().copyFile(card.filePath, newFileName);
         const parts = card.filePath.split('/');
         parts.pop();
         const tabPath = parts.join('/') || '__root__';
-        const config = await fileSystemService.readConfig(tabPath);
+        const config = await getFSService().readConfig(tabPath);
         if (config.cards && config.cards[card.fileName]) {
             config.cards[newFileName] = JSON.parse(JSON.stringify(config.cards[card.fileName]));
-            await fileSystemService.writeConfig(tabPath, config);
+            await getFSService().writeConfig(tabPath, config);
         }
         await refreshTabs();
         uiState.showToast(`Дубльовано: ${card.name}`);
@@ -307,7 +324,7 @@ async function duplicateCard(card: Card): Promise<void> {
 
 async function moveCardToTab(card: Card, targetTabPath: string): Promise<void> {
     try {
-        await fileSystemService.moveFile(card.filePath, targetTabPath);
+        await getFSService().moveFile(card.filePath, targetTabPath);
         await refreshTabs();
         uiState.showToast(`Переміщено в іншу вкладку`);
     } catch (err) {
@@ -343,13 +360,13 @@ async function renamePhysicalFile(card: Card, newFileName: string): Promise<void
         const parts = card.filePath.split('/');
         parts.pop();
         const tabPath = parts.join('/') || '__root__';
-        await fileSystemService.renameFile(card.filePath, newFileName);
-        const config = await fileSystemService.readConfig(tabPath);
+        await getFSService().renameFile(card.filePath, newFileName);
+        const config = await getFSService().readConfig(tabPath);
         if (config.cards && config.cards[oldFileName]) {
             config.cards[newFileName] = { ...config.cards[oldFileName] };
             delete config.cards[oldFileName];
             if (config.tab?.order) config.tab.order = config.tab.order.map(n => n === oldFileName ? newFileName : n);
-            await fileSystemService.writeConfig(tabPath, config);
+            await getFSService().writeConfig(tabPath, config);
         }
         await refreshTabs();
         uiState.showToast(`Файл перейменовано на ${newFileName}`);
@@ -361,13 +378,13 @@ async function renamePhysicalFile(card: Card, newFileName: string): Promise<void
 
 async function createNewTab(name: string, type: TabType = 'snippets'): Promise<void> {
     try {
-        await fileSystemService.createDirectory(name);
+        await getFSService().createDirectory(name);
         
         // Initialize config with the correct type
-        const config = await fileSystemService.readConfig(name);
+        const config = await getFSService().readConfig(name);
         if (!config.tab) config.tab = {};
         config.tab.type = type;
-        await fileSystemService.writeConfig(name, config);
+        await getFSService().writeConfig(name, config);
 
         await refreshTabs();
         uiState.showToast(`Вкладку "${name}" створно (${type})`);
@@ -384,12 +401,12 @@ async function deleteTab(tab: Tab): Promise<void> {
     }
     if (!confirm(`Ви впевнені, що хочете видалити вкладку "${tab.name}" з усіма файлами?`)) return;
     try {
-        await fileSystemService.deleteDirectory(tab.path);
-        const rootConfig = await fileSystemService.readConfig('__root__');
+        await getFSService().deleteDirectory(tab.path);
+        const rootConfig = await getFSService().readConfig('__root__');
         if (rootConfig.tab?.tabOrder) {
             rootConfig.tab.tabOrder = rootConfig.tab.tabOrder.filter(p => p !== tab.path);
             if (rootConfig.tabs) delete rootConfig.tabs[tab.path];
-            await fileSystemService.writeConfig('__root__', rootConfig);
+            await getFSService().writeConfig('__root__', rootConfig);
         }
         await refreshTabs();
         uiState.showToast(`Вкладку "${tab.name}" видалено`);
@@ -403,14 +420,14 @@ async function renamePhysicalTab(tab: Tab, newDirName: string): Promise<void> {
     if (!newDirName || newDirName === tab.path || tab.path === '__root__') return;
     try {
         const oldPath = tab.path;
-        await fileSystemService.renameDirectory(oldPath, newDirName);
-        const rootConfig = await fileSystemService.readConfig('__root__');
+        await getFSService().renameDirectory(oldPath, newDirName);
+        const rootConfig = await getFSService().readConfig('__root__');
         if (rootConfig.tab?.tabOrder) rootConfig.tab.tabOrder = rootConfig.tab.tabOrder.map(p => p === oldPath ? newDirName : p);
         if (rootConfig.tabs && rootConfig.tabs[oldPath]) {
             rootConfig.tabs[newDirName] = { ...rootConfig.tabs[oldPath] };
             delete rootConfig.tabs[oldPath];
         }
-        await fileSystemService.writeConfig('__root__', rootConfig);
+        await getFSService().writeConfig('__root__', rootConfig);
         await refreshTabs();
         uiState.showToast(`Вкладку перейменовано на ${newDirName}`);
     } catch (err) {
@@ -424,7 +441,7 @@ async function updateTabSettings(tab: Tab, settings: Partial<Tab>): Promise<void
     if (settings.displayName === "") tab.displayName = null;
     tab.name = tab.displayName || (tab.path === '__root__' ? 'Файли' : tab.path);
     try {
-        const rootConfig = await fileSystemService.readConfig('__root__');
+        const rootConfig = await getFSService().readConfig('__root__');
         if (tab.path === '__root__') {
             if (!rootConfig.tab) rootConfig.tab = {};
             rootConfig.tab.displayName = tab.displayName;
@@ -443,17 +460,17 @@ async function updateTabSettings(tab: Tab, settings: Partial<Tab>): Promise<void
             tMeta.assignments = tab.assignments;
             if (Object.keys(tMeta).length === 0) delete rootConfig.tabs[tab.path];
         }
-        await fileSystemService.writeConfig('__root__', rootConfig);
+        await getFSService().writeConfig('__root__', rootConfig);
         
         // Also write to the tab's local config for portability
-        const localConfig = await fileSystemService.readConfig(tab.path);
+        const localConfig = await getFSService().readConfig(tab.path);
         if (!localConfig.tab) localConfig.tab = {};
         localConfig.tab.displayName = tab.displayName;
         localConfig.tab.icon = tab.icon;
         localConfig.tab.color = tab.color;
         localConfig.tab.type = tab.type;
         localConfig.tab.assignments = tab.assignments;
-        await fileSystemService.writeConfig(tab.path, localConfig);
+        await getFSService().writeConfig(tab.path, localConfig);
 
         uiState.showToast(`Налаштування вкладки збережено`);
     } catch (err) {
@@ -480,10 +497,10 @@ async function duplicateTab(tab: Tab): Promise<void> {
     if (tab.path === '__root__') return;
     try {
         const newPath = `${tab.path}_copy`;
-        await fileSystemService.createDirectory(newPath);
-        for (const card of tab.cards) await fileSystemService.copyFile(card.filePath, `${newPath}/${card.fileName}`);
-        const config = await fileSystemService.readConfig(tab.path);
-        await fileSystemService.writeConfig(newPath, config);
+        await getFSService().createDirectory(newPath);
+        for (const card of tab.cards) await getFSService().copyFile(card.filePath, `${newPath}/${card.fileName}`);
+        const config = await getFSService().readConfig(tab.path);
+        await getFSService().writeConfig(newPath, config);
         await refreshTabs();
         uiState.showToast(`Вкладку дубльовано: ${newPath}`);
     } catch (err) {
@@ -498,10 +515,10 @@ async function moveTab(fromIndex: number, toIndex: number): Promise<void> {
     tabs.splice(fromIndex, 1);
     tabs.splice(toIndex, 0, movedTab);
     try {
-        const rootConfig = await fileSystemService.readConfig('__root__');
+        const rootConfig = await getFSService().readConfig('__root__');
         if (!rootConfig.tab) rootConfig.tab = {};
         rootConfig.tab.tabOrder = tabs.filter(t => t.path !== '__root__').map(t => t.path);
-        await fileSystemService.writeConfig('__root__', rootConfig);
+        await getFSService().writeConfig('__root__', rootConfig);
     } catch (err) {
         logService.log('error', 'Failed to save tab order', err);
     }
@@ -535,11 +552,11 @@ async function removeOrphanedConfig(card: Card): Promise<void> {
         const parts = card.filePath.split('/');
         parts.pop();
         const tabPath = parts.join('/') || '__root__';
-        const config = await fileSystemService.readConfig(tabPath);
+        const config = await getFSService().readConfig(tabPath);
         if (config.cards && config.cards[card.fileName]) {
             delete config.cards[card.fileName];
-            if (config.tab?.order) config.tab.order = config.tab.order.filter(n => n !== card.fileName);
-            await fileSystemService.writeConfig(tabPath, config);
+            if (config.tab?.order) config.tab.order = config.tab.order.filter((n: string) => n !== card.fileName);
+            await getFSService().writeConfig(tabPath, config);
         }
         await refreshTabs();
         uiState.showToast("Видалено з конфігурації");
@@ -553,13 +570,13 @@ async function linkFileManually(ghostCard: Card, realFileName: string): Promise<
         const parts = ghostCard.filePath.split('/');
         parts.pop();
         const tabPath = parts.join('/') || '__root__';
-        const config = await fileSystemService.readConfig(tabPath);
+        const config = await getFSService().readConfig(tabPath);
         if (config.cards && config.cards[ghostCard.fileName]) {
             const metadata = { ...config.cards[ghostCard.fileName] };
             delete config.cards[ghostCard.fileName];
             config.cards[realFileName] = metadata;
-            if (config.tab?.order) config.tab.order = config.tab.order.map(n => n === ghostCard.fileName ? realFileName : n);
-            await fileSystemService.writeConfig(tabPath, config);
+            if (config.tab?.order) config.tab.order = config.tab.order.map((n: string) => n === ghostCard.fileName ? realFileName : n);
+            await getFSService().writeConfig(tabPath, config);
         }
         await refreshTabs();
         uiState.showToast("Зв'язок відновлено");

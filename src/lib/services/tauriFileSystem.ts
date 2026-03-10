@@ -10,6 +10,7 @@ import { HotPasteConfigSchema } from '../schemas/config';
 
 export class TauriFileSystemService implements IFileSystemService {
     private cachedApi: any = null;
+    private customRoot: string | null = null;
 
     private async getApi() {
         if (this.cachedApi) return this.cachedApi;
@@ -19,10 +20,36 @@ export class TauriFileSystemService implements IFileSystemService {
         return this.cachedApi;
     }
 
+    async setProjectRoot(pathStr: string | null): Promise<boolean> {
+        this.customRoot = pathStr;
+        if (pathStr) {
+            // Ensure directory exists
+            try {
+                const { fs } = await this.getApi();
+                const fullPath = await this.resolvePath('__root__');
+                if (!(await fs.exists(fullPath))) {
+                    await fs.mkdir(fullPath, { recursive: true });
+                }
+                return true;
+            } catch (err) {
+                console.error('Failed to set project root:', err);
+                return false;
+            }
+        }
+        return true;
+    }
+
     private async resolvePath(pathStr: string): Promise<string> {
         const { path } = await this.getApi();
         const base = await path.documentDir();
-        const fullBase = await path.join(base, 'HotPaste');
+        
+        let fullBase: string;
+        if (this.customRoot) {
+            fullBase = await path.join(base, 'HotPaste', this.customRoot);
+        } else {
+            fullBase = await path.join(base, 'HotPaste');
+        }
+
         if (pathStr === '__root__') return fullBase;
         if (pathStr.startsWith('__root__/')) {
             return await path.join(fullBase, pathStr.replace('__root__/', ''));

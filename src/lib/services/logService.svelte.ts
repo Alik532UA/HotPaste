@@ -20,11 +20,12 @@ export const logConfig: Record<string, boolean> = {
     app: false,
     appstate: false,
     filesystem: false,
-    ui: true,
+    ui: false,
     hotkeys: false,
-    fsstate: true,
+    fsstate: false,
     hotkeystate: false,
     startmenu: false,
+    icons: true,
 };
 
 const levelStyles: Record<LogLevel, string> = {

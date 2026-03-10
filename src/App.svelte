@@ -21,6 +21,7 @@
   import TabSettingsModal from "./lib/components/TabSettingsModal.svelte";
   import HotkeyConflictModal from "./lib/components/HotkeyConflictModal.svelte";
   import HotkeyPickerModal from "./lib/components/HotkeyPickerModal.svelte";
+  import ProgramPickerModal from "./lib/components/ProgramPickerModal.svelte";
   import GlobalSettingsModal from "./lib/components/GlobalSettingsModal.svelte";
   import DebugListener from "./lib/components/DebugListener.svelte";
   import DynamicBackground from "./lib/components/DynamicBackground.svelte";
@@ -170,15 +171,8 @@
             }
           }
         });
-        try {
-          await connectDirectory();
-          logService.log(
-            "app",
-            `Connected successfully, appState.isConnected=${appState.isConnected}`,
-          );
-        } catch (err) {
-          logService.error("app", "Failed to connect directory in Tauri", err);
-        }
+        // Remove automatic connectDirectory to allow user to see EmptyState and choose project
+        logService.log("app", "Tauri initialized, waiting for user to connect directory");
 
         // Setup autostart dynamically to avoid breaking web build
         try {
@@ -450,7 +444,7 @@
         <!-- Main Content -->
         <main class="app-main" class:is-minimal={uiState.isMinimalMode} class:no-scroll={fsState.activeTab?.type === 'keyboard'} data-testid="app-main">
           {#if fsState.activeTab?.type === 'keyboard'}
-            <StartMenu assignments={fsState.activeTab.assignments || {}} />
+            <StartMenu />
           {:else}
             <CardGrid />
           {/if}
@@ -483,6 +477,8 @@
 <HotkeyConflictModal />
 
 <HotkeyPickerModal />
+
+<ProgramPickerModal />
 
 <GlobalSettingsModal bind:this={globalSettingsModal} />
 

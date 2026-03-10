@@ -33,6 +33,7 @@ let activeSettingsCard = $state<Card | null>(null);
 let activeSettingsTab = $state<Tab | null>(null);
 let activeHotkeyPickerCard = $state<Card | null>(null);
 let activeHotkeyConflict = $state<{ code: string, cards: Card[] } | null>(null);
+let activeProgramPicker = $state<{ key: string, tab: Tab } | null>(null);
 
 // --- Getters ---
 
@@ -54,6 +55,7 @@ export const uiState = {
     get activeSettingsTab() { return activeSettingsTab; },
     get activeHotkeyPickerCard() { return activeHotkeyPickerCard; },
     get activeHotkeyConflict() { return activeHotkeyConflict; },
+    get activeProgramPicker() { return activeProgramPicker; },
     
     // Actions
     showToast,
@@ -83,11 +85,21 @@ export const uiState = {
     closeHotkeyPicker,
     closeHotkeyConflict,
     setHotkeyConflict,
+    openProgramPicker,
+    closeProgramPicker,
     startEditingCard,
     stopEditingCard,
 };
 
 // --- Action Implementations ---
+
+function openProgramPicker(key: string, tab: Tab): void {
+    activeProgramPicker = { key, tab };
+}
+
+function closeProgramPicker(): void {
+    activeProgramPicker = null;
+}
 
 function showToast(message: string): void {
     if (toastTimeout) clearTimeout(toastTimeout);

@@ -6,6 +6,7 @@ import { QWERTY_CODES } from '../utils/keyboardLayout';
 import type { Tab, Card, HotPasteConfig } from '../types';
 import { CONFIG_FILENAME } from '../types';
 import { HotPasteConfigSchema } from '../schemas/config';
+import { TauriFileSystemService } from './tauriFileSystem';
 
 export interface IFileSystemService {
     requestAccess(): Promise<boolean>;
@@ -23,6 +24,7 @@ export interface IFileSystemService {
     renameDirectory(path: string, newName: string): Promise<void>;
     readConfig(tabPath: string): Promise<HotPasteConfig>;
     writeConfig(tabPath: string, config: HotPasteConfig): Promise<void>;
+    setProjectRoot(path: string | null): Promise<boolean>;
 }
 
 const SUPPORTED_EXTENSIONS = ['.txt', '.md'];
@@ -32,6 +34,11 @@ const SUPPORTED_EXTENSIONS = ['.txt', '.md'];
  */
 class LocalFileSystemService implements IFileSystemService {
     private rootHandle: FileSystemDirectoryHandle | null = null;
+
+    async setProjectRoot(_path: string | null): Promise<boolean> {
+        // Browser cannot set specific path without user interaction
+        return false;
+    }
 
     async requestAccess(): Promise<boolean> {
         try {
@@ -271,7 +278,13 @@ class LocalFileSystemService implements IFileSystemService {
  * Singleton factory
  */
 export function createFileSystemService(): IFileSystemService {
-    // In actual Tauri environment, TauriFileSystemService will be used by conditional import in fsState.
-    // This is the fallback for Web / testing.
+    // Determine if running in Tauri environment
+    // @ts-ignore
+    const isTauri = typeof window !== "undefined" && (window.__TAURI_INTERNALS__ || window.__TAURI__);
+    
+    if (isTauri) {
+        return new TauriFileSystemService();
+    }
+    
     return new LocalFileSystemService();
 }

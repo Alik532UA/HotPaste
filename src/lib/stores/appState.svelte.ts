@@ -112,6 +112,7 @@ export const setSelectionMode = uiState.setSelectionMode;
 export const toggleSelectionMode = uiState.toggleSelectionMode;
 
 export const connectDirectory = fsState.connectDirectory;
+export const connectDefaultProject = fsState.connectDefaultProject;
 export const refreshTabs = fsState.refreshTabs;
 export const saveCard = fsState.saveCard;
 export const deleteCard = fsState.deleteCard;
@@ -124,6 +125,7 @@ export const createNewTab = fsState.createNewTab;
 export const deleteTab = fsState.deleteTab;
 export const renamePhysicalTab = fsState.renamePhysicalTab;
 export const updateTabSettings = fsState.updateTabSettings;
+export const updateTabAssignment = fsState.updateTabAssignment;
 export const duplicateTab = fsState.duplicateTab;
 export const moveTab = fsState.moveTab;
 export const toggleStrikethrough = fsState.toggleStrikethrough;
@@ -204,6 +206,12 @@ export function handleGlobalKeydown(event: KeyboardEvent): void {
                 });
             });
         });
+        return;
+    }
+
+    if (event.code === 'Space') {
+        event.preventDefault();
+        uiState.toggleMinimalMode();
         return;
     }
 

@@ -1,12 +1,19 @@
 <script lang="ts">
-    import { ClipboardCheck } from "lucide-svelte";
-    import { connectDirectory } from "../stores/appState.svelte";
+    import { ClipboardCheck, Play, FolderOpen } from "lucide-svelte";
+    import { connectDirectory, connectDefaultProject } from "../stores/appState.svelte";
     import { t } from "../i18n";
 
-    let isHovering = $state(false);
+    let isHoveringStart = $state(false);
+    let isHoveringConnect = $state(false);
+
+    const isTauri = typeof window !== 'undefined' && (!!(window as any).__TAURI_INTERNALS__ || !!(window as any).__TAURI__);
 
     async function handleConnect() {
         await connectDirectory();
+    }
+
+    async function handleStart() {
+        await connectDefaultProject();
     }
 </script>
 
@@ -79,32 +86,48 @@
             </div>
         </div>
 
-        <!-- Connect button -->
-        <button
-            class="connect-btn"
-            class:hovering={isHovering}
-            onclick={handleConnect}
-            onmouseenter={() => (isHovering = true)}
-            onmouseleave={() => (isHovering = false)}
-            id="connect-directory-btn"
-            data-testid="btn-connect-directory"
-        >
-            <svg
-                width="20"
-                height="20"
-                viewBox="0 0 20 20"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-            >
-                <path
-                    d="M3 5c0-1.1.9-2 2-2h3.17a2 2 0 0 1 1.42.59l.82.82a2 2 0 0 0 1.42.59H15a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5z"
-                    stroke="currentColor"
-                    stroke-width="1.5"
-                    fill="none"
-                />
-            </svg>
-            {t.app.connectBtn}
-        </button>
+        <!-- Action buttons -->
+        <div class="actions-container">
+            {#if isTauri}
+                <button
+                    class="start-btn"
+                    class:hovering={isHoveringStart}
+                    onclick={handleStart}
+                    onmouseenter={() => (isHoveringStart = true)}
+                    onmouseleave={() => (isHoveringStart = false)}
+                    data-testid="btn-start-default"
+                >
+                    <Play size={20} fill="currentColor" />
+                    {t.app.startBtn}
+                </button>
+
+                <button
+                    class="connect-btn secondary"
+                    class:hovering={isHoveringConnect}
+                    onclick={handleConnect}
+                    onmouseenter={() => (isHoveringConnect = true)}
+                    onmouseleave={() => (isHoveringConnect = false)}
+                    id="connect-directory-btn"
+                    data-testid="btn-connect-directory"
+                >
+                    <FolderOpen size={20} />
+                    {t.app.changeDir}
+                </button>
+            {:else}
+                <button
+                    class="connect-btn primary"
+                    class:hovering={isHoveringConnect}
+                    onclick={handleConnect}
+                    onmouseenter={() => (isHoveringConnect = true)}
+                    onmouseleave={() => (isHoveringConnect = false)}
+                    id="connect-directory-btn"
+                    data-testid="btn-connect-directory"
+                >
+                    <FolderOpen size={20} />
+                    {t.app.connectBtn}
+                </button>
+            {/if}
+        </div>
 
         <p class="hint">
             {@html t.app.connectHint}
@@ -259,30 +282,76 @@
         color: var(--color-accent-cyan);
     }
 
-    /* Connect button */
-    .connect-btn {
+    /* Actions container */
+    .actions-container {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3);
+        width: 100%;
+        max-width: 300px;
+        margin: var(--space-2) 0;
+    }
+
+    /* Buttons */
+    .start-btn, .connect-btn {
         display: flex;
         align-items: center;
-        gap: 10px;
-        padding: 14px 28px;
+        justify-content: center;
+        gap: 12px;
+        padding: 16px 32px;
         border: none;
-        border-radius: 14px;
+        border-radius: 16px;
+        font-family: var(--font-family);
+        font-size: 1.1rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.25s cubic-bezier(0.23, 1, 0.32, 1);
+        width: 100%;
+    }
+
+    .start-btn {
         background: var(--color-accent-gradient);
         color: #fff;
-        font-family: var(--font-family);
-        font-size: 1rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.25s ease;
+        box-shadow: 0 4px 20px rgba(0, 210, 255, 0.25);
+    }
+
+    .start-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 24px rgba(0, 210, 255, 0.4);
+    }
+
+    .connect-btn {
+        background: var(--color-surface-2);
+        color: var(--color-text-primary);
+        border: 1px solid var(--color-border);
+    }
+
+    .connect-btn.secondary {
+        font-size: 0.95rem;
+        padding: 12px 24px;
+        background: transparent;
+        color: var(--color-text-muted);
+    }
+
+    .connect-btn.primary {
+        background: var(--color-accent-gradient);
+        color: #fff;
         box-shadow: 0 4px 20px rgba(0, 210, 255, 0.2);
     }
 
     .connect-btn:hover {
         transform: translateY(-2px);
+        background: var(--color-surface-3);
+        border-color: var(--color-accent-violet);
+    }
+
+    .connect-btn.primary:hover {
+        background: var(--color-accent-gradient);
+        filter: brightness(1.1);
         box-shadow: 0 8px 32px rgba(0, 210, 255, 0.3);
     }
 
-    .connect-btn:active {
+    .start-btn:active, .connect-btn:active {
         transform: translateY(0);
     }
 

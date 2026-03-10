@@ -27,7 +27,7 @@
   }
 </script>
 
-<BaseModal {isOpen} onclose={close} title={t.common.settings} icon={Settings}>
+<BaseModal {isOpen} onClose={close} title={t.common.settings}>
   <div class="settings-content">
     <section class="settings-section">
       <h3 class="section-title">

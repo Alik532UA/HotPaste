@@ -21,10 +21,11 @@ export const uk = {
     },
     app: {
         title: "HotPaste",
-        subtitle: "Блискавичний менеджер сніпетів з клавіатурною навігацією",
+        subtitle: "Ваш персональний центр керування: миттєвий запуск додатків, сайтів та керування сніпетами за допомогою гарячих клавіш.",
         connected: "Папку підключено",
         notConnected: "Папку не підключено",
-        connectBtn: "Обрати папку зі сніпетами",
+        connectBtn: "Підключити робочу папку",
+        startBtn: "Почати",
         changeDir: "Змінити папку",
         newCard: "Нова картка",
         refresh: "Оновити",
@@ -72,7 +73,17 @@ export const uk = {
         conflictTitle: "Конфлікт клавіші",
         conflictDesc: "Ця гаряча клавіша призначена декільком карткам. Виберіть ту, за якою її потрібно закріпити:",
         pickerTitle: "Виберіть клавішу",
-        pickerDesc: "Натисніть клавішу на клавіатурі або виберіть зі списку:"
+        pickerDesc: "Натисніть клавішу на клавіатурі або виберіть зі списку:",
+        programPickerTitle: "Призначити програму",
+        programPickerDesc: "Виберіть програму або файл для запуску цією клавішею",
+        tabLocal: "Local",
+        tabRunning: "Running",
+        tabStartMenu: "Start Menu",
+        tabSystem: "System",
+        searchPrograms: "Пошук програм...",
+        noPrograms: "Програм не знайдено",
+        viewGrid: "Сітка",
+        viewList: "Список"
     },
     menu: {
         copyText: "Копіювати текст",
