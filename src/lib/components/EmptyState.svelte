@@ -56,8 +56,8 @@
                 />
                 <defs>
                     <linearGradient id="grad1" x1="0" y1="0" x2="64" y2="64">
-                        <stop offset="0%" stop-color="#00d2ff" />
-                        <stop offset="100%" stop-color="#7b61ff" />
+                        <stop offset="0%" stop-color="var(--color-accent-cyan)" />
+                        <stop offset="100%" stop-color="var(--color-accent)" />
                     </linearGradient>
                 </defs>
             </svg>
@@ -195,7 +195,7 @@
         border-radius: 50%;
         background: radial-gradient(
             circle,
-            rgba(0, 210, 255, 0.15),
+            color-mix(in srgb, var(--color-accent-cyan) 20%, transparent),
             transparent 70%
         );
         animation: pulse 3s ease-in-out infinite;
@@ -256,7 +256,7 @@
         width: 36px;
         height: 36px;
         border-radius: 8px;
-        background: var(--color-surface-3);
+        background: var(--color-surface-2);
         color: var(--color-accent-cyan);
         font-family: var(--font-mono);
         font-size: 1rem;
@@ -311,13 +311,13 @@
 
     .start-btn {
         background: var(--color-accent-gradient);
-        color: #fff;
-        box-shadow: 0 4px 20px rgba(0, 210, 255, 0.25);
+        color: white;
+        box-shadow: 0 4px 20px color-mix(in srgb, var(--color-accent) 25%, transparent);
     }
 
     .start-btn:hover {
         transform: translateY(-2px);
-        box-shadow: 0 12px 24px rgba(0, 210, 255, 0.4);
+        box-shadow: 0 12px 24px color-mix(in srgb, var(--color-accent) 40%, transparent);
     }
 
     .connect-btn {
@@ -335,8 +335,8 @@
 
     .connect-btn.primary {
         background: var(--color-accent-gradient);
-        color: #fff;
-        box-shadow: 0 4px 20px rgba(0, 210, 255, 0.2);
+        color: white;
+        box-shadow: 0 4px 20px color-mix(in srgb, var(--color-accent) 20%, transparent);
     }
 
     .connect-btn:hover {
@@ -348,7 +348,7 @@
     .connect-btn.primary:hover {
         background: var(--color-accent-gradient);
         filter: brightness(1.1);
-        box-shadow: 0 8px 32px rgba(0, 210, 255, 0.3);
+        box-shadow: 0 8px 32px color-mix(in srgb, var(--color-accent) 30%, transparent);
     }
 
     .start-btn:active, .connect-btn:active {

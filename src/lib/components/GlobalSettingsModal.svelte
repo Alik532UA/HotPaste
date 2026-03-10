@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { Settings, X, Layout, Keyboard, Maximize2, Minimize2, Trash2 } from "lucide-svelte";
+  import { Settings, X, Layout, Keyboard, Maximize2, Minimize2, Trash2, Palette } from "lucide-svelte";
   import { uiState } from "../stores/uiState.svelte";
   import { configState } from "../stores/configState.svelte";
+  import { theme } from "../states/theme.svelte";
   import { dataService } from "../services/dataService";
   import { t } from "../i18n";
   import BaseModal from "./ui/BaseModal.svelte";
@@ -22,13 +23,43 @@
     { id: "minimal", label: t.app.viewMinimal, icon: Minimize2 },
   ];
 
+  const themeSelectionOptions = [
+    { id: "dark-gray", label: t.settings.themeDarkGray },
+    { id: "light-gray", label: t.settings.themeLightGray },
+    { id: "orange", label: t.settings.themeOrange },
+    { id: "green", label: t.settings.themeGreen },
+  ];
+
   async function clearAllData() {
-    await dataService.clearAllData();
+    if (confirm(t.settings.clearCacheConfirm)) {
+        await dataService.clearAllData();
+        window.location.reload();
+    }
   }
 </script>
 
 <BaseModal {isOpen} onClose={close} title={t.common.settings}>
   <div class="settings-content">
+    <!-- Theme Selection -->
+    <section class="settings-section">
+      <h3 class="section-title">
+        <Palette size={18} />
+        {t.common.settings} — {t.tabs.color || 'Тема'}
+      </h3>
+      <p class="section-desc">{t.settings.modeToggleDesc.replace(/.*/, 'Виберіть колірну схему інтерфейсу')}</p>
+      
+      <div class="setting-row">
+        <SegmentedToggle
+          id="theme-selection"
+          options={themeSelectionOptions}
+          value={theme.current}
+          onSelect={(id) => theme.set(id as any)}
+        />
+      </div>
+    </section>
+
+    <div class="divider"></div>
+
     <section class="settings-section">
       <h3 class="section-title">
         <Layout size={18} />
@@ -160,27 +191,29 @@
   }
 
   .primary-btn {
-    background: var(--color-accent-violet);
-    color: white;
+    background: var(--color-accent);
+    color: var(--color-bg-primary);
     border: none;
-    padding: var(--space-2) var(--space-6);
-    border-radius: var(--radius-md);
-    font-weight: 600;
+    padding: 12px 28px;
+    border-radius: 14px;
+    font-weight: 700;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--color-accent) 25%, transparent);
   }
 
   .primary-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px color-mix(in srgb, var(--color-accent) 40%, transparent);
     filter: brightness(1.1);
-    transform: translateY(-1px);
   }
 
   .danger-btn {
-    background: transparent;
+    background: color-mix(in srgb, var(--color-danger) 10%, transparent);
     color: var(--color-danger);
-    border: 1px solid var(--color-danger);
-    padding: var(--space-2) var(--space-4);
-    border-radius: var(--radius-md);
+    border: 1px solid color-mix(in srgb, var(--color-danger) 30%, transparent);
+    padding: 10px 20px;
+    border-radius: 12px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
@@ -189,5 +222,7 @@
   .danger-btn:hover {
     background: var(--color-danger);
     color: white;
+    border-color: var(--color-danger);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--color-danger) 30%, transparent);
   }
 </style>

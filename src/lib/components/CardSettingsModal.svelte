@@ -40,13 +40,12 @@
 
   const borderPresets = [
     { name: "Default", value: "" },
-    { name: "Cyan", value: "#00d2ff" },
-    { name: "Violet", value: "#7b61ff" },
-    { name: "Green", value: "#00ff88" },
-    { name: "Red", value: "#ff4b4b" },
-    { name: "Orange", value: "#ff9f4b" },
-    { name: "Yellow", value: "#ffe14b" },
-    { name: "White", value: "rgba(255,255,255,0.2)" },
+    { name: "Cyan", value: "var(--color-accent-cyan)" },
+    { name: "Violet", value: "var(--color-accent-violet)" },
+    { name: "Green", value: "var(--color-success)" },
+    { name: "Red", value: "var(--color-danger)" },
+    { name: "Orange", value: "var(--color-warning)" },
+    { name: "White", value: "color-mix(in srgb, white 20%, transparent)" },
     { name: "Invisible", value: "transparent" },
   ];
 
@@ -181,7 +180,7 @@
           <button
             class="color-swatch"
             class:active={color === preset.value}
-            style="background-color: {preset.value || 'rgba(255,255,255,0.05)'}"
+            style="background-color: {preset.value || 'var(--color-surface-2)'}"
             onclick={() => (color = preset.value)}
             title={preset.name}
             data-testid="color-preset-{preset.name.toLowerCase()}"
@@ -205,7 +204,7 @@
           <button
             class="color-swatch"
             class:active={borderColor === preset.value}
-            style="background-color: {preset.value || 'rgba(255,255,255,0.05)'}; border: 1px solid {preset.value || 'var(--color-border)'}"
+            style="background-color: {preset.value || 'var(--color-surface-2)'}; border: 1px solid {preset.value || 'var(--color-border)'}"
             onclick={() => (borderColor = preset.value)}
             title={preset.name}
             data-testid="border-preset-{preset.name.toLowerCase()}"
@@ -251,7 +250,7 @@
 
   .modal-title-text {
     font-size: 1.1rem;
-    font-weight: 600;
+    font-weight: 700;
     margin: 0;
     color: var(--color-text-primary);
   }
@@ -277,72 +276,83 @@
   .flex-2 { flex: 2; }
 
   label {
-    font-size: 0.8rem;
-    font-weight: 500;
+    font-size: 0.85rem;
+    font-weight: 600;
     color: var(--color-text-secondary);
   }
 
   input[type="text"] {
-    background: var(--color-surface-2);
+    background: var(--color-surface-1);
     border: 1px solid var(--color-border);
-    border-radius: 8px;
-    padding: 10px 14px;
+    border-radius: 10px;
+    padding: 12px 16px;
     color: var(--color-text-primary);
     font-family: inherit;
-    font-size: 0.9rem;
+    font-size: 0.95rem;
     transition: all 0.2s;
   }
 
   input[type="text"]:focus {
     outline: none;
     border-color: var(--color-accent-violet);
-    background: var(--color-surface-3);
+    background: var(--color-bg-primary);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent-violet) 10%, transparent);
   }
 
   .hotkey-input {
     text-align: center;
     font-family: var(--font-mono);
     text-transform: uppercase;
-    font-weight: bold;
+    font-weight: 800;
     cursor: pointer;
     caret-color: transparent;
+    color: var(--color-accent-violet) !important;
   }
 
   .field-hint {
     font-size: 0.7rem;
     color: var(--color-text-muted);
+    opacity: 0.8;
   }
 
   .color-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(32px, 1fr));
-    gap: 8px;
+    grid-template-columns: repeat(auto-fill, minmax(36px, 1fr));
+    gap: 10px;
     align-items: center;
+    padding: 12px;
+    background: var(--color-surface-1);
+    border-radius: 14px;
+    border: 1px solid var(--color-border);
   }
 
   .color-swatch {
-    width: 32px;
-    height: 32px;
-    border-radius: 6px;
-    border: 1px solid transparent;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: 1px solid color-mix(in srgb, white 10%, transparent);
     cursor: pointer;
-    transition: transform 0.1s, border-color 0.2s;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .color-swatch:hover {
-    transform: scale(1.1);
+    transform: scale(1.15) rotate(5deg);
+    z-index: 2;
+    box-shadow: var(--shadow-md);
   }
 
   .color-swatch.active {
     border-color: white;
-    box-shadow: 0 0 0 2px var(--color-accent-violet);
+    transform: scale(1.1);
+    box-shadow: 0 0 0 3px var(--color-accent-violet);
   }
 
   .custom-color-picker {
-    width: 32px;
-    height: 32px;
+    width: 36px;
+    height: 36px;
     padding: 0;
-    border: none;
+    border: 2px solid var(--color-border);
+    border-radius: 8px;
     background: transparent;
     cursor: pointer;
   }
@@ -355,7 +365,7 @@
   }
 
   .edit-hint {
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     color: var(--color-text-muted);
     font-family: var(--font-mono);
   }
@@ -366,24 +376,22 @@
   }
 
   .btn-primary {
-    padding: 10px 18px;
-    border-radius: 8px;
-    font-size: 0.85rem;
-    font-weight: 500;
+    padding: 12px 24px;
+    border-radius: 14px;
+    font-size: 0.9rem;
+    font-weight: 700;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     font-family: inherit;
-  }
-
-  .btn-primary {
     background: var(--color-accent-violet);
     color: white;
     border: none;
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--color-accent-violet) 30%, transparent);
   }
 
   .btn-primary:hover {
-    opacity: 0.9;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(123, 97, 255, 0.3);
+    transform: translateY(-2px);
+    filter: brightness(1.1);
+    box-shadow: 0 8px 20px color-mix(in srgb, var(--color-accent-violet) 45%, transparent);
   }
 </style>

@@ -54,11 +54,11 @@
     max-width: 500px;
     width: 100%;
     text-align: center;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    box-shadow: var(--shadow-lg);
   }
 
   .icon-wrapper {
-    color: #ff4b4b;
+    color: var(--color-danger);
     margin-bottom: 24px;
     display: flex;
     justify-content: center;
@@ -79,8 +79,8 @@
   }
 
   .error-details {
-    background: rgba(255, 75, 75, 0.05);
-    border: 1px solid rgba(255, 75, 75, 0.2);
+    background: color-mix(in srgb, var(--color-danger) 5%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-danger) 20%, transparent);
     border-radius: 12px;
     padding: 16px;
     margin-bottom: 32px;
@@ -91,7 +91,7 @@
   code {
     font-family: var(--font-mono);
     font-size: 0.85rem;
-    color: #ff4b4b;
+    color: var(--color-danger);
     white-space: pre-wrap;
     word-break: break-all;
   }
@@ -115,7 +115,7 @@
 
   .reset-btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(123, 97, 255, 0.4);
+    box-shadow: 0 8px 24px color-mix(in srgb, var(--color-accent-violet) 40%, transparent);
   }
 
   .reset-btn:active {

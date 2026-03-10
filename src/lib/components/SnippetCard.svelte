@@ -156,7 +156,7 @@
     if (card.color) parts.push(`--color-card-bg: ${card.color}`);
     if (card.borderColor)
       parts.push(`--color-card-border: ${card.borderColor}`);
-    if (isMissing) parts.push(`--color-card-border: #ff4b4b`);
+    if (isMissing) parts.push(`--color-card-border: var(--color-danger)`);
     return parts.length > 0 ? parts.join("; ") : undefined;
   }
 
@@ -719,13 +719,13 @@
   }
 
   .snippet-card.missing {
-    background: rgba(255, 75, 75, 0.05);
-    border-color: rgba(255, 75, 75, 0.3);
+    background: color-mix(in srgb, var(--color-danger) 5%, transparent);
+    border-color: color-mix(in srgb, var(--color-danger) 30%, transparent);
   }
 
   .snippet-card:focus-visible {
     border-color: var(--color-card-border, var(--color-accent-cyan));
-    box-shadow: 0 0 0 2px rgba(0, 210, 255, 0.3);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent-cyan) 30%, transparent);
   }
 
   /* Hover states */
@@ -733,8 +733,8 @@
     cursor: pointer;
     border-color: var(--color-card-border, var(--color-accent-cyan));
     box-shadow:
-      0 8px 32px rgba(0, 0, 0, 0.3),
-      0 0 0 1px rgba(0, 210, 255, 0.1);
+      var(--shadow-lg),
+      0 0 0 1px color-mix(in srgb, var(--color-accent-cyan) 10%, transparent);
   }
 
   .snippet-card.hover-strike {
@@ -749,7 +749,7 @@
 
   .snippet-card.editing {
     border-color: var(--color-accent-violet);
-    box-shadow: 0 0 20px rgba(123, 97, 255, 0.15);
+    box-shadow: 0 0 20px color-mix(in srgb, var(--color-accent-violet) 15%, transparent);
   }
 
   .snippet-card.editing.maximized {
@@ -760,7 +760,7 @@
     height: 90vh;
     z-index: 3000;
     background: var(--color-bg-secondary);
-    box-shadow: 0 25px 80px rgba(0, 0, 0, 0.6);
+    box-shadow: var(--shadow-lg);
     display: flex;
     flex-direction: column;
   }
@@ -804,8 +804,8 @@
 
   .snippet-card.selected {
     border-color: var(--color-accent-cyan) !important;
-    background: rgba(0, 210, 255, 0.05);
-    box-shadow: 0 0 15px rgba(0, 210, 255, 0.2);
+    background: color-mix(in srgb, var(--color-accent-cyan) 5%, transparent);
+    box-shadow: 0 0 15px color-mix(in srgb, var(--color-accent-cyan) 20%, transparent);
   }
 
   .selection-checkbox {
@@ -849,26 +849,26 @@
   }
 
   .snippet-card.flashing {
-    border-color: var(--color-accent-green);
+    border-color: var(--color-success);
     box-shadow:
-      0 0 20px rgba(0, 255, 136, 0.2),
-      0 0 0 2px rgba(0, 255, 136, 0.3);
+      0 0 20px color-mix(in srgb, var(--color-success) 20%, transparent),
+      0 0 0 2px color-mix(in srgb, var(--color-success) 30%, transparent);
     animation: flashPulse 0.4s ease;
   }
 
   @keyframes flashPulse {
     0% {
-      box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.4);
+      box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-success) 40%, transparent);
     }
     50% {
       box-shadow:
-        0 0 30px rgba(0, 255, 136, 0.3),
-        0 0 0 3px rgba(0, 255, 136, 0.4);
+        0 0 30px color-mix(in srgb, var(--color-success) 30%, transparent),
+        0 0 0 3px color-mix(in srgb, var(--color-success) 40%, transparent);
     }
     100% {
       box-shadow:
-        0 0 20px rgba(0, 255, 136, 0.2),
-        0 0 0 2px rgba(0, 255, 136, 0.3);
+        0 0 20px color-mix(in srgb, var(--color-success) 20%, transparent),
+        0 0 0 2px color-mix(in srgb, var(--color-success) 30%, transparent);
     }
   }
 
@@ -876,11 +876,12 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
-    background: var(--color-surface-3);
-    color: var(--color-card-border, var(--color-accent-cyan));
+    width: 34px; /* Slightly larger */
+    height: 34px;
+    border-radius: 9px;
+    background: var(--color-surface-2);
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-border);
     font-family: var(--font-mono);
     font-size: 0.75rem;
     font-weight: 700;
@@ -890,45 +891,48 @@
     flex-shrink: 0;
     pointer-events: auto;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     padding: 0;
     box-sizing: border-box;
-    border: 1px solid transparent;
+    box-shadow: var(--shadow-sm); /* Added subtle shadow for depth */
   }
 
-  /* 1. Auto (gemini.txt) - No border, normal opacity */
+  /* 1. Auto (gemini.txt) - Clean button look */
   .card-hotkey.auto {
-    opacity: 0.8;
-    border-color: transparent;
+    background: var(--color-surface-2);
+    color: var(--color-text-primary);
+    border-color: var(--color-border);
   }
 
-  /* 2. Disabled (npm_run_dev.txt) - Dim, keyboard icon */
+  /* 2. Disabled (npm_run_dev.txt) - Ghost but visible button */
   .card-hotkey.disabled {
-    opacity: 0.25;
+    opacity: 0.5;
     background: transparent;
+    border: 1px dashed var(--color-border);
+    color: var(--color-text-muted);
+    box-shadow: none;
   }
 
-  /* 3. Custom Fixed (npm_run_check.txt) - 1px border, full opacity */
+  /* 3. Custom Fixed (npm_run_check.txt) - Highlighted button */
   .card-hotkey.custom {
     border: 1px solid var(--color-accent-cyan);
-    opacity: 1;
-    background: var(--color-surface-2);
+    background: color-mix(in srgb, var(--color-accent-cyan) 20%, var(--color-surface-2));
+    color: var(--color-accent-cyan);
+    font-weight: 800;
   }
 
-  .card-hotkey:hover,
-  .action-overlay-btn:hover {
-    opacity: 1;
-    background: var(--color-surface-3);
+  .card-hotkey:hover {
+    background: var(--color-accent-cyan);
     border-color: var(--color-accent-cyan);
-    color: var(--color-text-primary);
+    color: var(--color-bg-primary); /* High contrast text on hover */
     transform: scale(1.1);
-    box-shadow: 0 4px 12px rgba(0, 210, 255, 0.15);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--color-accent-cyan) 30%, transparent);
   }
 
   .card-hotkey.conflict {
-    background: rgba(255, 75, 75, 0.15);
-    color: #ff4b4b;
-    border-color: #ff4b4b;
+    background: color-mix(in srgb, var(--color-danger) 15%, transparent);
+    color: var(--color-danger);
+    border-color: var(--color-danger);
     opacity: 1;
     animation: hotkeyShake 0.5s ease-in-out infinite alternate;
   }
@@ -1019,7 +1023,7 @@
     font-size: 1.1rem;
   }
   .card-icon.error {
-    color: #ff4b4b;
+    color: var(--color-danger);
   }
 
   .card-title {
@@ -1092,14 +1096,14 @@
     position: absolute;
     left: 0;
     width: 100%;
-    background: rgba(255, 255, 255, 0.2);
+    background: var(--color-surface-3);
     border-radius: 10px;
     transition:
       background 0.2s ease,
       opacity 0.3s ease;
   }
   .snippet-card:hover .custom-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.35);
+    background: var(--color-text-muted);
   }
 
   .line {
@@ -1280,10 +1284,10 @@
     margin: 0;
   }
   .error-msg code {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--color-surface-1);
     padding: 2px 4px;
     border-radius: 4px;
-    color: #ff4b4b;
+    color: var(--color-danger);
   }
   .missing-actions {
     display: flex;
@@ -1308,9 +1312,9 @@
     background: var(--color-surface-3);
   }
   .btn-ghost-action.delete:hover {
-    background: rgba(255, 75, 75, 0.1);
-    color: #ff4b4b;
-    border-color: #ff4b4b;
+    background: color-mix(in srgb, var(--color-danger) 10%, transparent);
+    color: var(--color-danger);
+    border-color: var(--color-danger);
   }
 
   .manual-link-area {
@@ -1437,7 +1441,7 @@
   }
   .edit-btn.save:hover {
     opacity: 0.9;
-    box-shadow: 0 4px 12px rgba(123, 97, 255, 0.3);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--color-accent-violet) 30%, transparent);
   }
   .edit-btn:disabled {
     opacity: 0.5;
@@ -1451,14 +1455,14 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(0, 255, 136, 0.08);
+    background: color-mix(in srgb, var(--color-success) 10%, transparent);
     animation: fadeIn 0.15s ease;
     pointer-events: none;
     z-index: 10;
   }
   .copy-icon {
     font-size: 2rem;
-    color: var(--color-accent-green);
+    color: var(--color-success);
     animation: scaleIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   }
   @keyframes fadeIn {

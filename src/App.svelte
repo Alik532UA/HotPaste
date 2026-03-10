@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
   import {
     getState,
     handleGlobalKeydown,
@@ -39,11 +39,73 @@
   import { logService } from "./lib/services/logService.svelte";
   import { uiState } from "./lib/stores/uiState.svelte";
   import { fsState } from "./lib/stores/fileSystemState.svelte";
-  import { Sparkles, Waves, Shapes, CircleOff, Moon, Sun, Settings, Zap, FolderOpen, MousePointer2 } from "lucide-svelte";
+  import { Sparkles, Waves, Shapes, Moon, Sun, Settings, Zap, FolderOpen, MousePointer2, Citrus, Leaf } from "lucide-svelte";
 
   const appState = getState();
 
   let globalSettingsModal = $state<ReturnType<typeof GlobalSettingsModal>>();
+  let headerContentRef = $state<HTMLElement | null>(null);
+  let headerLeftRef = $state<HTMLElement | null>(null);
+  let headerRightRef = $state<HTMLElement | null>(null);
+
+  /** 
+   * SMART ADAPTIVE SYSTEM - Refined for Stability
+   */
+  let collapsedStates = $state<Record<string, boolean>>({
+    background: false,
+    language: false,
+    theme: false,
+    density: false,
+    view: false
+  });
+
+  const COLLAPSE_ORDER = ['background', 'language', 'theme', 'density', 'view'];
+  let isUpdatingLayout = false;
+  let lastWidth = 0;
+
+  async function updateAdaptiveLayout() {
+    if (!headerLeftRef || !headerRightRef || !headerContentRef || isUpdatingLayout || uiState.isMinimalMode) return;
+    
+    const containerWidth = headerContentRef.getBoundingClientRect().width;
+    if (containerWidth === 0) return;
+
+    if (Math.abs(containerWidth - lastWidth) < 5) return;
+    
+    const isExpanding = containerWidth > lastWidth;
+    lastWidth = containerWidth;
+    
+    isUpdatingLayout = true;
+
+    if (isExpanding) {
+      for (const key of COLLAPSE_ORDER) {
+        collapsedStates[key] = false;
+      }
+      await tick();
+      await new Promise(r => requestAnimationFrame(r));
+    }
+
+    // Sequentially collapse until they FIT
+    const MIN_GAP = 24;
+
+    for (const key of COLLAPSE_ORDER) {
+      // scrollWidth gives us the "ideal" width even if the element is shrunk by flex
+      const leftDesiredWidth = headerLeftRef.scrollWidth;
+      const rightDesiredWidth = headerRightRef.scrollWidth;
+      const totalDesired = leftDesiredWidth + rightDesiredWidth + MIN_GAP;
+
+      if (totalDesired > containerWidth) {
+        if (!collapsedStates[key]) {
+          collapsedStates[key] = true;
+          await tick();
+          await new Promise(r => requestAnimationFrame(r));
+        }
+      } else {
+        if (!isExpanding) break; 
+      }
+    }
+    
+    isUpdatingLayout = false;
+  }
 
   // Determine if running in Tauri environment
   // @ts-ignore
@@ -69,7 +131,6 @@
     const onMouseMove = (moveEvent: MouseEvent) => {
       if (!isDraggingScale) return;
       const deltaX = moveEvent.clientX - startDragX;
-      // Change 10% for every 50px moved
       const scaleDelta = deltaX / 500;
       setScale(startScale + scaleDelta);
     };
@@ -85,7 +146,6 @@
     window.addEventListener("mouseup", onMouseUp);
   }
 
-  // Scale reset handler for keyboard
   function handleScaleKeydown(e: KeyboardEvent) {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
@@ -93,12 +153,10 @@
     }
   }
 
-  // Global keyboard listener
   function onKeydown(e: KeyboardEvent) {
     handleGlobalKeydown(e);
   }
 
-  // Global scroll zoom (Ctrl + scroll)
   function onWheel(e: WheelEvent) {
     if (e.ctrlKey) {
       e.preventDefault();
@@ -107,15 +165,15 @@
     }
   }
 
-  // Sync minimal mode class to document root for global CSS access
+  // Effect to handle minimal mode transitions
   $effect(() => {
     if (uiState.isMinimalMode) {
       document.documentElement.classList.add("is-minimal");
     } else {
       document.documentElement.classList.remove("is-minimal");
+      setTimeout(updateAdaptiveLayout, 100);
     }
 
-    // Sync transparency to Tauri window
     if (isTauri) {
       import("@tauri-apps/api/core").then(({ invoke }) => {
         invoke("set_minimal_mode_tauri", { minimal: uiState.isMinimalMode })
@@ -125,7 +183,6 @@
   });
 
   onMount(() => {
-    // Add is-tauri class to html
     if (isTauri) {
       document.documentElement.classList.add("is-tauri");
     }
@@ -135,23 +192,16 @@
     background.init();
     initUrlSync();
 
-    // Auto-connect and setup if in Tauri
+    const resizeObserver = new ResizeObserver(() => {
+      updateAdaptiveLayout();
+    });
+    
+    if (headerContentRef) resizeObserver.observe(headerContentRef);
+
     const initTauri = async () => {
-      // Improved check for Tauri v2
-      // @ts-ignore
-      const isTauri = !!(window.__TAURI_INTERNALS__ || window.__TAURI__);
-
-      logService.log("app", `Environment check: isTauri=${isTauri}`);
-
       if (isTauri) {
-        logService.log("app", "Running in Tauri environment - connecting...");
-
-        // Setup programmatic drag as a backup if attribute fails
         window.addEventListener("mousedown", async (e) => {
           const target = e.target as HTMLElement;
-          
-          // CRITICAL: If we are on a DND-capable element, do NOT allow Tauri to start window dragging
-          // We check for handles, cards, tabs AND our draggable attribute
           if (
             target.closest(".drag-handle") || 
             target.closest(".card-wrapper") || 
@@ -171,38 +221,23 @@
                 "@tauri-apps/api/window"
               );
               const appWindow = getCurrentWindow();
-              // Only start dragging if it's the primary mouse button and not on interactive elements
               if (e.button === 0 && !target.closest("button, input, a, textarea")) {
                 await appWindow.startDragging();
               }
             } catch (err) {
-              logService.error(
-                "drag",
-                "Failed to start dragging programmatically",
-                err,
-              );
+              logService.error("drag", "Failed to start dragging programmatically", err);
             }
           }
         });
-        // Remove automatic connectDirectory to allow user to see EmptyState and choose project
-        logService.log("app", "Tauri initialized, waiting for user to connect directory");
 
-        // Setup autostart dynamically to avoid breaking web build
         try {
-          // Standard dynamic import allow Vite to bundle this properly
-          const { enable, isEnabled } = await import(
-            "@tauri-apps/plugin-autostart"
-          );
+          const { enable, isEnabled } = await import("@tauri-apps/plugin-autostart");
           const autostartActive = await isEnabled();
-          if (!autostartActive) {
-            await enable();
-            logService.log("app", "Autostart enabled");
-          }
+          if (!autostartActive) await enable();
         } catch (err) {
           logService.error("app", "Failed to setup autostart", err);
         }
       } else {
-        logService.log("app", "Running in Web environment");
         handleRefreshTabs();
       }
     };
@@ -215,13 +250,15 @@
     return () => {
       document.removeEventListener("keydown", onKeydown);
       document.removeEventListener("wheel", onWheel);
+      resizeObserver.disconnect();
     };
   });
 
-  // Options for Segmented Controls
   const themeOptions = [
-    { id: "dark", label: "", icon: Moon },
-    { id: "light", label: "", icon: Sun },
+    { id: "dark-gray", label: "", icon: Moon },
+    { id: "light-gray", label: "", icon: Sun },
+    { id: "orange", label: "", icon: Citrus },
+    { id: "green", label: "", icon: Leaf },
   ];
 
   const langOptions = [
@@ -230,20 +267,10 @@
   ];
 
   const bgOptions = [
-    { id: "none", label: "Off", icon: CircleOff },
+    { id: "none", label: "Off" },
     { id: "waves", label: "", icon: Waves, iconClass: "lucide-waves" },
-    {
-      id: "particles",
-      label: "",
-      icon: Sparkles,
-      iconClass: "lucide-sparkles",
-    },
-    {
-      id: "floating_shapes",
-      label: "",
-      icon: Shapes,
-      iconClass: "lucide-shapes",
-    },
+    { id: "particles", label: "", icon: Sparkles, iconClass: "lucide-sparkles" },
+    { id: "floating_shapes", label: "", icon: Shapes, iconClass: "lucide-shapes" },
   ];
 </script>
 
@@ -252,197 +279,121 @@
 <div class="theme-transition-overlay" class:active={theme.isChanging}></div>
 
 <div class="app-content" class:language-changing={language.isChanging} class:is-minimal={uiState.isMinimalMode}>
-  <svelte:boundary
-    onerror={(err) => logService.log("error", "Global rendering error", err)}
-  >
+  <svelte:boundary onerror={(err) => logService.log("error", "Global rendering error", err)}>
     {#if !appState.isConnected}
-      <!-- Landing / Empty State -->
       <EmptyState />
     {:else}
-      <!-- Main App Layout -->
       <div class="app-shell" class:is-minimal={uiState.isMinimalMode} data-testid="app-shell">
-        <!-- Top Header -->
         {#if !uiState.isMinimalMode}
-          <header
-            class="app-header"
-            data-tauri-drag-region
-            data-testid="app-header"
-          >
-            <!-- ... content ... -->
+          <header class="app-header" data-tauri-drag-region data-testid="app-header">
             <div class="drag-layer" data-tauri-drag-region></div>
 
-            <div class="header-content">
-              <div
-                class="header-left"
-                data-tauri-drag-region
-                data-testid="header-left"
-              >
-                <h1
-                  class="app-logo"
-                  data-tauri-drag-region
-                  data-testid="app-logo"
-                >
+            <div class="header-content" bind:this={headerContentRef}>
+              <div class="header-left" bind:this={headerLeftRef} data-tauri-drag-region data-testid="header-left">
+                <h1 class="app-logo" data-tauri-drag-region data-testid="app-logo">
                   <span class="logo-icon" data-tauri-drag-region><Zap size={20} /></span>
                   {t.app.title}
                 </h1>
                 <div class="header-divider" data-tauri-drag-region></div>
-                <span
-                  class="root-name"
-                  data-tauri-drag-region
-                  title={appState.rootName}
-                  data-testid="root-name-label"><FolderOpen size={16} /> {appState.rootName}</span
-                >
+                <span class="root-name" data-tauri-drag-region title={appState.rootName} data-testid="root-name-label">
+                  <FolderOpen size={16} /> {appState.rootName}
+                </span>
               </div>
 
-              <!-- View toggles (center) -->
-              <div
-                class="header-center"
-                data-tauri-drag-region
-                data-testid="header-center"
-              >
-                <SegmentedToggle
-                  id="card-view"
-                  options={[
-                    { id: "short", label: t.app.viewShort },
-                    { id: "full", label: t.app.viewFull },
-                  ]}
-                  value={appState.cardView}
-                  onSelect={(id) => setCardView(id)}
-                />
+              <!-- Combined Adaptive Controls -->
+              <div class="header-right" bind:this={headerRightRef} data-tauri-drag-region data-testid="header-right">
+                <!-- 1. View Toggles -->
+                <div class="adaptive-group" class:collapsed={collapsedStates.view}>
+                  <SegmentedToggle
+                    id="card-view"
+                    options={[
+                      { id: "short", label: t.app.viewShort },
+                      { id: "full", label: t.app.viewFull },
+                    ]}
+                    value={appState.cardView}
+                    onSelect={(id) => setCardView(id)}
+                    isCompact={collapsedStates.view}
+                  />
+                </div>
 
                 <div class="header-divider" data-tauri-drag-region></div>
 
-                <SegmentedToggle
-                  id="card-density"
-                  options={[
-                    { id: "compact", label: t.app.densityCompact },
-                    { id: "normal", label: t.app.densityNormal },
-                    { id: "expanded", label: t.app.densityExpanded },
-                  ]}
-                  value={appState.cardDensity}
-                  onSelect={(id) => setCardDensity(id)}
-                />
-              </div>
+                <!-- 2. Card Density -->
+                <div class="adaptive-group" class:collapsed={collapsedStates.density}>
+                  <SegmentedToggle
+                    id="card-density"
+                    options={[
+                      { id: "compact", label: t.app.densityCompact },
+                      { id: "normal", label: t.app.densityNormal },
+                      { id: "expanded", label: t.app.densityExpanded },
+                    ]}
+                    value={appState.cardDensity}
+                    onSelect={(id) => setCardDensity(id)}
+                    isCompact={collapsedStates.density}
+                  />
+                </div>
 
-              <!-- Global Actions (right) -->
-              <div
-                class="header-right"
-                data-tauri-drag-region
-                data-testid="header-right"
-              >
-                <SegmentedToggle
-                  id="theme"
-                  options={themeOptions}
-                  value={theme.current}
-                  onSelect={() => theme.toggle()}
-                />
+                <div class="header-divider" data-tauri-drag-region></div>
 
-                <SegmentedToggle
-                  id="language"
-                  options={langOptions}
-                  value={language.current}
-                  onSelect={(id) => language.set(id)}
-                />
+                <!-- 3. Theme Toggle -->
+                <div class="adaptive-group" class:collapsed={collapsedStates.theme}>
+                  <SegmentedToggle
+                    id="theme"
+                    options={themeOptions}
+                    value={theme.current}
+                    onSelect={(id) => theme.set(id as any)}
+                    isCompact={collapsedStates.theme}
+                  />
+                </div>
 
-                <SegmentedToggle
-                  id="background"
-                  options={bgOptions}
-                  value={background.type}
-                  onSelect={(id) => background.set(id)}
-                />
+                <!-- 4. Language Toggle -->
+                <div class="adaptive-group" class:collapsed={collapsedStates.language}>
+                  <SegmentedToggle
+                    id="language"
+                    options={langOptions}
+                    value={language.current}
+                    onSelect={(id) => language.set(id)}
+                    isCompact={collapsedStates.language}
+                  />
+                </div>
+
+                <!-- 5. Background Toggle -->
+                <div class="adaptive-group" class:collapsed={collapsedStates.background}>
+                  <SegmentedToggle
+                    id="background"
+                    options={bgOptions}
+                    value={background.type}
+                    onSelect={(id) => background.set(id)}
+                    isCompact={collapsedStates.background}
+                  />
+                </div>
 
                 <div class="header-divider"></div>
 
                 <!-- Scale control -->
                 <div class="scale-control" data-testid="scale-control">
-                  <button
-                    class="scale-btn"
-                    onclick={() => adjustScale(-0.1)}
-                    aria-label="Зменшити масштаб"
-                    title="Зменшити масштаб (-10%)"
-                    data-testid="btn-scale-down"
-                  >
-                    -
-                  </button>
-                  <span
-                    class="scale-value"
-                    class:dragging={isDraggingScale}
-                    onmousedown={handleScaleMouseDown}
-                    oncontextmenu={(e) => {
-                      e.preventDefault();
-                      setScale(1.0);
-                    }}
-                    onkeydown={handleScaleKeydown}
-                    role="button"
-                    tabindex="0"
-                    aria-label="Змінити масштаб. Поточний: {Math.round(appState.scale * 100)}%"
-                    title="Затисніть для зміни, ПКМ або Enter — скинути до 100%"
-                    data-testid="scale-value"
-                  >
+                  <button class="scale-btn" onclick={() => adjustScale(-0.1)} title="Зменшити масштаб" data-testid="btn-scale-down">-</button>
+                  <span class="scale-value" class:dragging={isDraggingScale} onmousedown={handleScaleMouseDown} oncontextmenu={(e) => { e.preventDefault(); setScale(1.0); }} onkeydown={handleScaleKeydown} role="button" tabindex="0" title="Затисніть для зміни, ПКМ — скинути" data-testid="scale-value">
                     <MousePointer2 size={12} class="drag-icon" />
                     {Math.round(appState.scale * 100)}%
                   </span>
-                  <button
-                    class="scale-btn"
-                    onclick={() => adjustScale(0.1)}
-                    aria-label="Збільшити масштаб"
-                    title="Збільшити масштаб (+10%)"
-                    data-testid="btn-scale-up"
-                  >
-                    +
-                  </button>
+                  <button class="scale-btn" onclick={() => adjustScale(0.1)} title="Збільшити масштаб" data-testid="btn-scale-up">+</button>
                 </div>
 
-                <!-- Refresh button -->
-                <button
-                  class="icon-btn"
-                  onclick={() => handleRefreshTabs()}
-                  title={t.app.refresh}
-                  aria-label={t.app.refresh}
-                  data-testid="btn-refresh"
-                >
+                <button class="icon-btn" onclick={() => handleRefreshTabs()} title={t.app.refresh} data-testid="btn-refresh">
                   <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                    <path
-                      d="M14.5 3.5A7 7 0 1 0 16 9"
-                      stroke="currentColor"
-                      stroke-width="1.5"
-                      stroke-linecap="round"
-                    />
-                    <path
-                      d="M14.5 1v3h-3"
-                      stroke="currentColor"
-                      stroke-width="1.5"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    />
+                    <path d="M14.5 3.5A7 7 0 1 0 16 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                    <path d="M14.5 1v3h-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
                   </svg>
                 </button>
 
-                <!-- Change directory -->
-                <button
-                  class="icon-btn"
-                  onclick={() => connectDirectory()}
-                  title={t.app.changeDir}
-                  aria-label={t.app.changeDir}
-                  data-testid="btn-change-directory"
-                >
+                <button class="icon-btn" onclick={() => connectDirectory()} title={t.app.changeDir} data-testid="btn-change-directory">
                   <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                    <path
-                      d="M2 4.5c0-1 .7-1.7 1.7-1.7h2.8c.4 0 .8.2 1.1.5l.7.7c.3.3.7.5 1.1.5H14.3c1 0 1.7.7 1.7 1.7v6.1c0 1-.7 1.7-1.7 1.7H3.7c-1 0-1.7-.7-1.7-1.7V4.5z"
-                      stroke="currentColor"
-                      stroke-width="1.5"
-                      fill="none"
-                    />
+                    <path d="M2 4.5c0-1 .7-1.7 1.7-1.7h2.8c.4 0 .8.2 1.1.5l.7.7c.3.3.7.5 1.1.5H14.3c1 0 1.7.7 1.7 1.7v6.1c0 1-.7 1.7-1.7 1.7H3.7c-1 0-1.7-.7-1.7-1.7V4.5z" stroke="currentColor" stroke-width="1.5" fill="none" />
                   </svg>
                 </button>
 
-                <button
-                  class="icon-btn"
-                  onclick={() => globalSettingsModal?.open()}
-                  title={t.common.settings}
-                  aria-label={t.common.settings}
-                  data-testid="btn-global-settings"
-                >
+                <button class="icon-btn" onclick={() => globalSettingsModal?.open()} title={t.common.settings} data-testid="btn-global-settings">
                   <Settings size={18} />
                 </button>
               </div>
@@ -450,14 +401,12 @@
           </header>
         {/if}
 
-        <!-- Tab Bar -->
         {#if !uiState.isMinimalMode}
-          <div class="tab-bar-wrapper" data-testid="tab-bar-wrapper">
+          <div class="tab-bar-wrapper" data-testid="tab-bar">
             <TabBar />
           </div>
         {/if}
 
-        <!-- Main Content -->
         <main class="app-main" class:is-minimal={uiState.isMinimalMode} class:no-scroll={fsState.activeTab?.type === 'keyboard'} data-testid="app-main">
           {#if fsState.activeTab?.type === 'keyboard'}
             <StartMenu />
@@ -466,7 +415,6 @@
           {/if}
         </main>
 
-        <!-- Floating Action Button for creating new card -->
         {#if !uiState.isMinimalMode && fsState.activeTab?.type !== 'keyboard'}
           <FAB />
         {/if}
@@ -479,25 +427,15 @@
   </svelte:boundary>
 </div>
 
-<!-- Toast Notification -->
 <Toast />
-
 <BatchActionBar />
-
 <ContextMenu />
-
 <CardSettingsModal />
-
 <TabSettingsModal />
-
 <HotkeyConflictModal />
-
 <HotkeyPickerModal />
-
 <ProgramPickerModal />
-
 <GlobalSettingsModal bind:this={globalSettingsModal} />
-
 <DebugListener />
 
 <style>
@@ -507,7 +445,6 @@
     min-height: 100vh;
   }
 
-  /* Header */
   .app-header {
     height: 64px;
     display: flex;
@@ -517,70 +454,37 @@
     background: var(--color-bg-secondary);
     border-bottom: 1px solid var(--color-border);
     flex-shrink: 0;
-    /* Essential for Tauri drag region in frameless windows */
     user-select: none;
     cursor: default;
     position: relative;
-    z-index: 100; /* Ensure header and its dropdowns are above app content */
+    z-index: 100;
   }
 
-  /* Progressive Collapse for Segmented Toggles */
-
-  /* 1. Background (collapses first) */
-  @media (max-width: 1450px) {
-    :global([data-testid="segmented-wrapper-background"] .view-full) {
-      display: none !important;
-    }
-    :global([data-testid="segmented-wrapper-background"] .view-compact) {
-      display: flex !important;
-    }
+  /* ADAPTIVE STYLES */
+  .adaptive-group {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
   }
 
-  /* 2. Language */
-  @media (max-width: 1350px) {
-    :global([data-testid="segmented-wrapper-language"] .view-full) {
-      display: none !important;
-    }
-    :global([data-testid="segmented-wrapper-language"] .view-compact) {
-      display: flex !important;
-    }
+  .adaptive-group :global(.view-full) {
+    display: flex !important;
+  }
+  .adaptive-group :global(.view-compact) {
+    display: none !important;
   }
 
-  /* 3. Theme */
-  @media (max-width: 1270px) {
-    :global([data-testid="segmented-wrapper-theme"] .view-full) {
-      display: none !important;
-    }
-    :global([data-testid="segmented-wrapper-theme"] .view-compact) {
-      display: flex !important;
-    }
+  .adaptive-group.collapsed :global(.view-full) {
+    display: none !important;
   }
-
-  /* 4. Card Density */
-  @media (max-width: 1220px) {
-    :global([data-testid="segmented-wrapper-card-density"] .view-full) {
-      display: none !important;
-    }
-    :global([data-testid="segmented-wrapper-card-density"] .view-compact) {
-      display: flex !important;
-    }
-  }
-
-  /* 5. Card View (collapses last) */
-  @media (max-width: 1100px) {
-    :global([data-testid="segmented-wrapper-card-view"] .view-full) {
-      display: none !important;
-    }
-    :global([data-testid="segmented-wrapper-card-view"] .view-compact) {
-      display: flex !important;
-    }
+  .adaptive-group.collapsed :global(.view-compact) {
+    display: flex !important;
   }
 
   .drag-layer {
     position: absolute;
     inset: 0;
     z-index: 0;
-    /* This layer exists purely to catch drag events */
   }
 
   .header-content {
@@ -590,22 +494,26 @@
     align-items: center;
     justify-content: space-between;
     width: 100%;
-    pointer-events: none; /* Let clicks on gaps pass to drag-layer */
+    pointer-events: none;
   }
 
   .header-left,
-  .header-center,
   .header-right {
     display: flex;
     align-items: center;
     gap: var(--space-4);
-    pointer-events: auto; /* Enable for tooltips and controls */
+    pointer-events: auto;
   }
 
-  /* Specific elements should allow dragging even if they have tooltips, 
-     but we must ensure buttons/inputs remain clickable */
-  .header-left > * {
-    pointer-events: auto;
+  .header-left {
+    flex-shrink: 1; /* Allow shrinking if space is tight */
+    min-width: 0;   /* Essential for truncation */
+    overflow: hidden;
+  }
+
+  .header-right {
+    flex-shrink: 0; /* NEVER cut off settings and controls */
+    justify-content: flex-end;
   }
 
   .app-logo {
@@ -620,30 +528,39 @@
     background-clip: text;
     -webkit-text-fill-color: transparent;
     margin: 0;
+    flex-shrink: 1; /* Allow logo text to shrink */
+    min-width: 32px; /* Keep at least the icon space */
+    white-space: nowrap;
+    overflow: hidden;
   }
 
   .logo-icon {
     -webkit-text-fill-color: initial;
-    filter: drop-shadow(0 0 8px rgba(0, 210, 255, 0.5));
+    /* Using a subtle shadow based on accent color */
+    filter: drop-shadow(0 0 8px rgba(var(--color-accent-rgb), 0.5));
   }
 
   .header-divider {
     width: 1px;
     height: 24px;
     background: var(--color-border);
+    flex-shrink: 1; /* Allow divider to disappear */
+    min-width: 0;
+    overflow: hidden;
   }
 
   .root-name {
     font-size: 0.85rem;
     color: var(--color-text-secondary);
-    max-width: 200px;
+    max-width: 300px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     font-weight: 500;
+    flex-shrink: 1; 
+    min-width: 0; /* Changed from 50px to 0 to allow full collapse */
   }
 
-  /* Scale control */
   .scale-control {
     display: flex;
     align-items: center;
@@ -651,6 +568,9 @@
     border-radius: 10px;
     border: 1px solid var(--color-border);
     padding: 2px;
+    flex-shrink: 0;
+    height: 36px; /* Standardized height */
+    box-sizing: border-box;
   }
 
   .scale-btn {
@@ -658,7 +578,7 @@
     align-items: center;
     justify-content: center;
     width: 28px;
-    height: 28px;
+    height: 100%; /* Take full available height */
     border-radius: 8px;
     border: none;
     background: transparent;
@@ -700,20 +620,9 @@
   .scale-value:hover :global(.drag-icon),
   .scale-value.dragging :global(.drag-icon) {
     opacity: 1;
-    color: var(--color-accent-cyan);
+    color: var(--color-accent);
   }
 
-  .scale-value:hover {
-    color: var(--color-text-primary);
-    background: var(--color-surface-3);
-  }
-
-  .scale-value.dragging {
-    color: var(--color-accent-cyan);
-    background: var(--color-surface-3);
-  }
-
-  /* Icon buttons */
   .icon-btn {
     display: flex;
     align-items: center;
@@ -726,6 +635,7 @@
     color: var(--color-text-muted);
     cursor: pointer;
     transition: all var(--transition-fast);
+    flex-shrink: 0;
   }
 
   .icon-btn:hover {
@@ -735,21 +645,15 @@
     transform: translateY(-1px);
   }
 
-  .icon-btn:active {
-    transform: translateY(0);
-  }
-
-  /* Tab Bar Wrapper */
   .tab-bar-wrapper {
     background: var(--color-bg-secondary);
     flex-shrink: 0;
   }
 
-  /* Main Content */
   .app-main {
     flex: 1;
     overflow-y: auto;
-    background-color: transparent; /* Changed to show dynamic bg */
+    background-color: transparent;
     position: relative;
   }
 

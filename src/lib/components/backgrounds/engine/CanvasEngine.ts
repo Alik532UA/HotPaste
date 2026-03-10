@@ -97,15 +97,26 @@ export abstract class CanvasEngine {
     protected abstract draw(): void;
 
     protected getColors() {
-        if (this.theme === "light") {
-            return {
-                primary: "rgba(0, 113, 227, ",
-                secondary: "rgba(94, 92, 230, ",
-            };
-        }
+        if (!browser) return { primary: "rgba(123, 97, 255, ", secondary: "rgba(0, 210, 255, " };
+
+        const style = getComputedStyle(document.documentElement);
+        const accent = style.getPropertyValue('--color-accent').trim() || "#7b61ff";
+        const cyan = style.getPropertyValue('--color-accent-cyan').trim() || "#00d2ff";
+
+        // Helper to convert hex to rgb for rgba usage
+        const hexToRgb = (hex: string) => {
+            hex = hex.replace('#', '');
+            if (hex.length === 3) hex = hex.split('').map(s => s + s).join('');
+            const num = parseInt(hex, 16);
+            return `${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}`;
+        };
+
+        const primaryRgb = accent.startsWith('rgb') ? accent.replace(/[rgba()]/g, '').split(',').slice(0, 3).join(',') : hexToRgb(accent);
+        const secondaryRgb = cyan.startsWith('rgb') ? cyan.replace(/[rgba()]/g, '').split(',').slice(0, 3).join(',') : hexToRgb(cyan);
+
         return {
-            primary: "rgba(0, 242, 255, ",
-            secondary: "rgba(112, 0, 255, ",
+            primary: `rgba(${primaryRgb}, `,
+            secondary: `rgba(${secondaryRgb}, `,
         };
     }
 }

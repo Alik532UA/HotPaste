@@ -111,6 +111,10 @@ export const en = {
         modeToggleDesc: "Choose the key(s) to quickly switch between Full and Minimal modes",
         modeToggleSpace: "[Space] & [F11]",
         modeToggleOnlySpace: "Only [Space]",
-        modeToggleOnlyF11: "Only [F11]"
+        modeToggleOnlyF11: "Only [F11]",
+        themeDarkGray: "Dark Gray",
+        themeLightGray: "Light Gray",
+        themeOrange: "Orange",
+        themeGreen: "Green"
     }
 };

@@ -36,7 +36,7 @@
     >
       <div class="modal-header" data-testid="modal-header">
         <div class="header-title">
-          <AlertTriangle color="#ff9f0a" size={20} />
+          <AlertTriangle color="var(--color-warning)" size={20} />
           <h2 data-testid="modal-title">{t.modals.conflictTitle} {appState.getHotkeyLabel(conflict.code)}</h2>
         </div>
         <button 
@@ -78,7 +78,7 @@
   .modal-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.6);
+    background: color-mix(in srgb, black 60%, transparent);
     backdrop-filter: blur(8px);
     display: flex;
     align-items: center;
@@ -93,7 +93,7 @@
     border-radius: 20px;
     width: 100%;
     max-width: 450px;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+    box-shadow: var(--shadow-lg);
     display: flex;
     flex-direction: column;
     overflow: hidden;

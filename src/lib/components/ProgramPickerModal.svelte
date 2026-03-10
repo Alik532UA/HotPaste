@@ -267,7 +267,7 @@
   .modal-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.7);
+    background: color-mix(in srgb, black 70%, transparent);
     backdrop-filter: blur(12px);
     display: flex;
     align-items: center;
@@ -283,7 +283,7 @@
     width: 100%;
     max-width: 90%;
     max-height: 85vh;
-    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
+    box-shadow: var(--shadow-lg);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -391,7 +391,7 @@
   .search-input-wrapper input:focus {
     border-color: var(--color-accent-violet);
     background: var(--color-surface-3);
-    box-shadow: 0 0 0 4px rgba(123, 97, 255, 0.1);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent-violet) 10%, transparent);
   }
 
   .clear-search-btn {
@@ -446,7 +446,7 @@
   .view-btn.active {
     background: var(--color-surface-3);
     color: var(--color-accent-cyan);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    box-shadow: var(--shadow-sm);
   }
 
   .modal-body {
@@ -515,7 +515,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(0, 0, 0, 0.2);
+    background: color-mix(in srgb, black 20%, transparent);
     border-radius: 10px;
     flex-shrink: 0;
     transition: all 0.2s;
@@ -582,18 +582,18 @@
     align-items: center;
     gap: 8px;
     padding: 10px 16px;
-    background: rgba(255, 75, 75, 0.1);
-    border: 1px solid rgba(255, 75, 75, 0.2);
+    background: color-mix(in srgb, var(--color-danger) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-danger) 20%, transparent);
     border-radius: 12px;
-    color: #ff4b4b;
+    color: var(--color-danger);
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
   }
 
   .btn-clear:hover {
-    background: rgba(255, 75, 75, 0.2);
-    border-color: #ff4b4b;
+    background: color-mix(in srgb, var(--color-danger) 20%, transparent);
+    border-color: var(--color-danger);
   }
 
   .btn-cancel {

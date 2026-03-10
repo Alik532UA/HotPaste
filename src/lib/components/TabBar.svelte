@@ -86,79 +86,83 @@
   }
 </script>
 
-<div class="tab-bar-container">
-  <div class="tab-bar" role="tablist" aria-label={t.app.title} data-testid="tab-bar">
-    {#each appState.tabs as tab, i (tab.path)}
-      {@const LucideIcon = getLucideIcon(tab.icon)}
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <button
-        class="tab"
-        class:active={appState.activeTabIndex === i}
-        class:has-custom-color={!!tab.color}
-        role="tab"
-        aria-selected={appState.activeTabIndex === i}
-        aria-controls="app-main"
-        id="tab-{i}"
-        onclick={() => selectTab(i)}
-        oncontextmenu={(e) => handleContextMenu(e, tab)}
-        style={getTabStyle(tab)}
-        use:draggable={{ index: i, type: 'tab' }}
-        use:dropzone={{ index: i, type: 'tab', onMove: handleMove, onDrop: handleDrop }}
-        animate:flip={{ duration: 250 }}
-        data-testid={`tab-button-${tab.path}`}
-        data-tab-path={tab.path}
-      >
-        <span class="tab-hotkey" data-testid={`tab-hotkey-${tab.path}`}>
-          {tab.hotkey ? appState.getHotkeyLabel(tab.hotkey) : (i + 1)}
-        </span>
+{#if !appState.isMinimalMode}
+  <div class="tab-bar-container">
+    <div class="tab-bar" role="tablist" aria-label={t.app.title}>
+      {#each appState.tabs as tab, i (tab.path)}
+        {@const LucideIcon = getLucideIcon(tab.icon)}
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <button
+          class="tab"
+          class:active={appState.activeTabIndex === i}
+          class:has-custom-color={!!tab.color}
+          role="tab"
+          aria-selected={appState.activeTabIndex === i}
+          aria-controls="app-main"
+          id="tab-{i}"
+          onclick={() => selectTab(i)}
+          oncontextmenu={(e) => handleContextMenu(e, tab)}
+          style={getTabStyle(tab)}
+          use:draggable={{ index: i, type: 'tab' }}
+          use:dropzone={{ index: i, type: 'tab', onMove: handleMove, onDrop: handleDrop }}
+          animate:flip={{ duration: 250 }}
+          data-testid={`tab-button-${tab.path}`}
+          data-tab-path={tab.path}
+        >
+          <span class="tab-hotkey" data-testid={`tab-hotkey-${tab.path}`}>
+            {tab.hotkey ? appState.getHotkeyLabel(tab.hotkey) : (i + 1)}
+          </span>
 
-        {#if LucideIcon}
-          <span class="tab-icon" data-testid={`tab-icon-${tab.path}`}><LucideIcon size={14} /></span>
-        {:else if tab.icon}
-          <span class="tab-icon emoji" data-testid={`tab-icon-emoji-${tab.path}`}>{tab.icon}</span>
-        {/if}
+          {#if LucideIcon}
+            <span class="tab-icon" data-testid={`tab-icon-${tab.path}`}><LucideIcon size={14} /></span>
+          {:else if tab.icon}
+            <span class="tab-icon emoji" data-testid={`tab-icon-emoji-${tab.path}`}>{tab.icon}</span>
+          {/if}
 
-        <span class="tab-name" data-testid={`tab-name-${tab.path}`}>{tab.name}</span>
-        <span class="tab-count" data-testid={`tab-count-${tab.path}`}>{tab.cards.length}</span>
-      </button>
-    {/each}
-
-    <!-- Add Tab Button -->
-    <button class="add-tab-btn" onclick={handleAddTab} title={t.tabs.add} data-testid="btn-add-tab">
-      <Plus size={16} />
-    </button>
-  </div>
-
-  <!-- Search Bar -->
-  <div class="search-container">
-    <button 
-      class="selection-toggle-btn" 
-      class:active={appState.isSelectionMode}
-      onclick={toggleSelectionMode}
-      title={t.common.select || 'Вибрати'}
-      data-testid="btn-selection-toggle"
-    >
-      <CheckSquare size={16} />
-    </button>
-    <div class="search-wrapper" data-testid="search-input-wrapper">
-      <Search size={14} class="search-icon" />
-      <input
-        type="text"
-        class="search-input"
-        placeholder={t.common.search}
-        value={appState.searchQuery}
-        oninput={handleSearchInput}
-        onkeydown={(e) => e.stopPropagation()}
-        data-testid="search-input"
-      />
-      {#if appState.searchQuery}
-        <button class="search-clear" onclick={clearSearch} title={t.common.cancel} data-testid="btn-clear-search">
-          <X size={14} />
+          <span class="tab-name" data-testid={`tab-name-${tab.path}`}>{tab.name}</span>
+          <span class="tab-count" data-testid={`tab-count-${tab.path}`}>{tab.cards.length}</span>
         </button>
-      {/if}
+      {/each}
+
+      <!-- Add Tab Button -->
+      <button class="add-tab-btn" onclick={handleAddTab} title={t.tabs.add} data-testid="btn-add-tab">
+        <Plus size={16} />
+      </button>
     </div>
+
+    <!-- Search Bar -->
+    {#if appState.activeTab?.type !== 'keyboard'}
+      <div class="search-container">
+        <button 
+          class="selection-toggle-btn" 
+          class:active={appState.isSelectionMode}
+          onclick={toggleSelectionMode}
+          title={t.common.select || 'Вибрати'}
+          data-testid="btn-selection-toggle"
+        >
+          <CheckSquare size={16} />
+        </button>
+        <div class="search-wrapper" data-testid="search-input-wrapper">
+          <Search size={14} class="search-icon" />
+          <input
+            type="text"
+            class="search-input"
+            placeholder={t.common.search}
+            value={appState.searchQuery}
+            oninput={handleSearchInput}
+            onkeydown={(e) => e.stopPropagation()}
+            data-testid="search-input"
+          />
+          {#if appState.searchQuery}
+            <button class="search-clear" onclick={clearSearch} title={t.common.cancel} data-testid="btn-clear-search">
+              <X size={14} />
+            </button>
+          {/if}
+        </div>
+      </div>
+    {/if}
   </div>
-</div>
+{/if}
 
 <style>
   .tab-bar-container {
@@ -221,7 +225,7 @@
 
   .tab:hover {
     color: var(--color-text-secondary);
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--color-surface-1);
   }
 
   .tab.active {
@@ -233,12 +237,13 @@
     width: 100%;
   }
 
-  .tab.dragging {
-    opacity: 0.4;
+  /* Drag and Drop visual feedback */
+  :global(.tab.dragging) {
+    opacity: 0.3 !important;
   }
 
-  .tab.drag-over {
-    background: var(--color-surface-3);
+  :global(.tab.drag-over) {
+    background: var(--color-surface-3) !important;
     border-radius: 10px;
   }
 
@@ -260,13 +265,15 @@
     color: var(--color-accent-cyan);
     font-family: var(--font-mono);
     font-size: 0.7rem;
-    font-weight: 600;
+    font-weight: 700;
     line-height: 1;
+    border: 1px solid color-mix(in srgb, var(--color-accent-cyan) 30%, transparent);
   }
 
   .tab.active .tab-hotkey {
-    background: var(--tab-color, var(--color-accent-violet));
-    color: white;
+    background: var(--color-accent-cyan);
+    color: var(--color-bg-primary);
+    border-color: var(--color-accent-cyan);
   }
 
   .tab-icon {
@@ -283,13 +290,22 @@
     max-width: 160px;
     overflow: hidden;
     text-overflow: ellipsis;
+    font-weight: 600;
+  }
+
+  .tab.active .tab-name {
+    color: var(--color-text-primary);
   }
 
   .tab-count {
     font-size: 0.75rem;
-    opacity: 0.4;
-    font-weight: 400;
+    opacity: 0.5;
+    font-weight: 500;
     margin-left: -2px;
+  }
+
+  .tab.active .tab-count {
+    opacity: 0.8;
   }
 
   .add-tab-btn {
@@ -314,7 +330,7 @@
     color: var(--color-text-primary);
     border-color: var(--color-border);
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-sm);
   }
 
   .add-tab-btn:active {
@@ -350,10 +366,10 @@
   }
 
   .selection-toggle-btn.active {
-    background: rgba(0, 210, 255, 0.15);
+    background: color-mix(in srgb, var(--color-accent-cyan) 15%, transparent);
     border-color: var(--color-accent-cyan);
     color: var(--color-accent-cyan);
-    box-shadow: 0 0 12px rgba(0, 210, 255, 0.2);
+    box-shadow: 0 0 12px color-mix(in srgb, var(--color-accent-cyan) 20%, transparent);
   }
 
   .search-wrapper {
@@ -373,7 +389,7 @@
     border-color: var(--color-accent-cyan);
     background: var(--color-surface-3);
     width: 280px;
-    box-shadow: 0 0 0 3px rgba(0, 210, 255, 0.1);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent-cyan) 10%, transparent);
   }
 
   .search-wrapper :global(.search-icon) {

@@ -749,11 +749,12 @@ fn resize_to_minimal(window: &tauri::WebviewWindow) {
     if let Ok(Some(monitor)) = window.primary_monitor() {
         let m_size = monitor.size();
         
-        let window_h_phys = m_size.height as f64 * 0.7;
-        let window_w_phys = m_size.width as f64 * 0.7;
+        // Keyboard-like proportions: wide but short
+        let window_w_phys = m_size.width as f64 * 0.85; // 85% width
+        let window_h_phys = m_size.height as f64 * 0.45; // 45% height (significantly shorter)
 
         let phys_w = window_w_phys as u32;
-        let phys_h = window_h_phys as u32;
+        let phys_h = (window_h_phys as u32) + 105;
 
         let _ = window.set_size(tauri::Size::Physical(tauri::PhysicalSize {
             width: phys_w,

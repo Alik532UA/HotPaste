@@ -40,8 +40,8 @@
 
 <style>
   .card-error-fallback {
-    background: rgba(255, 75, 75, 0.05);
-    border: 1px solid rgba(255, 75, 75, 0.3);
+    background: color-mix(in srgb, var(--color-danger) 5%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-danger) 30%, transparent);
     border-radius: 14px;
     padding: 16px;
     display: flex;
@@ -56,7 +56,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    color: #ff4b4b;
+    color: var(--color-danger);
   }
 
   .error-title {
@@ -82,10 +82,10 @@
   .error-details {
     font-size: 0.65rem;
     font-family: var(--font-mono);
-    background: rgba(0, 0, 0, 0.2);
+    background: var(--color-bg-secondary);
     padding: 4px 8px;
     border-radius: 4px;
-    color: #ff4b4b;
+    color: var(--color-danger);
     word-break: break-all;
     max-height: 60px;
     overflow-y: auto;
@@ -102,8 +102,8 @@
     align-items: center;
     gap: 6px;
     background: transparent;
-    border: 1px solid rgba(255, 75, 75, 0.3);
-    color: #ff4b4b;
+    border: 1px solid color-mix(in srgb, var(--color-danger) 30%, transparent);
+    color: var(--color-danger);
     padding: 6px 12px;
     border-radius: 8px;
     font-size: 0.75rem;
@@ -112,7 +112,7 @@
   }
 
   .reset-btn:hover {
-    background: rgba(255, 75, 75, 0.1);
-    border-color: #ff4b4b;
+    background: color-mix(in srgb, var(--color-danger) 10%, transparent);
+    border-color: var(--color-danger);
   }
 </style>

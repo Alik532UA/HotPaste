@@ -21,39 +21,39 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 12px;
-        padding: 24px 48px;
-        border-radius: 20px;
-        background: rgba(18, 18, 28, 0.9);
-        border: 1px solid var(--color-accent-green);
-        color: var(--color-accent-green);
+        gap: 16px;
+        padding: 32px 56px;
+        border-radius: 24px;
+        background: var(--color-bg-secondary);
+        border: 1px solid var(--color-success);
+        color: var(--color-text-primary);
         font-family: var(--font-family);
-        font-size: 1.1rem;
-        font-weight: 600;
-        box-shadow:
-            0 24px 64px rgba(0, 0, 0, 0.5),
-            0 0 40px rgba(0, 255, 136, 0.15);
-        z-index: 1000;
+        font-size: 1.25rem;
+        font-weight: 700;
+        box-shadow: var(--shadow-lg), 0 0 40px color-mix(in srgb, var(--color-success) 20%, transparent);
+        z-index: 3000;
         animation: toastPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
+        backdrop-filter: blur(32px);
+        -webkit-backdrop-filter: blur(32px);
     }
 
     .toast-icon {
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 48px;
-        height: 48px;
+        width: 56px;
+        height: 56px;
         border-radius: 50%;
-        background: rgba(0, 255, 136, 0.1);
-        font-size: 1.8rem;
-        border: 1px solid rgba(0, 255, 136, 0.2);
+        background: var(--color-success);
+        color: var(--color-bg-primary);
+        font-size: 2rem;
+        box-shadow: 0 4px 12px color-mix(in srgb, var(--color-success) 40%, transparent);
     }
 
     .toast-text {
         max-width: 400px;
         text-align: center;
+        letter-spacing: -0.01em;
     }
 
     @keyframes toastPop {

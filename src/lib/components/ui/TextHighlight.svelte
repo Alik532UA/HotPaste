@@ -30,7 +30,7 @@
 <style>
   .highlight {
     background: var(--color-accent-cyan);
-    color: #000;
+    color: var(--color-bg-primary);
     padding: 0 2px;
     border-radius: 2px;
     font-weight: inherit;

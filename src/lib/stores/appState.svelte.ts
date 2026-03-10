@@ -42,6 +42,7 @@ export function getState() {
         get activeHotkeyPickerCard() { return uiState.activeHotkeyPickerCard; },
         get activeHotkeyConflict() { return uiState.activeHotkeyConflict; },
         get isSelectionMode() { return uiState.isSelectionMode; },
+        get isMinimalMode() { return uiState.isMinimalMode; },
         
         // File System State
         get tabs() { return fsState.tabs; },

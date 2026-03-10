@@ -135,7 +135,7 @@
   .modal-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.6);
+    background: color-mix(in srgb, var(--color-bg-primary) 70%, transparent);
     backdrop-filter: blur(8px);
     display: flex;
     align-items: center;
@@ -150,7 +150,7 @@
     border-radius: 20px;
     width: 100%;
     max-width: 550px;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+    box-shadow: var(--shadow-lg), 0 0 0 1px color-mix(in srgb, var(--color-text-primary) 5%, transparent) inset;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -162,6 +162,7 @@
     align-items: center;
     justify-content: space-between;
     border-bottom: 1px solid var(--color-border);
+    background: var(--color-surface-1);
   }
 
   .header-title {
@@ -173,27 +174,32 @@
   .header-title h2 {
     margin: 0;
     font-size: 1.1rem;
-    font-weight: 600;
+    font-weight: 700;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     max-width: 350px;
+    color: var(--color-text-primary);
   }
 
   .btn-close {
-    background: transparent;
-    border: none;
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-border);
     color: var(--color-text-muted);
     cursor: pointer;
-    padding: 4px;
-    border-radius: 50%;
+    padding: 6px;
+    border-radius: 10px;
     display: flex;
+    align-items: center;
+    justify-content: center;
     transition: all 0.2s;
   }
 
   .btn-close:hover {
-    background: var(--color-surface-3);
-    color: var(--color-text-primary);
+    background: var(--color-danger);
+    color: white;
+    border-color: var(--color-danger);
+    transform: rotate(90deg);
   }
 
   .modal-body {
@@ -201,6 +207,7 @@
     display: flex;
     flex-direction: column;
     gap: 24px;
+    background: var(--color-bg-secondary);
   }
 
   .description {
@@ -208,6 +215,7 @@
     color: var(--color-text-secondary);
     text-align: center;
     margin: 0;
+    line-height: 1.5;
   }
 
   .keyboard-ui {
@@ -215,6 +223,10 @@
     flex-direction: column;
     gap: 8px;
     align-items: center;
+    padding: 10px;
+    background: var(--color-surface-1);
+    border-radius: 16px;
+    border: 1px solid var(--color-border);
   }
 
   .keyboard-row {
@@ -223,41 +235,53 @@
   }
 
   .key-btn {
-    width: 42px;
-    height: 42px;
-    background: var(--color-surface-2);
+    width: 44px;
+    height: 44px;
+    background: var(--color-bg-secondary);
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
+    box-shadow: var(--shadow-sm);
   }
 
   .key-btn:hover {
     background: var(--color-surface-3);
     border-color: var(--color-accent-violet);
     transform: translateY(-2px);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--color-accent-violet) 20%, transparent);
   }
 
   .key-btn.active {
     background: var(--color-accent-violet);
     border-color: var(--color-accent-violet);
-    color: white;
+    color: var(--color-bg-primary);
+    transform: scale(1.05);
+  }
+
+  .key-btn.active .key-label {
+    color: var(--color-bg-primary);
   }
 
   /* Automatic hotkey (not custom) — show only border and text color, no fill */
   .key-btn.active:not(.is-custom) {
-    background: transparent;
+    background: color-mix(in srgb, var(--color-accent-violet) 15%, var(--color-bg-secondary));
     border: 2px dashed var(--color-accent-violet);
+    color: var(--color-accent-violet);
+    transform: none;
+  }
+
+  .key-btn.active:not(.is-custom) .key-label {
     color: var(--color-accent-violet);
   }
 
   .key-label {
     font-size: 1.1rem;
-    font-weight: 600;
+    font-weight: 800;
     text-transform: uppercase;
     color: var(--color-text-primary);
   }
@@ -265,41 +289,48 @@
   .actions-row {
     display: flex;
     justify-content: center;
-    gap: 12px;
+    gap: 16px;
+    padding-top: 8px;
   }
 
   .btn-reset {
-    padding: 10px 20px;
-    background: rgba(0, 210, 255, 0.1);
-    border: 1px solid rgba(0, 210, 255, 0.3);
-    border-radius: 12px;
+    padding: 12px 24px;
+    background: color-mix(in srgb, var(--color-accent-cyan) 10%, var(--color-bg-secondary));
+    border: 1px solid color-mix(in srgb, var(--color-accent-cyan) 30%, transparent);
+    border-radius: 14px;
     color: var(--color-accent-cyan);
     font-size: 0.9rem;
-    font-weight: 600;
+    font-weight: 700;
     cursor: pointer;
     transition: all 0.2s;
   }
 
   .btn-reset:hover {
-    background: rgba(0, 210, 255, 0.2);
+    background: var(--color-accent-cyan);
+    color: var(--color-bg-primary);
     border-color: var(--color-accent-cyan);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--color-accent-cyan) 30%, transparent);
   }
 
   .btn-clear {
-    padding: 10px 20px;
-    background: rgba(255, 75, 75, 0.1);
-    border: 1px solid rgba(255, 75, 75, 0.3);
-    border-radius: 12px;
-    color: #ff4b4b;
+    padding: 12px 24px;
+    background: color-mix(in srgb, var(--color-danger) 10%, var(--color-bg-secondary));
+    border: 1px solid color-mix(in srgb, var(--color-danger) 30%, transparent);
+    border-radius: 14px;
+    color: var(--color-danger);
     font-size: 0.9rem;
-    font-weight: 600;
+    font-weight: 700;
     cursor: pointer;
     transition: all 0.2s;
   }
 
   .btn-clear:hover {
-    background: rgba(255, 75, 75, 0.2);
-    border-color: #ff4b4b;
+    background: var(--color-danger);
+    color: white;
+    border-color: var(--color-danger);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--color-danger) 30%, transparent);
   }
 
   /* Responsive adjustments */

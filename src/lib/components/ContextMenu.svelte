@@ -211,35 +211,33 @@
   .context-menu {
     position: fixed;
     z-index: 1000;
-    width: 220px;
+    width: 230px;
     background: var(--color-bg-secondary);
     border: 1px solid var(--color-border);
-    border-radius: 12px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+    border-radius: 14px;
+    box-shadow: var(--shadow-lg), 0 0 0 1px color-mix(in srgb, var(--color-text-primary) 5%, transparent) inset;
     padding: 6px;
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    animation: menuAppear 0.1s ease-out;
+    backdrop-filter: blur(32px);
+    -webkit-backdrop-filter: blur(32px);
+    animation: menuAppear 0.15s cubic-bezier(0.16, 1, 0.3, 1);
     outline: none;
   }
 
   @keyframes menuAppear {
-    from { opacity: 0; transform: scale(0.98); }
-    to { opacity: 1; transform: scale(1); }
+    from { opacity: 0; transform: scale(0.95) translateY(-5px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
   }
 
   .menu-header {
-    padding: 8px 12px;
-    font-size: 0.65rem;
+    padding: 10px 14px;
+    font-size: 0.7rem;
     color: var(--color-text-muted);
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.8px;
-    border-bottom: 1px solid var(--color-surface-2);
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--color-border);
     margin-bottom: 6px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    opacity: 0.8;
+    opacity: 0.9;
   }
 
   .menu-item {
@@ -247,30 +245,32 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 10px 12px;
+    padding: 10px 14px;
     background: transparent;
     border: none;
-    border-radius: 8px;
+    border-radius: 10px;
     color: var(--color-text-secondary);
-    font-size: 0.85rem;
+    font-size: 0.9rem;
+    font-weight: 500;
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     text-align: left;
     font-family: inherit;
   }
 
   .menu-item:hover {
-    background: var(--color-surface-3);
+    background: var(--color-surface-2);
     color: var(--color-text-primary);
+    transform: translateX(4px);
   }
 
   .menu-item.danger {
-    color: #ff5555;
+    color: var(--color-danger);
   }
 
   .menu-item.danger:hover {
-    background: rgba(255, 85, 85, 0.15);
+    background: color-mix(in srgb, var(--color-danger) 15%, transparent);
   }
 
   .menu-item.disabled {
@@ -289,8 +289,7 @@
   .divider {
     height: 1px;
     background: var(--color-border);
-    margin: 6px 0;
-    opacity: 0.5;
+    margin: 6px 8px;
   }
 
   /* Custom styling for icons inside menu items if needed */
@@ -307,14 +306,15 @@
   .submenu {
     display: none;
     position: absolute;
-    left: 100%;
+    left: calc(100% + 2px);
     top: -6px;
-    width: 180px;
+    width: 190px;
     background: var(--color-bg-secondary);
     border: 1px solid var(--color-border);
-    border-radius: 12px;
+    border-radius: 14px;
     padding: 6px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+    box-shadow: var(--shadow-lg);
+    animation: menuAppear 0.2s ease-out;
   }
 
   /* Nudge controls */
@@ -334,14 +334,14 @@
     gap: 4px;
   }
   .nudge-btn {
-    width: 36px;
-    height: 36px;
+    width: 38px;
+    height: 38px;
     display: flex;
     align-items: center;
     justify-content: center;
     background: var(--color-surface-2);
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: 10px;
     color: var(--color-text-primary);
     cursor: pointer;
     transition: all 0.2s;
@@ -349,7 +349,8 @@
   .nudge-btn:hover {
     background: var(--color-accent-violet);
     color: white;
-    border-color: transparent;
-    transform: scale(1.1);
+    border-color: var(--color-accent-violet);
+    transform: scale(1.1) rotate(5deg);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--color-accent-violet) 40%, transparent);
   }
 </style>

@@ -111,6 +111,10 @@ export const uk = {
         modeToggleDesc: "Виберіть клавішу для швидкого перемикання між Full та Minimal режимами",
         modeToggleSpace: "[Space] та [F11]",
         modeToggleOnlySpace: "Тільки [Space]",
-        modeToggleOnlyF11: "Тільки [F11]"
+        modeToggleOnlyF11: "Тільки [F11]",
+        themeDarkGray: "Темно-сіра",
+        themeLightGray: "Світло-сіра",
+        themeOrange: "Помаранчева",
+        themeGreen: "Зелена"
     }
 };

@@ -10,11 +10,12 @@
         iconClass?: string; 
     }
 
-    let { id, options, value, onSelect }: { 
+    let { id, options, value, onSelect, isCompact = false }: { 
         id: string, 
         options: Option[], 
         value: string, 
-        onSelect: (id: any) => void 
+        onSelect: (id: any) => void,
+        isCompact?: boolean
     } = $props();
 
     let isOpen = $state(false);
@@ -56,85 +57,100 @@
 <div class="segmented-wrapper" 
      class:has-two={options.length === 2} 
      class:has-many={options.length > 2} 
+     class:is-compact={isCompact}
      data-testid={`segmented-wrapper-${id}`}>
     
     <!-- 1. Full View -->
-    <div class="view-full segmented-control" data-testid={`segmented-control-desktop-${id}`}>
-        {#each options as opt}
-            <button 
-                class:active={value === opt.id}
-                onclick={() => onSelect(opt.id)}
-                title={opt.label}
-                type="button"
-                data-testid={`segmented-opt-${id}-${opt.id}`}
-            >
-                {#if opt.icon} 
-                    <opt.icon size={14} class={opt.iconClass} /> 
-                {/if}
-                <span class="label">{opt.label}</span>
-            </button>
-        {/each}
-    </div>
+    {#if !isCompact}
+        <div class="view-full segmented-control" data-testid={`segmented-control-desktop-${id}`}>
+            {#each options as opt}
+                <button 
+                    class:active={value === opt.id}
+                    class:icon-only={opt.icon && !opt.label}
+                    onclick={() => onSelect(opt.id)}
+                    title={opt.label}
+                    type="button"
+                    data-testid={`segmented-opt-${id}-${opt.id}`}
+                >
+                    {#if opt.icon} 
+                        <opt.icon size={14} class={opt.iconClass} /> 
+                    {/if}
+                    {#if opt.label}
+                        <span class="label">{opt.label}</span>
+                    {/if}
+                </button>
+            {/each}
+        </div>
+    {/if}
 
     <!-- 2. Compact View -->
-    <div class="view-compact" use:handleClickOutside data-testid={`segmented-control-compact-${id}`}>
-        {#if options.length === 2}
-            <!-- 2 options -> Single Switch Button -->
-            <button 
-                class="compact-trigger toggle-mode" 
-                onclick={handleToggle}
-                title={activeOption.label}
-                type="button"
-                data-testid={`segmented-toggle-compact-${id}`}
-            >
-                {#if activeOption.icon} 
-                    <activeOption.icon size={14} class={activeOption.iconClass} /> 
-                {/if}
-                <span class="label">{activeOption.label}</span>
-            </button>
-        {:else}
-            <!-- More than 2 options -> Custom Dropdown -->
-            <button 
-                class="compact-trigger dropdown-mode" 
-                class:active={isOpen}
-                onclick={handleToggle}
-                type="button"
-                data-testid={`segmented-dropdown-trigger-${id}`}
-            >
-                {#if activeOption.icon} 
-                    <activeOption.icon size={14} class={activeOption.iconClass} /> 
-                {/if}
-                <span class="label">{activeOption.label}</span>
-                <ChevronDown size={14} class={"chevron " + (isOpen ? "rotated" : "")} />
-            </button>
+    {#if isCompact}
+        <div class="view-compact" use:handleClickOutside data-testid={`segmented-control-compact-${id}`}>
+            {#if options.length === 2}
+                <!-- 2 options -> Single Switch Button -->
+                <button 
+                    class="compact-trigger toggle-mode" 
+                    class:icon-only={activeOption.icon && !activeOption.label}
+                    onclick={handleToggle}
+                    title={activeOption.label}
+                    type="button"
+                    data-testid={`segmented-toggle-compact-${id}`}
+                >
+                    {#if activeOption.icon} 
+                        <activeOption.icon size={14} class={activeOption.iconClass} /> 
+                    {/if}
+                    {#if activeOption.label}
+                        <span class="label">{activeOption.label}</span>
+                    {/if}
+                </button>
+            {:else}
+                <!-- More than 2 options -> Custom Dropdown -->
+                <button 
+                    class="compact-trigger dropdown-mode" 
+                    class:active={isOpen}
+                    onclick={handleToggle}
+                    type="button"
+                    data-testid={`segmented-dropdown-trigger-${id}`}
+                >
+                    {#if activeOption.icon} 
+                        <activeOption.icon size={14} class={activeOption.iconClass} /> 
+                    {/if}
+                    {#if activeOption.label}
+                        <span class="label">{activeOption.label}</span>
+                    {/if}
+                    <ChevronDown size={14} class={"chevron " + (isOpen ? "rotated" : "")} />
+                </button>
 
-            {#if isOpen}
-                <div class="dropdown-menu" 
-                     in:fly={{ y: 5, duration: 150 }} 
-                     out:fade={{ duration: 100 }} 
-                     data-testid={`segmented-dropdown-menu-${id}`}>
-                    {#each options as opt}
-                        <button 
-                            class="menu-item" 
-                            class:selected={value === opt.id}
-                            onclick={() => selectOption(opt.id)}
-                            data-testid={`segmented-menu-opt-${id}-${opt.id}`}
-                        >
-                            <div class="item-content">
-                                {#if opt.icon} 
-                                    <opt.icon size={14} class={opt.iconClass} /> 
+                {#if isOpen}
+                    <div class="dropdown-menu" 
+                        in:fly={{ y: 5, duration: 150 }} 
+                        out:fade={{ duration: 100 }} 
+                        data-testid={`segmented-dropdown-menu-${id}`}>
+                        {#each options as opt}
+                            <button 
+                                class="menu-item" 
+                                class:selected={value === opt.id}
+                                onclick={() => selectOption(opt.id)}
+                                data-testid={`segmented-menu-opt-${id}-${opt.id}`}
+                            >
+                                <div class="item-content">
+                                    {#if opt.icon} 
+                                        <opt.icon size={14} class={opt.iconClass} /> 
+                                    {/if}
+                                    {#if opt.label}
+                                        <span>{opt.label}</span>
+                                    {/if}
+                                </div>
+                                {#if value === opt.id}
+                                    <Check size={14} class="check-icon" />
                                 {/if}
-                                <span>{opt.label}</span>
-                            </div>
-                            {#if value === opt.id}
-                                <Check size={14} class="check-icon" />
-                            {/if}
-                        </button>
-                    {/each}
-                </div>
+                            </button>
+                        {/each}
+                    </div>
+                {/if}
             {/if}
-        {/if}
-    </div>
+        </div>
+    {/if}
 </div>
 
 <style>
@@ -151,13 +167,17 @@
         border-radius: 10px;
         border: 1px solid var(--color-border);
         gap: 2px;
+        height: 36px; /* Fixed height */
+        box-sizing: border-box;
     }
 
     button {
         display: flex;
         align-items: center;
+        justify-content: center; /* Center content horizontally */
         gap: 6px;
-        padding: 6px 12px;
+        padding: 0 12px; /* Removed vertical padding, using height instead */
+        height: 100%;    /* Take full container height */
         border: none;
         background: transparent;
         color: var(--color-text-muted);
@@ -167,6 +187,14 @@
         border-radius: 8px;
         transition: all 0.2s ease;
         white-space: nowrap;
+        min-width: 32px; /* Ensure small buttons are square-ish */
+        box-sizing: border-box;
+    }
+
+    /* Remove gap for icon-only buttons to ensure perfect centering */
+    button.icon-only {
+        gap: 0;
+        padding: 0 10px;
     }
 
     button:hover:not(.active):not(.selected) {
@@ -177,18 +205,19 @@
     .active {
         background: var(--color-surface-3);
         color: var(--color-accent-cyan);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        box-shadow: var(--shadow-sm);
     }
 
     /* Compact Trigger Styles */
     .compact-trigger {
         background: var(--color-surface-1);
         border: 1px solid var(--color-border);
-        padding: 6px 12px;
+        padding: 0 12px;
         border-radius: 10px;
         color: var(--color-accent-cyan);
         min-width: 40px;
-        justify-content: center;
+        height: 36px; /* Fixed height */
+        box-sizing: border-box;
     }
 
     .compact-trigger:hover {
@@ -199,6 +228,7 @@
     :global(.chevron) {
         color: var(--color-text-muted);
         transition: transform 0.2s ease;
+        margin-left: 4px;
     }
 
     :global(.chevron.rotated) {
@@ -211,14 +241,14 @@
         top: calc(100% + 8px);
         right: 0; 
         min-width: 160px;
-        background: rgba(30, 30, 40, 0.95);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: var(--glass-bg);
+        backdrop-filter: var(--backdrop-filter);
+        -webkit-backdrop-filter: var(--backdrop-filter);
+        border: 1px solid var(--glass-border);
         border-radius: 12px;
         padding: 6px;
         z-index: 2000;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
+        box-shadow: var(--shadow-lg);
         display: flex;
         flex-direction: column;
         gap: 2px;
@@ -247,8 +277,7 @@
         color: var(--color-accent-cyan);
     }
 
-    /* Logic: Switch between views is handled by parent or by global styles
-       By default, show desktop and hide compact */
+    /* Logic: Switch between views */
     .view-full {
         display: flex;
     }

@@ -141,7 +141,7 @@
           <button
             class="color-swatch"
             class:active={color === preset.value}
-            style="background-color: {preset.value || 'rgba(255,255,255,0.05)'}"
+            style="background-color: {preset.value || 'color-mix(in srgb, var(--color-text-primary) 5%, transparent)'}"
             onclick={() => (color = preset.value)}
             title={preset.name}
             data-testid="tab-color-preset-{preset.name.toLowerCase()}"
@@ -252,7 +252,7 @@
   }
 
   .color-swatch.active {
-    border-color: white;
+    border-color: var(--color-text-primary);
     box-shadow: 0 0 0 2px var(--color-accent-violet);
   }
 
@@ -302,6 +302,6 @@
   .btn-primary:hover {
     opacity: 0.9;
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(123, 97, 255, 0.3);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--color-accent-violet) 30%, transparent);
   }
 </style>

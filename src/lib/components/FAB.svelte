@@ -41,19 +41,13 @@
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        box-shadow:
-            0 10px 25px rgba(0, 210, 255, 0.3),
-            0 0 0 1px rgba(255, 255, 255, 0.1) inset;
         transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         z-index: 50; /* Above cards but below modals */
         outline: none;
     }
 
     .fab:hover {
-        transform: scale(1.1) translateY(-4px);
-        box-shadow:
-            0 15px 35px rgba(0, 210, 255, 0.4),
-            0 0 0 1px rgba(255, 255, 255, 0.2) inset;
+        transform: scale(1.05);
     }
 
     .fab:active {
@@ -62,9 +56,7 @@
     }
 
     .fab:focus-visible {
-        box-shadow:
-            0 10px 25px rgba(0, 210, 255, 0.3),
-            0 0 0 2px var(--color-bg-primary),
-            0 0 0 4px var(--color-accent-cyan);
+        outline: 2px solid var(--color-accent-cyan);
+        outline-offset: 4px;
     }
 </style>

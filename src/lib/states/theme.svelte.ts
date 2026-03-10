@@ -1,14 +1,16 @@
 import { persistedState } from './persisted.svelte';
 
+export type ThemeType = 'dark-gray' | 'light-gray' | 'orange' | 'green';
+
+const THEMES: ThemeType[] = ['dark-gray', 'light-gray', 'orange', 'green'];
+
 class ThemeState {
-    private _current = persistedState<string>("hp_theme", "dark");
+    private _current = persistedState<ThemeType>("hp_theme", "dark-gray");
     isChanging = $state(false);
 
     get current() { return this._current.value; }
 
-    constructor() {
-        // No $effect here to avoid effect_orphan
-    }
+    constructor() {}
 
     init() {
         $effect(() => {
@@ -22,19 +24,24 @@ class ThemeState {
         if (this.isChanging) return;
         
         this.isChanging = true;
+        
+        // Brief delay for transition overlay to show
         await new Promise(r => setTimeout(r, 50));
 
+        const currentIndex = THEMES.indexOf(this.current);
+        const nextIndex = (currentIndex + 1) % THEMES.length;
+        this._current.value = THEMES[nextIndex];
+        
+        // Wait for CSS transitions to finish before hiding overlay
         setTimeout(() => {
-            this._current.value = this.current === "dark" ? "light" : "dark";
-            
-            setTimeout(() => {
-                this.isChanging = false;
-            }, 300);
-        }, 200);
+            this.isChanging = false;
+        }, 400);
     }
 
-    set(theme: string) {
-        this._current.value = theme;
+    set(theme: ThemeType) {
+        if (THEMES.includes(theme)) {
+            this._current.value = theme;
+        }
     }
 }
 

@@ -82,26 +82,27 @@
 <style>
   .batch-action-bar {
     position: fixed;
-    bottom: 24px;
+    bottom: 32px;
     left: 50%;
     transform: translateX(-50%);
-    background: var(--color-surface-1);
+    background: var(--color-bg-secondary);
     border: 1px solid var(--color-accent-cyan);
-    border-radius: 16px;
-    padding: 8px 16px;
+    border-radius: 20px;
+    padding: 10px 20px;
     display: flex;
     align-items: center;
     gap: 24px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+    box-shadow: var(--shadow-lg), 0 0 0 1px color-mix(in srgb, var(--color-text-primary) 5%, transparent) inset;
     z-index: 1000;
-    backdrop-filter: blur(20px);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
   }
 
   .selection-info {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding-right: 16px;
+    gap: 12px;
+    padding-right: 20px;
     border-right: 1px solid var(--color-border);
   }
 
@@ -110,58 +111,75 @@
   }
 
   .count {
-    font-weight: 600;
-    font-size: 0.9rem;
+    font-weight: 700;
+    font-size: 0.95rem;
     color: var(--color-text-primary);
+    letter-spacing: -0.01em;
   }
 
   .actions {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
   }
 
   .action-btn {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 8px 12px;
-    border-radius: 10px;
+    padding: 10px 16px;
+    border-radius: 12px;
     border: 1px solid transparent;
-    background: transparent;
+    background: var(--color-surface-1);
     color: var(--color-text-secondary);
-    font-size: 0.85rem;
-    font-weight: 500;
+    font-size: 0.9rem;
+    font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  .action-btn:hover {
+  .action-btn:hover:not(:disabled) {
     background: var(--color-surface-2);
     color: var(--color-text-primary);
+    transform: translateY(-2px);
+  }
+
+  .action-btn:active:not(:disabled) {
+    transform: translateY(0);
   }
 
   .action-btn:disabled {
-    opacity: 0.3;
+    opacity: 0.2;
     cursor: not-allowed;
-    filter: grayscale(1);
   }
 
   .action-btn.delete:hover:not(:disabled) {
-    color: #ff4b4b;
-    background: rgba(255, 75, 75, 0.1);
-    border-color: rgba(255, 75, 75, 0.2);
+    color: white;
+    background: var(--color-danger);
+    border-color: var(--color-danger);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--color-danger) 40%, transparent);
   }
 
-  .action-btn.move:hover {
-    color: var(--color-accent-cyan);
-    background: rgba(0, 210, 255, 0.1);
-    border-color: rgba(0, 210, 255, 0.2);
+  .action-btn.move:hover:not(:disabled) {
+    color: var(--color-bg-primary);
+    background: var(--color-accent-cyan);
+    border-color: var(--color-accent-cyan);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--color-accent-cyan) 40%, transparent);
+  }
+
+  .action-btn.clear {
+    padding: 10px;
+    color: var(--color-text-muted);
+  }
+
+  .action-btn.clear:hover {
+    color: var(--color-text-primary);
+    background: var(--color-surface-3);
   }
 
   .divider {
     width: 1px;
-    height: 24px;
+    height: 28px;
     background: var(--color-border);
     margin: 0 4px;
   }
@@ -172,33 +190,41 @@
 
   .move-menu {
     position: absolute;
-    bottom: calc(100% + 12px);
+    bottom: calc(100% + 16px);
     left: 0;
-    background: var(--color-surface-2);
+    background: var(--color-bg-secondary);
     border: 1px solid var(--color-border);
-    border-radius: 12px;
-    padding: 6px;
-    min-width: 160px;
+    border-radius: 16px;
+    padding: 8px;
+    min-width: 180px;
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    gap: 4px;
+    box-shadow: var(--shadow-lg);
+    animation: menuAppear 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+
+  @keyframes menuAppear {
+    from { opacity: 0; transform: translateY(10px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
   }
 
   .menu-item {
     text-align: left;
-    padding: 8px 12px;
-    border-radius: 6px;
+    padding: 10px 14px;
+    border-radius: 10px;
     border: none;
     background: transparent;
     color: var(--color-text-secondary);
-    font-size: 0.85rem;
+    font-size: 0.9rem;
+    font-weight: 500;
     cursor: pointer;
     transition: all 0.2s;
   }
 
   .menu-item:hover {
-    background: var(--color-surface-3);
+    background: var(--color-surface-2);
     color: var(--color-text-primary);
+    transform: translateX(4px);
   }
 </style>

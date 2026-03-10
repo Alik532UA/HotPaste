@@ -87,7 +87,7 @@
   .modal-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.7);
+    background: color-mix(in srgb, var(--color-bg-primary) 70%, transparent);
     backdrop-filter: blur(4px);
     z-index: 2000;
     display: flex;
@@ -107,7 +107,7 @@
     background: var(--color-bg-secondary);
     border: 1px solid var(--color-border);
     border-radius: 20px;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    box-shadow: var(--shadow-lg), 0 0 0 1px color-mix(in srgb, var(--color-text-primary) 5%, transparent) inset;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -115,65 +115,73 @@
   }
 
   @keyframes slideUp {
-    from { opacity: 0; transform: translateY(20px) scale(0.95); }
+    from { opacity: 0; transform: translateY(30px) scale(0.98); }
     to { opacity: 1; transform: translateY(0) scale(1); }
   }
 
   .modal-header {
-    padding: 20px 24px;
+    padding: 24px 28px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     border-bottom: 1px solid var(--color-border);
+    background: var(--color-surface-1);
     flex-shrink: 0;
   }
 
   .header-title-area {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 14px;
     flex: 1;
   }
 
   .default-title {
-    font-size: 1.1rem;
-    font-weight: 600;
+    font-size: 1.2rem;
+    font-weight: 700;
     margin: 0;
     color: var(--color-text-primary);
+    letter-spacing: -0.01em;
   }
 
   .close-btn {
-    background: transparent;
-    border: none;
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-border);
     color: var(--color-text-muted);
     cursor: pointer;
-    transition: color 0.2s;
-    padding: 4px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    padding: 6px;
+    border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
   }
 
   .close-btn:hover {
-    color: var(--color-text-primary);
+    background: var(--color-danger);
+    color: white;
+    border-color: var(--color-danger);
+    transform: rotate(90deg) scale(1.1);
   }
 
   .modal-body {
-    padding: 24px;
+    padding: 28px;
     display: flex;
     flex-direction: column;
-    max-height: 70vh;
+    max-height: 75vh;
     overflow-y: auto;
     overscroll-behavior: contain;
+    background: var(--color-bg-secondary);
   }
 
   .modal-footer {
-    padding: 20px 24px;
+    padding: 24px 28px;
     background: var(--color-surface-1);
     border-top: 1px solid var(--color-border);
     display: flex;
     align-items: center;
     justify-content: flex-end;
+    gap: 12px;
     flex-shrink: 0;
   }
 </style>
