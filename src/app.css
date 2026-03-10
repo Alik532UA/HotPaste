@@ -35,6 +35,7 @@
   --color-accent-cyan: #00d2ff;
   --color-accent-violet: #7b61ff;
   --color-accent-green: #00ff88;
+  --color-danger: #ef4444;
   --color-accent-gradient: linear-gradient(135deg, #00d2ff 0%, #7b61ff 100%);
 
   /* Typography */
@@ -83,6 +84,7 @@
   --color-text-secondary: #475569;
   --color-text-muted: #94a3b8;
   --color-accent-violet: #6366f1;
+  --color-danger: #dc2626;
 }
 
 /* =============================================
