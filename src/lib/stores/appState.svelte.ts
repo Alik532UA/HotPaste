@@ -173,14 +173,10 @@ export async function copyCardByHotkey(code: string): Promise<boolean> {
 
 // --- Keyboard handler ---
 
-export function handleGlobalKeydown(event: KeyboardEvent): void {
-    const activeEl = document.activeElement;
-    const isInput = activeEl && (
-        ['INPUT', 'TEXTAREA'].includes(activeEl.tagName.toUpperCase()) ||
-        (activeEl as HTMLElement).isContentEditable
-    );
+import { isInputFocused } from '../utils/keyboardLayout';
 
-    if (isInput || event.defaultPrevented) return;
+export function handleGlobalKeydown(event: KeyboardEvent): void {
+    if (isInputFocused() || event.defaultPrevented) return;
 
     if (
         uiState.editingCardPath || 

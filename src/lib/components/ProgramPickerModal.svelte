@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { X, Search, Monitor, Play, Folder, Settings2, Trash2, LayoutGrid, List } from "lucide-svelte";
+  import { X, Search, Monitor, Play, Folder, Settings2, Trash2, LayoutGrid, List, Link, Terminal, Power, RotateCcw, Moon, Zap, Lock, LogOut } from "lucide-svelte";
   import { fade, scale } from "svelte/transition";
   import { uiState } from "../stores/uiState.svelte";
   import { updateTabAssignment } from "../stores/appState.svelte";
@@ -11,21 +11,48 @@
 
   const context = $derived(uiState.activeProgramPicker);
   let searchQuery = $state("");
-  let activeTab = $state<"local" | "running" | "start" | "system">("running");
+  let activeTab = $state<"local" | "running" | "start" | "system" | "url" | "commands">("running");
   let viewMode = $state<"grid" | "list">("grid");
+  let customUrl = $state("");
+  let customCommand = $state("");
   let programs = $state<ShortcutInfo[]>([]);
   let isLoading = $state(false);
   let icons = $state<Record<string, string>>({});
 
+  const SYSTEM_COMMANDS: ShortcutInfo[] = [
+    { name: "Shutdown", path: "shutdown /s /t 0", icon: "power" },
+    { name: "Restart", path: "shutdown /r /t 0", icon: "rotate-ccw" },
+    { name: "Sleep", path: "rundll32.exe powrprof.dll,SetSuspendState 0,1,0", icon: "moon" },
+    { name: "Hibernate", path: "shutdown /h", icon: "zap" },
+    { name: "Lock", path: "rundll32.exe user32.dll,LockWorkStation", icon: "lock" },
+    { name: "Log off", path: "shutdown /l", icon: "log-out" },
+  ];
+
+  const COMMAND_ICONS: Record<string, any> = {
+    "power": Power,
+    "rotate-ccw": RotateCcw,
+    "moon": Moon,
+    "zap": Zap,
+    "lock": Lock,
+    "log-out": LogOut
+  };
+
   const tabs = [
-    { id: "local", label: t.modals.tabLocal, icon: Folder },
-    { id: "running", label: t.modals.tabRunning, icon: Play },
-    { id: "start", label: t.modals.tabStartMenu, icon: Settings2 },
-    { id: "system", label: t.modals.tabSystem, icon: Monitor },
+    { id: "local", label: "Local", icon: Folder },
+    { id: "running", label: "Running", icon: Play },
+    { id: "start", label: "Start", icon: Settings2 },
+    { id: "system", label: "System", icon: Monitor },
+    { id: "url", label: "URL", icon: Link },
+    { id: "commands", label: "Commands", icon: Terminal },
   ] as const;
 
   async function loadPrograms() {
     if (!context) return;
+    if (activeTab === "url" || activeTab === "commands") {
+        programs = activeTab === "commands" ? SYSTEM_COMMANDS : [];
+        isLoading = false;
+        return;
+    }
     isLoading = true;
     logService.info("icons", `Loading programs for tab: ${activeTab}`);
     try {
@@ -57,49 +84,64 @@
 
   async function loadIconsChunked(paths: string[]) {
     if (paths.length === 0) return;
-    
-    // CRITICAL: CHUNK_SIZE MUST ALWAYS BE 1. 
-    // Do not "optimize" this to a larger number. 
-    // Icons must appear in the UI immediately one by one as they load.
     const CHUNK_SIZE = 1;
     const allPaths = [...paths];
-    
     for (let i = 0; i < allPaths.length; i += CHUNK_SIZE) {
       const chunk = allPaths.slice(i, i + CHUNK_SIZE);
-      logService.debug("icons", `Requesting icons chunk ${i/CHUNK_SIZE + 1}, size: ${chunk.length}`);
-      
       try {
         const batch: [string, string][] = await invoke("get_shortcut_icons_batch", { paths: chunk });
-        logService.debug("icons", `Received ${batch.length} icons for chunk ${i/CHUNK_SIZE + 1}`);
-        
-        // Update icons immediately
         const newIcons = { ...icons };
         batch.forEach(([path, b64]) => {
           newIcons[path] = `data:image/png;base64,${b64}`;
         });
         icons = newIcons;
       } catch (err) {
-        logService.error("icons", `Failed to load chunk ${i/CHUNK_SIZE + 1}`, err);
+        logService.error("icons", `Failed to load chunk`, err);
       }
     }
-    logService.info("icons", "Finished loading all icon chunks");
   }
 
   function handleSelect(prog: ShortcutInfo) {
     if (context) {
-      // Get the base64 string from our icons state (stripping the data:image/png;base64, prefix)
       const fullIconData = icons[prog.path] || "";
-      const base64Icon = fullIconData.startsWith("data:") 
-        ? fullIconData.split(",")[1] 
-        : fullIconData;
-
+      const base64Icon = fullIconData.startsWith("data:") ? fullIconData.split(",")[1] : fullIconData;
       updateTabAssignment(context.key, {
         name: prog.name,
         path: prog.path,
-        type: activeTab,
-        icon: base64Icon || null
+        type: activeTab as any,
+        icon: base64Icon || (prog.icon ? `lucide:${prog.icon}` : null)
       });
       handleClose();
+    }
+  }
+
+  function handleAddUrl() {
+    if (context && customUrl.trim()) {
+        let url = customUrl.trim();
+        logService.info("ui", `Adding URL: ${url} to key: ${context.key}`);
+        if (!url.startsWith('http') && !url.includes('://')) {
+            url = 'https://' + url;
+        }
+        updateTabAssignment(context.key, {
+            name: customUrl.trim(),
+            path: url,
+            type: 'url',
+            icon: 'lucide:link'
+        });
+        customUrl = "";
+        handleClose();
+    }
+  }
+
+  function handleAddCustomCommand() {
+    if (context && customCommand) {
+        updateTabAssignment(context.key, {
+            name: customCommand,
+            path: customCommand,
+            type: 'commands',
+            icon: 'lucide:terminal'
+        });
+        handleClose();
     }
   }
 
@@ -145,17 +187,18 @@
   >
     <div 
         class="modal-content" 
+        class:minimal-layout={uiState.isMinimalMode}
         onmousedown={(e) => e.stopPropagation()} 
         transition:scale={{ duration: 300, start: 0.95 }}
         data-testid="program-picker-modal"
     >
       <div class="modal-header">
-        <div class="header-title">
-          <Monitor size={20} />
+        <div class="header-title" data-testid="program-picker-header-title">
+          <Monitor size={uiState.isMinimalMode ? 16 : 20} />
           <h2>{t.modals.programPickerTitle}: {context.key}</h2>
         </div>
         <button class="btn-close" onclick={handleClose} data-testid="btn-close-program-picker">
-          <X size={20} />
+          <X size={uiState.isMinimalMode ? 16 : 20} />
         </button>
       </div>
 
@@ -167,21 +210,22 @@
             onclick={() => activeTab = tab.id}
             data-testid="tab-btn-{tab.id}"
           >
-            <tab.icon size={16} />
-            {tab.label}
+            <tab.icon size={uiState.isMinimalMode ? 14 : 16} />
+            <span class="tab-label">{tab.label}</span>
           </button>
         {/each}
       </div>
 
       <div class="search-box">
         <div class="search-input-wrapper">
-          <Search size={18} class="search-icon" />
+          <Search size={uiState.isMinimalMode ? 16 : 18} class="search-icon" />
           <input 
             type="text" 
             bind:value={searchQuery} 
             placeholder={t.modals.searchPrograms}
             spellcheck="false"
             data-testid="input-program-search"
+            onkeydown={(e) => e.stopPropagation()}
           />
           {#if searchQuery}
             <button 
@@ -191,57 +235,83 @@
               title={t.common.cancel}
               data-testid="btn-clear-program-search"
             >
-              <X size={14} />
+              <X size={12} />
             </button>
           {/if}
         </div>
         <div class="view-toggle">
-          <button 
-            class="view-btn" 
-            class:active={viewMode === 'grid'} 
-            onclick={() => viewMode = 'grid'}
-            title={t.modals.viewGrid}
-            data-testid="btn-view-grid"
-          >
-            <LayoutGrid size={18} />
+          <button class="view-btn" class:active={viewMode === 'grid'} onclick={() => viewMode = 'grid'} data-testid="btn-view-grid">
+            <LayoutGrid size={uiState.isMinimalMode ? 16 : 18} />
           </button>
-          <button 
-            class="view-btn" 
-            class:active={viewMode === 'list'} 
-            onclick={() => viewMode = 'list'}
-            title={t.modals.viewList}
-            data-testid="btn-view-list"
-          >
-            <List size={18} />
+          <button class="view-btn" class:active={viewMode === 'list'} onclick={() => viewMode = 'list'} data-testid="btn-view-list">
+            <List size={uiState.isMinimalMode ? 16 : 18} />
           </button>
         </div>
       </div>
 
       <div class="modal-body" data-testid="program-picker-body">
-        {#if isLoading}
+        {#if activeTab === 'url'}
+          <div class="custom-input-section" in:fade data-testid="section-custom-url">
+            <div class="section-icon"><Link size={uiState.isMinimalMode ? 32 : 48} /></div>
+            <h3>Add Custom URL</h3>
+            {#if !uiState.isMinimalMode}<p>Enter a website address or a custom protocol link</p>{/if}
+            <div class="input-group">
+                <input 
+                  type="text" 
+                  bind:value={customUrl} 
+                  placeholder="example.com" 
+                  spellcheck="false" 
+                  data-testid="input-custom-url"
+                  onkeydown={(e) => { e.stopPropagation(); if (e.key === 'Enter') handleAddUrl(); }} 
+                />
+                <button class="btn-add" onclick={handleAddUrl} disabled={!customUrl} data-testid="btn-add-custom-url">Add</button>
+            </div>
+          </div>
+        {:else if activeTab === 'commands'}
+          <div class="commands-section" in:fade data-testid="section-system-commands">
+            <div class="program-container grid-mode">
+                {#each SYSTEM_COMMANDS as cmd}
+                  <button class="program-item grid-mode" onclick={() => handleSelect(cmd)} data-testid="program-item-{cmd.name}">
+                    <div class="prog-icon command-icon" data-testid="prog-icon-{cmd.name}">
+                        {#if COMMAND_ICONS[cmd.icon || '']}
+                            {@const Icon = COMMAND_ICONS[cmd.icon || '']}
+                            <Icon size={uiState.isMinimalMode ? 24 : 32} />
+                        {/if}
+                    </div>
+                    <span class="prog-name" data-testid="prog-name-{cmd.name}">{cmd.name}</span>
+                  </button>
+                {/each}
+            </div>
+            <div class="custom-command-box" data-testid="box-custom-command">
+                <h4>Custom Command</h4>
+                <div class="input-group">
+                    <input 
+                      type="text" 
+                      bind:value={customCommand} 
+                      placeholder="e.g. ms-settings:colors" 
+                      spellcheck="false" 
+                      data-testid="input-custom-command"
+                      onkeydown={(e) => { e.stopPropagation(); if (e.key === 'Enter') handleAddCustomCommand(); }} 
+                    />
+                    <button class="btn-add" onclick={handleAddCustomCommand} disabled={!customCommand} data-testid="btn-add-custom-command">Add</button>
+                </div>
+            </div>
+          </div>
+        {:else if isLoading}
           <div class="loading" data-testid="program-picker-loading">{t.common.loading}</div>
         {:else if filteredPrograms.length === 0}
           <div class="empty" data-testid="program-picker-empty">{t.modals.noPrograms}</div>
         {:else}
-          <div class="program-container" class:grid-mode={viewMode === 'grid'} class:list-mode={viewMode === 'list'} data-testid="programs-container">
+          <div class="program-container" class:grid-mode={viewMode === 'grid'} class:list-mode={viewMode === 'list'} data-testid="program-container-list">
             {#each filteredPrograms as prog}
-              <button 
-                class="program-item" 
-                onclick={() => handleSelect(prog)} 
-                title={prog.path}
-                data-testid="program-item-{prog.path}"
-              >
-                <div class="prog-icon">
-                  {#if icons[prog.path]}
-                    <img src={icons[prog.path]} alt="" />
-                  {:else}
-                    <div class="icon-placeholder"></div>
-                  {/if}
+              <button class="program-item" onclick={() => handleSelect(prog)} title={prog.path} data-testid="program-item-{prog.name}">
+                <div class="prog-icon" data-testid="prog-icon-{prog.name}">
+                  {#if icons[prog.path]}<img src={icons[prog.path]} alt="" />{:else}<div class="icon-placeholder"></div>{/if}
                 </div>
-                <div class="prog-info">
-                  <span class="prog-name">{prog.name}</span>
+                <div class="prog-info" data-testid="prog-info-{prog.name}">
+                  <span class="prog-name" data-testid="prog-name-{prog.name}">{prog.name}</span>
                   {#if viewMode === 'list'}
-                    <span class="prog-path">{prog.path}</span>
+                    <span class="prog-path" data-testid="prog-path-{prog.name}">{prog.path}</span>
                   {/if}
                 </div>
               </button>
@@ -251,13 +321,11 @@
       </div>
 
       <div class="modal-footer">
-        <button class="btn-clear" onclick={handleClear} data-testid="btn-disable-shortcut">
+        <button class="btn-clear" onclick={handleClear} data-testid="btn-clear-assignment">
           <Trash2 size={16} />
-          {t.common.disable}
+          {uiState.isMinimalMode ? "" : t.common.disable}
         </button>
-        <button class="btn-cancel" onclick={handleClose} data-testid="btn-cancel-program-picker">
-          {t.common.cancel}
-        </button>
+        <button class="btn-cancel" onclick={handleClose} data-testid="btn-cancel-program-picker">{t.common.cancel}</button>
       </div>
     </div>
   </div>
@@ -282,11 +350,17 @@
     border-radius: 20px;
     width: 100%;
     max-width: 90%;
-    max-height: 85vh;
+    max-height: 90vh;
     box-shadow: var(--shadow-lg);
     display: flex;
     flex-direction: column;
     overflow: hidden;
+  }
+
+  .modal-content.minimal-layout {
+    max-height: 95vh;
+    max-width: 98%;
+    border-radius: 12px;
   }
 
   .modal-header {
@@ -295,6 +369,10 @@
     align-items: center;
     justify-content: space-between;
     border-bottom: 1px solid var(--color-border);
+  }
+
+  .minimal-layout .modal-header {
+    padding: 10px 16px;
   }
 
   .header-title {
@@ -310,6 +388,10 @@
     color: var(--color-text-primary);
   }
 
+  .minimal-layout .header-title h2 {
+    font-size: 0.9rem;
+  }
+
   .btn-close {
     background: transparent;
     border: none;
@@ -321,17 +403,16 @@
     transition: all 0.2s;
   }
 
-  .btn-close:hover {
-    background: var(--color-surface-3);
-    color: var(--color-text-primary);
-  }
-
   .tabs-bar {
     display: flex;
     gap: 4px;
     padding: 12px 20px;
     background: var(--color-surface-1);
     border-bottom: 1px solid var(--color-border);
+  }
+
+  .minimal-layout .tabs-bar {
+    padding: 6px 10px;
   }
 
   .tab-btn {
@@ -351,14 +432,103 @@
     transition: all 0.2s;
   }
 
-  .tab-btn:hover {
-    background: var(--color-surface-2);
-    color: var(--color-text-primary);
+  .minimal-layout .tab-btn {
+    padding: 6px 4px;
+    gap: 4px;
+    font-size: 0.7rem;
+  }
+
+  @media (max-width: 500px) {
+    .minimal-layout .tab-label { display: none; }
   }
 
   .tab-btn.active {
     background: var(--color-accent-violet);
+    color: #1a1d23;
+  }
+
+  :global([data-theme="light-gray"]) .tab-btn.active,
+  :global([data-theme="green"]) .tab-btn.active {
     color: white;
+  }
+
+  .custom-input-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: 40px;
+    gap: 16px;
+  }
+
+  .minimal-layout .custom-input-section {
+    padding: 20px;
+    gap: 10px;
+  }
+
+  .section-icon {
+    color: var(--color-accent-violet);
+    background: var(--color-surface-2);
+    width: 96px;
+    height: 96px;
+    border-radius: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .minimal-layout .section-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+  }
+
+  .input-group {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+    max-width: 400px;
+  }
+
+  .input-group input {
+    flex: 1;
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    padding: 12px 16px;
+    color: var(--color-text-primary);
+    outline: none;
+  }
+
+  .minimal-layout .input-group input {
+    padding: 8px 12px;
+    font-size: 0.85rem;
+  }
+
+  .btn-add {
+    background: var(--color-accent-violet);
+    color: #1a1d23;
+    border: none;
+    border-radius: 12px;
+    padding: 0 20px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .commands-section {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .minimal-layout .commands-section {
+    gap: 12px;
+  }
+
+  .custom-command-box {
+    border-top: 1px solid var(--color-border);
+    padding-top: 16px;
   }
 
   .search-box {
@@ -367,6 +537,11 @@
     gap: 16px;
     padding: 16px 24px;
     border-bottom: 1px solid var(--color-border);
+  }
+
+  .minimal-layout .search-box {
+    padding: 10px 16px;
+    gap: 8px;
   }
 
   .search-input-wrapper {
@@ -378,23 +553,6 @@
     border: 1px solid var(--color-border);
     border-radius: 12px;
     padding: 0 12px;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  .search-input-wrapper:focus-within {
-    border-color: var(--color-accent-violet);
-    background: var(--color-surface-3);
-    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent-violet) 10%, transparent);
-  }
-
-  .search-input-wrapper :global(.search-icon) {
-    color: var(--color-text-muted);
-    transition: color 0.2s;
-    flex-shrink: 0;
-  }
-
-  .search-input-wrapper:focus-within :global(.search-icon) {
-    color: var(--color-accent-violet);
   }
 
   .search-input-wrapper input {
@@ -403,31 +561,12 @@
     border: none;
     padding: 12px 10px;
     color: var(--color-text-primary);
-    font-size: 0.95rem;
     outline: none;
   }
 
-  .clear-search-btn {
-    position: absolute;
-    right: 10px;
-    background: var(--color-surface-1);
-    border: 1px solid var(--color-border);
-    color: var(--color-text-muted);
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s;
-    z-index: 1;
-  }
-
-  .clear-search-btn:hover {
-    background: var(--color-danger);
-    color: white;
-    border-color: var(--color-danger);
+  .minimal-layout .search-input-wrapper input {
+    padding: 8px 6px;
+    font-size: 0.85rem;
   }
 
   .view-toggle {
@@ -449,46 +588,46 @@
     background: transparent;
     color: var(--color-text-muted);
     cursor: pointer;
-    transition: all 0.2s;
   }
 
-  .view-btn:hover {
-    color: var(--color-text-primary);
-    background: var(--color-surface-2);
+  .minimal-layout .view-btn {
+    width: 28px;
+    height: 28px;
   }
 
   .view-btn.active {
     background: var(--color-surface-3);
     color: var(--color-accent-cyan);
-    box-shadow: var(--shadow-sm);
   }
 
   .modal-body {
     flex: 1;
     overflow-y: auto;
     padding: 20px 24px;
-    min-height: 400px;
+    min-height: 0;
   }
 
-  .loading, .empty {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    color: var(--color-text-muted);
-    font-style: italic;
-  }
-
-  .program-container.list-mode {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
+  .minimal-layout .modal-body {
+    padding: 12px 16px;
+    height: 300px;
+    max-height: calc(100vh - 180px);
   }
 
   .program-container.grid-mode {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
     gap: 12px;
+  }
+
+  .program-container.list-mode {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .minimal-layout .program-container.grid-mode {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 8px;
   }
 
   .program-item {
@@ -499,23 +638,16 @@
     text-align: left;
     transition: all 0.2s;
     overflow: hidden;
+    min-width: 0; /* Crucial for ellipsis in grid/flex */
   }
 
-  .program-item:hover {
-    background: var(--color-surface-2);
-    border-color: var(--color-accent-violet);
-    transform: translateY(-2px);
-  }
-
-  /* List Item Style */
   .list-mode .program-item {
     display: flex;
     align-items: center;
-    gap: 16px;
-    padding: 10px 16px;
+    padding: 8px 12px;
+    gap: 12px;
   }
 
-  /* Grid Item Style */
   .grid-mode .program-item {
     display: flex;
     flex-direction: column;
@@ -525,45 +657,42 @@
     text-align: center;
   }
 
+  .minimal-layout .grid-mode .program-item {
+    padding: 10px 8px;
+    gap: 6px;
+  }
+
   .prog-icon {
     display: flex;
     align-items: center;
     justify-content: center;
     background: color-mix(in srgb, black 20%, transparent);
     border-radius: 10px;
+    width: 64px;
+    height: 64px;
     flex-shrink: 0;
-    transition: all 0.2s;
   }
 
   .list-mode .prog-icon {
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
   }
 
-  .grid-mode .prog-icon {
-    width: 64px;
-    height: 64px;
+  .minimal-layout .grid-mode .prog-icon {
+    width: 40px;
+    height: 40px;
   }
 
-  .prog-icon img {
-    width: 70%;
-    height: 70%;
-    object-fit: contain;
-  }
-
-  .icon-placeholder {
-    width: 50%;
-    height: 50%;
-    background: var(--color-surface-3);
-    border-radius: 4px;
-    opacity: 0.5;
-  }
+  .prog-icon img { width: 70%; height: 70%; object-fit: contain; }
 
   .prog-info {
     display: flex;
     flex-direction: column;
+    overflow: hidden;
     min-width: 0;
-    width: 100%;
+    flex: 1;
+    width: 100%; /* Ensure it fills parent in grid mode */
   }
 
   .prog-name {
@@ -573,6 +702,8 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    width: 100%;
+    display: block; /* Span needs block for ellipsis */
   }
 
   .prog-path {
@@ -581,7 +712,11 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    width: 100%;
+    display: block;
   }
+
+  .minimal-layout .prog-name { font-size: 0.8rem; }
 
   .modal-footer {
     padding: 16px 24px;
@@ -591,23 +726,19 @@
     background: var(--color-surface-1);
   }
 
+  .minimal-layout .modal-footer { padding: 10px 16px; }
+
   .btn-clear {
     display: flex;
     align-items: center;
     gap: 8px;
     padding: 10px 16px;
     background: color-mix(in srgb, var(--color-danger) 10%, transparent);
-    border: 1px solid color-mix(in srgb, var(--color-danger) 20%, transparent);
+    border: 1px solid var(--color-border);
     border-radius: 12px;
     color: var(--color-danger);
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .btn-clear:hover {
-    background: color-mix(in srgb, var(--color-danger) 20%, transparent);
-    border-color: var(--color-danger);
   }
 
   .btn-cancel {
@@ -618,9 +749,5 @@
     color: var(--color-text-primary);
     font-weight: 600;
     cursor: pointer;
-  }
-
-  .btn-cancel:hover {
-    background: var(--color-surface-2);
   }
 </style>

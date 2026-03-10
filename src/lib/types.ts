@@ -48,7 +48,7 @@ export type TabType = 'snippets' | 'keyboard';
 export interface ShortcutInfo {
   name: string;
   path: string;
-  type?: 'local' | 'running' | 'system' | 'url';
+  type?: 'local' | 'running' | 'system' | 'url' | 'start' | 'commands';
   icon?: string | null;
 }
 

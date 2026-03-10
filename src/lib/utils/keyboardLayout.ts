@@ -11,6 +11,30 @@ const ROW_2 = ['KeyA', 'KeyS', 'KeyD', 'KeyF', 'KeyG', 'KeyH', 'KeyJ', 'KeyK', '
 const ROW_3 = ['KeyZ', 'KeyX', 'KeyC', 'KeyV', 'KeyB', 'KeyN', 'KeyM'];
 
 /** Full ordered list of QWERTY physical codes (26 letters total) */
+/**
+ * Checks if the focus is currently within a text input element.
+ * Use this to prevent hotkeys from firing when the user is typing.
+ */
+export function isInputFocused(): boolean {
+    const activeEl = document.activeElement;
+    if (!activeEl) return false;
+
+    const tagName = activeEl.tagName.toUpperCase();
+    const isTextInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(tagName);
+    const isContentEditable = (activeEl as HTMLElement).isContentEditable;
+    
+    // Specifically check for input types that are NOT text-related if needed,
+    // but for now, we assume all INPUT should block global hotkeys.
+    if (isTextInput) {
+        const type = (activeEl as HTMLInputElement).type?.toLowerCase();
+        // Even 'checkbox' or 'range' might be better off blocking global hotkeys 
+        // to avoid accidental triggers while interacting with UI.
+        return true;
+    }
+
+    return isContentEditable;
+}
+
 export const QWERTY_CODES = [...ROW_1, ...ROW_2, ...ROW_3];
 export const CARD_CODES = QWERTY_CODES; // Alias for picker modal
 

@@ -89,7 +89,26 @@ class StartMenuState {
 
     private async loadAssignmentIcons() {
         const pathsToFetch = Object.values(this.assignments)
-            .filter(a => !a.icon)
+            .filter(a => {
+                // Skip if icon already exists
+                if (a.icon) return false;
+                
+                // Detect if it's a protocol/URI (starts with scheme: or contains : without slashes/spaces)
+                const isProtocol = a.path.startsWith('ms-settings:') || 
+                                   a.path.startsWith('http://') || 
+                                   a.path.startsWith('https://') || 
+                                   a.path.startsWith('mailto:') || 
+                                   a.path.startsWith('tel:');
+                
+                const isUriLike = isProtocol || (
+                    a.path.includes(':') && 
+                    !a.path.includes('\\') && 
+                    !a.path.includes('/') && 
+                    !a.path.includes(' ')
+                );
+
+                return !isUriLike;
+            })
             .map(a => a.path);
         
         if (pathsToFetch.length === 0) return;
@@ -100,6 +119,22 @@ class StartMenuState {
         for (const key in this.assignments) {
             const assignment = this.assignments[key];
             if (!assignment.icon) {
+                // Check again for URI to skip individual invoke
+                const isProtocol = assignment.path.startsWith('ms-settings:') || 
+                                   assignment.path.startsWith('http://') || 
+                                   assignment.path.startsWith('https://') || 
+                                   assignment.path.startsWith('mailto:') || 
+                                   assignment.path.startsWith('tel:');
+                
+                const isUriLike = isProtocol || (
+                    assignment.path.includes(':') && 
+                    !assignment.path.includes('\\') && 
+                    !assignment.path.includes('/') && 
+                    !assignment.path.includes(' ')
+                );
+
+                if (isUriLike) continue;
+
                 try {
                     const { invoke } = await import('@tauri-apps/api/core');
                     const icon = await invoke<string>('get_shortcut_icon', { path: assignment.path });
@@ -161,18 +196,40 @@ class StartMenuState {
         this.saveAssignments();
     }
 
-    async launchKey(keyCode: string, currentAssignments: Record<string, ShortcutInfo>) {
-        const shortcut = currentAssignments[keyCode];
+    setAssignments(newAssignments: Record<string, ShortcutInfo>) {
+        this.assignments = { ...newAssignments };
+    }
+
+    async launchKey(keyCode: string) {
+        const shortcut = this.assignments[keyCode];
         if (!shortcut) return;
 
         try {
             const { invoke } = await import('@tauri-apps/api/core');
-            if (shortcut.type === 'local') {
-                await invoke('launch_start_program', { name: shortcut.path });
-            } else if (shortcut.type === 'url') {
+            
+            // Strictly define what goes to shell.open (standard web protocols ONLY)
+            const isWebUrl = shortcut.path.startsWith('http://') || 
+                             shortcut.path.startsWith('https://') || 
+                             shortcut.path.startsWith('mailto:') || 
+                             shortcut.path.startsWith('tel:');
+            
+            // Detect if it's any other URI/protocol (e.g. ms-settings:)
+            const isOtherUri = !isWebUrl && shortcut.path.includes(':') && 
+                               !shortcut.path.includes('\\') && 
+                               !shortcut.path.includes('/') && 
+                               !shortcut.path.includes(' ');
+
+            if (isWebUrl) {
                 const { open } = await import('@tauri-apps/plugin-shell');
                 await open(shortcut.path);
+            } else if (isOtherUri) {
+                // For custom protocols like ms-settings:, always use our Rust handler
+                // which is not subject to Tauri shell plugin security regex.
+                await invoke('launch_program_by_path', { path: shortcut.path });
+            } else if (shortcut.type === 'local') {
+                await invoke('launch_start_program', { name: shortcut.path });
             } else {
+                // This covers 'commands', 'running', 'system' types
                 await invoke('launch_program_by_path', { path: shortcut.path });
             }
             logService.log('startMenu', `Launched: ${shortcut.name}`);

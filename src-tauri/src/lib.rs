@@ -121,12 +121,72 @@ async fn launch_start_program(app: AppHandle, name: String) -> Result<(), String
 
 #[tauri::command]
 async fn launch_program_by_path(path: String) -> Result<(), String> {
+    log::info!("[LAUNCH] Attempting to launch: {}", path);
     #[cfg(target_os = "windows")]
     {
-        let _ = Command::new("cmd")
-            .args(["/C", "start", "", &path])
-            .spawn()
-            .map_err(|e| e.to_string())?;
+        use windows_sys::Win32::UI::Shell::ShellExecuteW;
+        use std::os::windows::ffi::OsStrExt;
+        use std::path::Path;
+
+        // 1. Detect URI protocol (e.g., ms-settings:, http:)
+        let is_uri = path.contains(':') && !path.contains('\\') && !path.contains('/') && !path.contains(' ');
+        
+        // 2. Check if it's a direct file path that exists
+        let path_exists = Path::new(&path).exists();
+
+        if is_uri || path_exists {
+            log::info!("[LAUNCH] Launching as URI or Physical Path via ShellExecuteW");
+            return launch_via_shell_execute(&path);
+        }
+
+        // 3. If it has spaces and doesn't exist, it's likely a command with arguments (e.g., shutdown /s)
+        if path.contains(' ') {
+            log::info!("[LAUNCH] Detected as command with arguments, using cmd /C");
+            let _ = Command::new("cmd")
+                .args(["/C", &path])
+                .spawn()
+                .map_err(|e| {
+                    log::error!("[LAUNCH] Command launch failed: {}", e);
+                    e.to_string()
+                })?;
+            return Ok(());
+        }
+
+        // 4. Otherwise, treat as an AppID (AUMID) and try shell:AppsFolder
+        let final_path = if path.starts_with("shell:") {
+            path
+        } else {
+            log::info!("[LAUNCH] Treating as AppID via shell:AppsFolder");
+            format!("shell:AppsFolder\\{}", path)
+        };
+
+        return launch_via_shell_execute(&final_path);
+    }
+    #[cfg(not(target_os = "windows"))]
+    Ok(())
+}
+
+#[cfg(target_os = "windows")]
+fn launch_via_shell_execute(path: &str) -> Result<(), String> {
+    use windows_sys::Win32::UI::Shell::ShellExecuteW;
+    use std::os::windows::ffi::OsStrExt;
+
+    let wide_path: Vec<u16> = std::ffi::OsStr::new(path).encode_wide().chain(Some(0)).collect();
+    let wide_open: Vec<u16> = std::ffi::OsStr::new("open").encode_wide().chain(Some(0)).collect();
+
+    unsafe {
+        let h_instance = ShellExecuteW(
+            std::ptr::null_mut(),
+            wide_open.as_ptr(),
+            wide_path.as_ptr(),
+            std::ptr::null(),
+            std::ptr::null(),
+            SW_SHOWNORMAL,
+        );
+
+        if h_instance as isize <= 32 {
+            return Err(format!("ShellExecuteW failed (error code: {})", h_instance as isize));
+        }
     }
     Ok(())
 }

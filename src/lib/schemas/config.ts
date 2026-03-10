@@ -35,7 +35,7 @@ export const FileNameSchema = z.string()
 export const ShortcutInfoSchema = z.object({
     name: z.string(),
     path: z.string(),
-    type: z.enum(['local', 'running', 'system', 'url']).optional(),
+    type: z.enum(['local', 'running', 'system', 'start', 'url', 'commands']).optional(),
     icon: z.string().nullable().optional()
 });
 

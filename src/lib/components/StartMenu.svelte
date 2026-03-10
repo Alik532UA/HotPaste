@@ -12,12 +12,39 @@
     Monitor,
     Play,
     Settings2,
+    Power,
+    RotateCcw,
+    Moon,
+    Zap,
+    Lock,
+    LogOut,
+    Link,
+    Terminal,
   } from "lucide-svelte";
   import { startMenuState } from "../states/startMenu.svelte";
   import { fsState } from "../stores/fileSystemState.svelte";
   import { uiState } from "../stores/uiState.svelte";
   import { t } from "../i18n";
   import { logService } from "../services/logService.svelte";
+  import { isInputFocused, QWERTY_CODES } from "../utils/keyboardLayout";
+
+  const LUCIDE_ICONS: Record<string, any> = {
+    rocket: Rocket,
+    power: Power,
+    "rotate-ccw": RotateCcw,
+    moon: Moon,
+    zap: Zap,
+    lock: Lock,
+    "log-out": LogOut,
+    link: Link,
+    terminal: Terminal,
+  };
+
+  function getLucideIcon(iconStr: string) {
+    if (!iconStr || !iconStr.startsWith("lucide:")) return Rocket;
+    const name = iconStr.replace("lucide:", "");
+    return LUCIDE_ICONS[name] || Rocket;
+  }
 
   // Keyboard layout metadata
   interface KeyInfo {
@@ -126,7 +153,7 @@
   ];
 
   // Map of key code -> ShortcutInfo
-  const assignments = $derived(fsState.activeTab?.assignments || {});
+  const assignments = $derived(startMenuState.assignments);
   let hoveredKey = $state<KeyInfo | null>(null);
 
   onMount(() => {
@@ -141,12 +168,7 @@
       )
         return;
 
-      const activeEl = document.activeElement;
-      const isInput =
-        activeEl &&
-        (["INPUT", "TEXTAREA"].includes(activeEl.tagName.toUpperCase()) ||
-          (activeEl as HTMLElement).isContentEditable);
-      if (isInput) return;
+      if (isInputFocused()) return;
 
       const assignment = assignments[e.code];
       if (assignment && isKeyClickable(e.code)) {
@@ -157,6 +179,13 @@
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
+  });
+
+  // Sync assignments from the active keyboard tab to the startMenuState
+  $effect(() => {
+    if (fsState.activeTab?.type === 'keyboard' && fsState.activeTab.assignments) {
+      startMenuState.setAssignments(fsState.activeTab.assignments);
+    }
   });
 
   async function handleKeyClick(key: KeyInfo) {
@@ -227,7 +256,7 @@
   }
 
   async function handleLaunch(keyCode: string) {
-    startMenuState.launchKey(keyCode, assignments);
+    await startMenuState.launchKey(keyCode);
     await handleHide();
   }
 
@@ -236,6 +265,7 @@
     if (!icon) return "";
     const iconStr = String(icon);
     if (iconStr.startsWith("data:")) return iconStr;
+    if (iconStr.startsWith("lucide:")) return ""; // Handled in template
     // Assume pure base64 if no data prefix
     return `data:image/png;base64,${iconStr}`;
   }
@@ -286,7 +316,10 @@
                 <span class="key-label">{key.label}</span>
                 {#if assignment}
                   <div class="key-app-icon-container">
-                    {#if assignment.icon}
+                    {#if assignment.icon?.startsWith("lucide:")}
+                      {@const Icon = getLucideIcon(assignment.icon)}
+                      <Icon class="key-app-icon" size="100%" strokeWidth={2.5} />
+                    {:else if assignment.icon}
                       <img
                         src={getIconSrc(assignment.icon)}
                         alt=""
@@ -440,11 +473,12 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 65%;
-    height: 65%;
+    width: 60%;
+    height: 60%;
     position: relative;
     z-index: 1;
     margin-top: 10%;
+    transition: all 0.2s ease;
   }
 
   .key-app-icon {

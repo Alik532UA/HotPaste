@@ -481,14 +481,26 @@ async function updateTabSettings(tab: Tab, settings: Partial<Tab>): Promise<void
 }
 
 async function updateTabAssignment(keyCode: string, shortcut: any | 'none'): Promise<void> {
-    const tab = fsState.activeTab;
-    if (!tab || tab.type !== 'keyboard') return;
+    // Priority: 1. Tab from picker context, 2. Global active tab
+    const targetTab = uiState.activeProgramPicker?.tab || fsState.activeTab;
+    
+    if (!targetTab) {
+        logService.error('fsstate', 'updateTabAssignment: No target tab found');
+        return;
+    }
+
+    if (targetTab.type !== 'keyboard') {
+        logService.warn('fsstate', `updateTabAssignment: Target tab "${targetTab.name}" is not a keyboard tab (type: ${targetTab.type})`);
+        return;
+    }
+
+    logService.info('fsstate', `updateTabAssignment: Updating key ${keyCode} in tab "${targetTab.name}"`, shortcut);
 
     // Ensure assignments is initialized
-    if (!tab.assignments) tab.assignments = {};
+    if (!targetTab.assignments) targetTab.assignments = {};
     
     // Create a new reference for reactivity in Svelte 5
-    const newAssignments = { ...tab.assignments };
+    const newAssignments = { ...targetTab.assignments };
     
     if (shortcut === 'none') {
         delete newAssignments[keyCode];
@@ -497,9 +509,9 @@ async function updateTabAssignment(keyCode: string, shortcut: any | 'none'): Pro
     }
 
     // Assign the NEW object back to trigger $derived updates
-    tab.assignments = newAssignments;
+    targetTab.assignments = newAssignments;
 
-    await updateTabSettings(tab, { assignments: tab.assignments });
+    await updateTabSettings(targetTab, { assignments: targetTab.assignments });
 }
 
 async function duplicateTab(tab: Tab): Promise<void> {

@@ -17,10 +17,8 @@
     {
       "identifier": "shell:allow-open",
       "allow": [
-        { 
-          "path": "$DOCUMENT/HotPaste/start/**",
-          "validate": ".+"
-        }
+        { "schemes": ["https", "http", "mailto", "tel"] },
+        { "regex": "^ms-settings:[\\w\\-:]+$" }
       ]
     },
     "fs:allow-read-text-file",
