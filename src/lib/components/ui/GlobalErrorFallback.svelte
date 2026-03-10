@@ -10,24 +10,24 @@
   let { error, reset }: Props = $props();
 </script>
 
-<div class="global-error-container">
-  <div class="error-card">
+<div class="global-error-container" data-testid="global-error-fallback">
+  <div class="error-card" data-testid="global-error-card">
     <div class="icon-wrapper">
       <AlertOctagon size={48} strokeWidth={1.5} />
     </div>
     
-    <h1>{t.errors?.rendering || "Критична помилка додатку"}</h1>
-    <p class="description">
+    <h1 data-testid="global-error-title">{t.errors?.rendering || "Критична помилка додатку"}</h1>
+    <p class="description" data-testid="global-error-desc">
       Виникла непередбачувана помилка під час роботи інтерфейсу.
     </p>
     
     {#if error?.message}
-      <div class="error-details">
+      <div class="error-details" data-testid="global-error-details">
         <code>{error.message}</code>
       </div>
     {/if}
 
-    <button class="reset-btn" onclick={reset}>
+    <button class="reset-btn" onclick={reset} data-testid="btn-global-error-retry">
       <RefreshCcw size={18} />
       <span>{t.common?.retry || "Спробувати знову"}</span>
     </button>

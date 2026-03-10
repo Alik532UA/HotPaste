@@ -124,21 +124,21 @@
         ondragleave={() => (dragOverIndex = null)}
         ondrop={(e) => handleDrop(e, i)}
         ondragend={handleDragEnd}
-        data-testid="tab-button"
+        data-testid={`tab-button-${tab.path}`}
         data-tab-path={tab.path}
       >
-        <span class="tab-hotkey" data-testid="tab-hotkey">
+        <span class="tab-hotkey" data-testid={`tab-hotkey-${tab.path}`}>
           {tab.hotkey ? appState.getHotkeyLabel(tab.hotkey) : (i + 1)}
         </span>
 
         {#if LucideIcon}
-          <span class="tab-icon" data-testid="tab-icon"><LucideIcon size={14} /></span>
+          <span class="tab-icon" data-testid={`tab-icon-${tab.path}`}><LucideIcon size={14} /></span>
         {:else if tab.icon}
-          <span class="tab-icon emoji" data-testid="tab-icon-emoji">{tab.icon}</span>
+          <span class="tab-icon emoji" data-testid={`tab-icon-emoji-${tab.path}`}>{tab.icon}</span>
         {/if}
 
-        <span class="tab-name" data-testid="tab-name">{tab.name}</span>
-        <span class="tab-count" data-testid="tab-count">{tab.cards.length}</span>
+        <span class="tab-name" data-testid={`tab-name-${tab.path}`}>{tab.name}</span>
+        <span class="tab-count" data-testid={`tab-count-${tab.path}`}>{tab.cards.length}</span>
       </button>
     {/each}
 
@@ -159,7 +159,7 @@
     >
       <CheckSquare size={16} />
     </button>
-    <div class="search-wrapper">
+    <div class="search-wrapper" data-testid="search-input-wrapper">
       <Search size={14} class="search-icon" />
       <input
         type="text"
@@ -171,7 +171,7 @@
         data-testid="search-input"
       />
       {#if appState.searchQuery}
-        <button class="search-clear" onclick={clearSearch} title={t.common.cancel}>
+        <button class="search-clear" onclick={clearSearch} title={t.common.cancel} data-testid="btn-clear-search">
           <X size={14} />
         </button>
       {/if}

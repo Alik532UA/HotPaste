@@ -87,11 +87,17 @@
 
   function handleSelect(prog: ShortcutInfo) {
     if (context) {
+      // Get the base64 string from our icons state (stripping the data:image/png;base64, prefix)
+      const fullIconData = icons[prog.path] || "";
+      const base64Icon = fullIconData.startsWith("data:") 
+        ? fullIconData.split(",")[1] 
+        : fullIconData;
+
       updateTabAssignment(context.key, {
         name: prog.name,
         path: prog.path,
         type: activeTab,
-        icon: prog.icon
+        icon: base64Icon || null
       });
       handleClose();
     }
@@ -135,28 +141,31 @@
     class="modal-backdrop" 
     onmousedown={handleClose} 
     transition:fade={{ duration: 200 }}
+    data-testid="program-picker-backdrop"
   >
     <div 
         class="modal-content" 
         onmousedown={(e) => e.stopPropagation()} 
         transition:scale={{ duration: 300, start: 0.95 }}
+        data-testid="program-picker-modal"
     >
       <div class="modal-header">
         <div class="header-title">
           <Monitor size={20} />
           <h2>{t.modals.programPickerTitle}: {context.key}</h2>
         </div>
-        <button class="btn-close" onclick={handleClose}>
+        <button class="btn-close" onclick={handleClose} data-testid="btn-close-program-picker">
           <X size={20} />
         </button>
       </div>
 
-      <div class="tabs-bar">
+      <div class="tabs-bar" data-testid="program-picker-tabs">
         {#each tabs as tab}
           <button 
             class="tab-btn" 
             class:active={activeTab === tab.id}
             onclick={() => activeTab = tab.id}
+            data-testid="tab-btn-{tab.id}"
           >
             <tab.icon size={16} />
             {tab.label}
@@ -172,6 +181,7 @@
             bind:value={searchQuery} 
             placeholder={t.modals.searchPrograms}
             spellcheck="false"
+            data-testid="input-program-search"
           />
           {#if searchQuery}
             <button 
@@ -179,6 +189,7 @@
               onclick={() => searchQuery = ""}
               transition:fade={{ duration: 150 }}
               title={t.common.cancel}
+              data-testid="btn-clear-program-search"
             >
               <X size={14} />
             </button>
@@ -190,6 +201,7 @@
             class:active={viewMode === 'grid'} 
             onclick={() => viewMode = 'grid'}
             title={t.modals.viewGrid}
+            data-testid="btn-view-grid"
           >
             <LayoutGrid size={18} />
           </button>
@@ -198,21 +210,27 @@
             class:active={viewMode === 'list'} 
             onclick={() => viewMode = 'list'}
             title={t.modals.viewList}
+            data-testid="btn-view-list"
           >
             <List size={18} />
           </button>
         </div>
       </div>
 
-      <div class="modal-body">
+      <div class="modal-body" data-testid="program-picker-body">
         {#if isLoading}
-          <div class="loading">{t.common.loading}</div>
+          <div class="loading" data-testid="program-picker-loading">{t.common.loading}</div>
         {:else if filteredPrograms.length === 0}
-          <div class="empty">{t.modals.noPrograms}</div>
+          <div class="empty" data-testid="program-picker-empty">{t.modals.noPrograms}</div>
         {:else}
-          <div class="program-container" class:grid-mode={viewMode === 'grid'} class:list-mode={viewMode === 'list'}>
+          <div class="program-container" class:grid-mode={viewMode === 'grid'} class:list-mode={viewMode === 'list'} data-testid="programs-container">
             {#each filteredPrograms as prog}
-              <button class="program-item" onclick={() => handleSelect(prog)} title={prog.path}>
+              <button 
+                class="program-item" 
+                onclick={() => handleSelect(prog)} 
+                title={prog.path}
+                data-testid="program-item-{prog.path}"
+              >
                 <div class="prog-icon">
                   {#if icons[prog.path]}
                     <img src={icons[prog.path]} alt="" />
@@ -233,11 +251,11 @@
       </div>
 
       <div class="modal-footer">
-        <button class="btn-clear" onclick={handleClear}>
+        <button class="btn-clear" onclick={handleClear} data-testid="btn-disable-shortcut">
           <Trash2 size={16} />
           {t.common.disable}
         </button>
-        <button class="btn-cancel" onclick={handleClose}>
+        <button class="btn-cancel" onclick={handleClose} data-testid="btn-cancel-program-picker">
           {t.common.cancel}
         </button>
       </div>
@@ -356,13 +374,6 @@
     flex: 1;
     display: flex;
     align-items: center;
-  }
-
-  .search-icon {
-    position: absolute;
-    left: 14px;
-    color: var(--color-text-muted);
-    pointer-events: none;
   }
 
   .search-input-wrapper input {

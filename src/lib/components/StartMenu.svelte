@@ -6,6 +6,7 @@
   import { fsState } from '../stores/fileSystemState.svelte';
   import { uiState } from '../stores/uiState.svelte';
   import { t } from '../i18n';
+  import { logService } from '../services/logService.svelte';
 
   // Keyboard layout metadata
   interface KeyInfo {
@@ -70,7 +71,6 @@
     startMenuState.refreshShortcuts();
     
     const handleKeyDown = async (e: KeyboardEvent) => {
-      // 1. Don't intercept if ANY modal is open
       if (
         uiState.activeProgramPicker || 
         uiState.activeSettingsCard || 
@@ -78,7 +78,6 @@
         uiState.activeHotkeyPickerCard
       ) return;
 
-      // 2. Don't intercept if user is typing in ANY input field (e.g., global search)
       const activeEl = document.activeElement;
       const isInput = activeEl && (
         ['INPUT', 'TEXTAREA'].includes(activeEl.tagName.toUpperCase()) ||
@@ -86,7 +85,6 @@
       );
       if (isInput) return;
 
-      // 3. Handle assignments
       const assignment = assignments[e.code];
       if (assignment && isKeyClickable(e.code)) {
         e.preventDefault();
@@ -99,7 +97,6 @@
   });
 
   async function handleKeyClick(key: KeyInfo) {
-    // Special keys that should hide the window instantly
     if (['Escape', 'Enter', 'Space'].includes(key.code)) {
       await handleHide();
       return;
@@ -145,7 +142,6 @@
       await invoke('hide_window');
     } catch (err) {
       console.error('Failed to hide window via command:', err);
-      // Fallback to JS API
       try {
         const { getCurrentWindow } = await import('@tauri-apps/api/window');
         getCurrentWindow().hide();
@@ -156,24 +152,37 @@
   }
 
   async function handleLaunch(keyCode: string) {
-    // Start launching in background
     startMenuState.launchKey(keyCode, assignments);
-    
-    // Hide window INSTANTLY for better UX
     await handleHide();
+  }
+
+  // Debug icon helper with more robust format handling
+  function getIconSrc(icon: any): string {
+    if (!icon) return "";
+    const iconStr = String(icon);
+    if (iconStr.startsWith('data:')) return iconStr;
+    // Assume pure base64 if no data prefix
+    return `data:image/png;base64,${iconStr}`;
   }
 </script>
 
-<div class="start-menu-container" class:minimal={uiState.isMinimalMode} in:fade={{ duration: 300 }}>
+<div 
+  class="start-menu-container" 
+  class:minimal={uiState.isMinimalMode} 
+  in:fade={{ duration: 300 }} 
+  data-testid="start-menu-container"
+  data-tauri-drag-region
+>
   <div 
     class="keyboard-body" 
     class:modal-open={!!uiState.activeProgramPicker}
     in:fly={{ y: 20, delay: 100 }} 
     data-tauri-drag-region={!uiState.activeProgramPicker ? "" : undefined}
+    data-testid="keyboard-body"
   >
-    <div class="keyboard-container">
+    <div class="keyboard-container" data-testid="keyboard-container" data-tauri-drag-region>
       {#each keyboardRows as row}
-        <div class="keyboard-row">
+        <div class="keyboard-row" data-tauri-drag-region>
           {#each row as key}
             {#if key.isSpacer}
               <div class="key-spacer" style="flex: {key.width || 1}"></div>
@@ -199,9 +208,13 @@
                 {#if assignment}
                   <div class="key-app-icon-container">
                     {#if assignment.icon}
-                      <img src="data:image/png;base64,{assignment.icon}" alt="" class="key-app-icon" />
+                      <img 
+                        src={getIconSrc(assignment.icon)} 
+                        alt="" 
+                        class="key-app-icon" 
+                      />
                     {:else}
-                      <Rocket size={16} class="key-app-icon-fallback" />
+                      <Rocket class="key-app-icon-fallback" />
                     {/if}
                   </div>
                 {/if}
@@ -216,33 +229,38 @@
 
 <style>
   .start-menu-container {
-    position: fixed;
+    position: absolute;
     inset: 0;
     z-index: 1000;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 20px;
+    padding: 2cqmin;
     pointer-events: none;
+    container-type: size;
   }
 
   .start-menu-container.minimal {
-    padding: 0;
-    align-items: flex-end;
+    padding: 1cqmin;
   }
 
   .keyboard-body {
-    width: 100%;
-    max-width: 90vw;
+    --kb-aspect: 2.8;
+    aspect-ratio: var(--kb-aspect) / 1;
+    width: min(95%, calc(92cqh * var(--kb-aspect)));
+    height: auto;
     background: rgba(30, 30, 45, 0.7);
     backdrop-filter: blur(20px);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 24px;
-    padding: 20px;
-    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
+    border-radius: 2cqmin;
+    padding: 2cqmin;
+    box-shadow: 0 3cqmin 6cqmin rgba(0, 0, 0, 0.5);
     pointer-events: auto;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    container-type: inline-size;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+    container-type: size;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .keyboard-body.modal-open {
@@ -255,13 +273,17 @@
   .keyboard-container {
     display: flex;
     flex-direction: column;
-    gap: 0.5cqw;
+    gap: 0.8cqmin;
+    width: 100%;
+    height: 100%;
+    justify-content: space-between;
   }
 
   .keyboard-row {
     display: flex;
-    gap: 0.5cqw;
+    gap: 0.8cqmin;
     width: 100%;
+    height: 14%; 
   }
 
   .key-spacer {
@@ -270,10 +292,10 @@
 
   .key {
     position: relative;
-    height: 4.5cqw;
+    height: 100%;
     background: rgba(45, 45, 60, 0.8);
     border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 0.8cqw;
+    border-radius: 0.8cqmin;
     color: white;
     cursor: pointer;
     transition: all 0.15s ease;
@@ -281,6 +303,7 @@
     align-items: center;
     justify-content: center;
     padding: 0;
+    overflow: hidden;
   }
 
   .key:hover {
@@ -289,22 +312,20 @@
   }
 
   .key:active, .key.selected {
-    transform: translateY(0.2cqw);
-    box-shadow: 0 0.1cqw 0 rgba(0, 0, 0, 0.6);
+    transform: translateY(0.2cqmin);
+    box-shadow: 0 0.1cqmin 0 rgba(0, 0, 0, 0.6);
     background: rgba(20, 20, 30, 1);
   }
 
   .key.assigned {
     background: rgba(32, 32, 42, 0.9);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.1);
   }
 
   .key.disabled {
-    opacity: 0.5;
-    background: rgba(255, 255, 255, 0.03);
-    border-color: rgba(255, 255, 255, 0.02);
+    opacity: 0.4;
+    background: rgba(255, 255, 255, 0.02);
     cursor: default;
-    box-shadow: none;
     pointer-events: none;
   }
 
@@ -312,14 +333,15 @@
     position: absolute;
     top: 10%;
     left: 10%;
-    font-size: 0.8cqw;
+    font-size: 4cqmin; /* INCREASED: much larger labels */
     font-weight: 700;
     color: var(--color-text-muted);
     letter-spacing: -0.01em;
+    z-index: 2;
   }
 
   .key.disabled .key-label {
-    font-size: 0.65cqw;
+    font-size: 3.2cqmin; /* INCREASED: larger labels even when disabled */
     font-weight: 500;
   }
 
@@ -327,19 +349,24 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 100%;
-    height: 100%;
-    padding-top: 10%;
-    background: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
+    width: 65%; 
+    height: 65%;
+    position: relative;
+    z-index: 1;
+    margin-top: 10%;
   }
 
   .key-app-icon {
-    width: 46%;
-    height: 48%;
+    width: 100%;
+    height: 100%;
     object-fit: contain;
-    background: transparent !important;
-    border: none !important;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+  }
+
+  .key-app-icon-fallback {
+    width: 50%;
+    height: 50%;
+    color: var(--color-text-muted);
+    opacity: 0.5;
   }
 </style>

@@ -65,7 +65,7 @@
             <h2 id="modal-title" class="default-title">{title}</h2>
           {/if}
         </div>
-        <button class="close-btn" onclick={onClose} aria-label="Close" data-testid="btn-modal-close">
+        <button class="close-btn" onclick={onClose} aria-label="Close" data-testid={`btn-modal-close-${testId}`}>
           <X size={20} />
         </button>
       </header>

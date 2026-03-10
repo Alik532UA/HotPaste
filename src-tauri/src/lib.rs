@@ -584,23 +584,7 @@ async fn set_minimal_mode_tauri(window: tauri::WebviewWindow, minimal: bool) -> 
         set_rounded_corners(&window);
         
         if minimal {
-            if let Ok(Some(monitor)) = window.primary_monitor() {
-                let m_size = monitor.size();
-                let scale_factor = window.scale_factor().unwrap_or(1.0);
-                
-                let window_h_phys = m_size.height as f64 * 0.7;
-                let offset_phys = 140.0 * scale_factor;
-                let target_h_phys = window_h_phys - offset_phys;
-                let target_w_phys = target_h_phys * 2.5;
-
-                let phys_w = target_w_phys as u32;
-                let phys_h = target_h_phys as u32;
-
-                let _ = window.set_size(tauri::Size::Physical(tauri::PhysicalSize {
-                    width: phys_w,
-                    height: phys_h,
-                }));
-            }
+            resize_to_minimal(&window);
             let _ = window.center();
         } else {
             resize_to_90_percent(&window);
@@ -708,20 +692,7 @@ pub fn run() {
                         set_rounded_corners(&window_events);
 
                         if IS_MINIMAL.load(Ordering::SeqCst) {
-                            if let Ok(size) = window_events.outer_size() {
-                                let width = size.width as f64;
-                                let height = size.height as f64;
-                                let target_ratio = 2.5;
-                                let current_ratio = width / height;
-
-                                if (current_ratio - target_ratio).abs() > 0.01 {
-                                    let new_height = (width / target_ratio) as u32;
-                                    let _ = window_events.set_size(tauri::Size::Physical(tauri::PhysicalSize {
-                                        width: size.width,
-                                        height: new_height,
-                                    }));
-                                }
-                            }
+                            // Let the window resize freely
                         }
                     }
                     _ => {}
@@ -780,12 +751,10 @@ fn resize_to_minimal(window: &tauri::WebviewWindow) {
         let scale_factor = window.scale_factor().unwrap_or(1.0);
         
         let window_h_phys = m_size.height as f64 * 0.7;
-        let offset_phys = 140.0 * scale_factor;
-        let target_h_phys = window_h_phys - offset_phys;
-        let target_w_phys = target_h_phys * 2.5;
+        let window_w_phys = m_size.width as f64 * 0.7;
 
-        let phys_w = target_w_phys as u32;
-        let phys_h = target_h_phys as u32;
+        let phys_w = window_w_phys as u32;
+        let phys_h = window_h_phys as u32;
 
         let _ = window.set_size(tauri::Size::Physical(tauri::PhysicalSize {
             width: phys_w,

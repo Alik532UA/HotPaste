@@ -39,7 +39,7 @@
   import { logService } from "./lib/services/logService.svelte";
   import { uiState } from "./lib/stores/uiState.svelte";
   import { fsState } from "./lib/stores/fileSystemState.svelte";
-  import { Sparkles, Waves, Shapes, CircleOff, Moon, Sun, Settings, Zap, FolderOpen } from "lucide-svelte";
+  import { Sparkles, Waves, Shapes, CircleOff, Moon, Sun, Settings, Zap, FolderOpen, MousePointer2 } from "lucide-svelte";
 
   const appState = getState();
 
@@ -346,6 +346,7 @@
                     class="scale-btn"
                     onclick={() => adjustScale(-0.1)}
                     aria-label="Зменшити масштаб"
+                    title="Зменшити масштаб (-10%)"
                     data-testid="btn-scale-down"
                   >
                     -
@@ -361,16 +362,18 @@
                     onkeydown={handleScaleKeydown}
                     role="button"
                     tabindex="0"
-                    aria-label="Скинути масштаб до 100%"
+                    aria-label="Змінити масштаб. Поточний: {Math.round(appState.scale * 100)}%"
                     title="Затисніть для зміни, ПКМ або Enter — скинути до 100%"
                     data-testid="scale-value"
                   >
+                    <MousePointer2 size={12} class="drag-icon" />
                     {Math.round(appState.scale * 100)}%
                   </span>
                   <button
                     class="scale-btn"
                     onclick={() => adjustScale(0.1)}
                     aria-label="Збільшити масштаб"
+                    title="Збільшити масштаб (+10%)"
                     data-testid="btn-scale-up"
                   >
                     +
@@ -658,17 +661,33 @@
   }
 
   .scale-value {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-1);
     font-size: 0.7rem;
     font-family: var(--font-mono);
     color: var(--color-text-muted);
-    min-width: 36px;
+    min-width: 50px;
     text-align: center;
     cursor: col-resize;
     user-select: none;
     transition: all var(--transition-fast);
-    padding: 2px 4px;
+    padding: 2px 6px;
     border-radius: 4px;
     outline: none;
+  }
+
+  :global(.drag-icon) {
+    opacity: 0.4;
+    color: var(--color-text-muted);
+    transition: all 0.2s;
+  }
+
+  .scale-value:hover :global(.drag-icon),
+  .scale-value.dragging :global(.drag-icon) {
+    opacity: 1;
+    color: var(--color-accent-cyan);
   }
 
   .scale-value:hover {

@@ -31,7 +31,7 @@
   </div>
 
   <div class="error-footer">
-    <button class="reset-btn" onclick={reset}>
+    <button class="reset-btn" onclick={reset} data-testid="btn-card-error-retry">
       <RefreshCw size={14} />
       {t.common?.retry || "Retry"}
     </button>

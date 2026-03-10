@@ -17,8 +17,8 @@
     }
 </script>
 
-<div class="empty-state">
-    <div class="empty-content">
+<div class="empty-state" data-testid="empty-state">
+    <div class="empty-content" data-testid="empty-state-content">
         <!-- Logo / Hero -->
         <div class="hero-icon">
             <span class="icon-glow"></span>

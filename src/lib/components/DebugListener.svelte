@@ -54,7 +54,7 @@
     });
 </script>
 
-<div class="debug-container">
+<div class="debug-container" data-testid="debug-container">
     {#if import.meta.env.DEV}
         <button class="debug-copy-btn" onclick={handleCopy} title="Копіювати логи" data-testid="btn-copy-debug-logs">
             <Copy size={16} />
@@ -62,7 +62,7 @@
                 <span class="status" data-testid="debug-copy-status">Скопійовано!</span>
             {/if}
             {#if pauseClickCount > 0}
-                <span class="pause-counter">{pauseClickCount}/{CLEAR_THRESHOLD}</span>
+                <span class="pause-counter" data-testid="pause-counter">{pauseClickCount}/{CLEAR_THRESHOLD}</span>
             {/if}
         </button>
     {/if}

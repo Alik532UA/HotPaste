@@ -426,9 +426,18 @@
           : "Strike out line"}
     id="card-{card.filePath.replace(/[^a-zA-Z0-9]/g, '-')}"
     style={getCardStyle()}
-    data-testid="snippet-card"
+    data-testid={`snippet-card-${card.id}`}
     data-card-name={card.name}
   >
+    <!-- Visual Strike Zone Indicator -->
+    {#if !isMissing && !isSelectionMode && !isEditing}
+      <div 
+        class="strike-zone-indicator" 
+        class:visible={hoverZone === "strike"}
+        data-testid={`strike-zone-${card.id}`}
+      ></div>
+    {/if}
+
     <!-- Selection Checkbox -->
     {#if isSelectionMode || isSelected}
       <button 
@@ -439,8 +448,9 @@
           e.stopPropagation();
           toggleCardSelection(card.id);
         }}
+        aria-label={isSelected ? "Deselect card" : "Select card"}
         title={isSelected ? "Deselect" : "Select"}
-        data-testid="selection-checkbox"
+        data-testid={`selection-checkbox-${card.id}`}
       >
         {#if isSelected}
           <Check size={14} strokeWidth={3} />
@@ -450,14 +460,14 @@
 
     <!-- Action indicator -->
     {#if hoverZone === "action" && !isMissing && !isSelectionMode}
-      <div class="action-overlay-hint" data-testid="action-hint">
+      <div class="action-overlay-hint" data-testid={`action-hint-${card.id}`}>
         <icons.Copy size={32} opacity={0.15} />
       </div>
     {/if}
 
     <!-- Card header -->
     {#if !isCompact}
-      <div class="card-header" data-testid="card-header">
+      <div class="card-header" data-testid={`card-header-${card.id}`}>
         {#if isMissing}
           <span class="card-icon error"><icons.FileX size={16} /></span>
         {:else if LucideIcon}
@@ -465,11 +475,11 @@
         {:else if card.icon}
           <span class="card-icon emoji">{card.icon}</span>
         {/if}
-        <h3 class="card-title" data-testid="card-title">
+        <h3 class="card-title" data-testid={`card-title-${card.id}`}>
           <TextHighlight text={card.name} query={appState.searchQuery} />
         </h3>
         {#if isExpanded && !isMissing}
-          <span class="card-ext" data-testid="card-extension"
+          <span class="card-ext" data-testid={`card-extension-${card.id}`}
             >{card.extension}</span
           >
         {/if}
@@ -478,14 +488,14 @@
         <div
           class="card-actions-overlay"
           class:always-visible={isExpanded}
-          data-testid="card-actions-overlay"
+          data-testid={`card-actions-overlay-${card.id}`}
         >
           <button
             class="action-overlay-btn more-btn"
             title={t.common.settings}
             aria-label={t.common.settings}
             onclick={handleMoreClick}
-            data-testid="btn-card-more"
+            data-testid={`btn-card-more-${card.id}`}
           >
             <icons.Menu size={18} />
           </button>
@@ -495,7 +505,7 @@
             title={t.common.edit}
             aria-label={t.common.edit}
             onclick={handleEditClick}
-            data-testid="btn-card-edit"
+            data-testid={`btn-card-edit-${card.id}`}
           >
             <icons.Edit3 size={18} />
           </button>
@@ -517,12 +527,13 @@
             );
             openHotkeyPicker(card);
           }}
+          aria-label="Change hotkey"
           title={card.isCustomHotkey && card.hotkey
             ? t.cards.hotkeyFixed
             : card.isCustomHotkey
               ? t.cards.hotkeyDisabled
               : t.cards.hotkeyChange}
-          data-testid="card-hotkey"
+          data-testid={`card-hotkey-${card.id}`}
         >
           {#if card.hotkey}
             {appState.getHotkeyLabel(card.hotkey)}
@@ -548,12 +559,13 @@
           );
           openHotkeyPicker(card);
         }}
+        aria-label="Change hotkey"
         title={card.isCustomHotkey && card.hotkey
           ? t.cards.hotkeyFixed
           : card.isCustomHotkey
             ? t.cards.hotkeyDisabled
             : t.cards.hotkeyChange}
-        data-testid="card-hotkey"
+        data-testid={`card-hotkey-${card.id}`}
       >
         {#if card.hotkey}
           {appState.getHotkeyLabel(card.hotkey)}
@@ -568,14 +580,14 @@
         <p class="error-msg">File <code>{card.fileName}</code> not found.</p>
 
         {#if isLinking}
-          <div class="manual-link-area" data-testid="manual-link-area">
+          <div class="manual-link-area" data-testid={`manual-link-area-${card.id}`}>
             <p>Link to file:</p>
             <div class="unrecognized-list">
               {#each appState.activeCards.filter((c) => !c.isMissing) as realCard}
                 <button
                   class="link-option"
                   onclick={() => performManualLink(realCard.fileName)}
-                  data-testid="link-option"
+                  data-testid={`link-option-${card.id}-${realCard.id}`}
                 >
                   {realCard.fileName}
                 </button>
@@ -587,7 +599,7 @@
             <button
               class="btn-cancel-link"
               onclick={() => (isLinking = false)}
-              data-testid="btn-cancel-link">{t.common.cancel}</button
+              data-testid={`btn-cancel-link-${card.id}`}>{t.common.cancel}</button
             >
           </div>
         {:else}
@@ -595,7 +607,8 @@
             <button
               class="btn-ghost-action link"
               onclick={handleLinkManually}
-              data-testid="btn-link-manually"
+              data-testid={`btn-link-manually-${card.id}`}
+              aria-label="Find and link file"
             >
               <icons.Link size={14} />
               Find
@@ -603,7 +616,8 @@
             <button
               class="btn-ghost-action delete"
               onclick={() => removeOrphanedConfig(card)}
-              data-testid="btn-remove-config"
+              data-testid={`btn-remove-config-${card.id}`}
+              aria-label="Delete card config"
             >
               <icons.Trash2 size={14} />
               {t.common.delete}
@@ -619,7 +633,7 @@
           class:full={isFull}
           class:markdown={card.extension === ".md"}
           bind:this={contentElement}
-          data-testid="card-content"
+          data-testid={`card-content-${card.id}`}
         >
           {#if card.extension === ".md"}
             <div class="markdown-body">
@@ -631,7 +645,7 @@
                 class="line"
                 data-index={i}
                 class:strikethrough={card.strikethrough.includes(i)}
-                data-testid="content-line"
+                data-testid={`content-line-${card.id}-${i}`}
               >
                 <TextHighlight text={line || " "} query={appState.searchQuery} />
               </div>
@@ -656,7 +670,7 @@
 
     <!-- Copy indicator overlay -->
     {#if isFlashing}
-      <div class="copy-overlay" data-testid="copy-indicator">
+      <div class="copy-overlay" data-testid={`copy-indicator-${card.id}`}>
         <span class="copy-icon">✓</span>
       </div>
     {/if}
@@ -1423,5 +1437,24 @@
       transform: scale(1);
       opacity: 1;
     }
+  }
+
+  .strike-zone-indicator {
+    position: absolute;
+    left: 0;
+    top: 12px;
+    bottom: 12px;
+    width: 3px;
+    background: var(--color-accent-cyan);
+    border-radius: 0 4px 4px 0;
+    opacity: 0;
+    transition: all 0.2s ease;
+    z-index: 5;
+    pointer-events: none;
+  }
+
+  .strike-zone-indicator.visible {
+    opacity: 0.6;
+    transform: translateX(0);
   }
 </style>

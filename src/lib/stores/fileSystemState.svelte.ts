@@ -482,15 +482,22 @@ async function updateTabAssignment(keyCode: string, shortcut: any | 'none'): Pro
     const tab = fsState.activeTab;
     if (!tab || tab.type !== 'keyboard') return;
 
+    // Ensure assignments is initialized
     if (!tab.assignments) tab.assignments = {};
     
+    // Create a new reference for reactivity in Svelte 5
+    const newAssignments = { ...tab.assignments };
+    
     if (shortcut === 'none') {
-        delete tab.assignments[keyCode];
+        delete newAssignments[keyCode];
     } else {
-        tab.assignments[keyCode] = shortcut;
+        newAssignments[keyCode] = shortcut;
     }
 
-    await updateTabSettings(tab, { assignments: { ...tab.assignments } });
+    // Assign the NEW object back to trigger $derived updates
+    tab.assignments = newAssignments;
+
+    await updateTabSettings(tab, { assignments: tab.assignments });
 }
 
 async function duplicateTab(tab: Tab): Promise<void> {

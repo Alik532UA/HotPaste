@@ -75,7 +75,7 @@
       <p class="section-desc">{t.settings.clearCacheDesc}</p>
       
       <div class="setting-row">
-        <button class="danger-btn" onclick={clearAllData}>
+        <button class="danger-btn" onclick={clearAllData} data-testid="btn-clear-cache">
           {t.settings.clearCacheBtn}
         </button>
       </div>
@@ -83,7 +83,7 @@
   </div>
 
   {#snippet footer()}
-    <button class="primary-btn" onclick={close}>
+    <button class="primary-btn" onclick={close} data-testid="btn-save-settings">
       {t.common.save}
     </button>
   {/snippet}

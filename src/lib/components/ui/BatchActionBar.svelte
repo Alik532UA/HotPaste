@@ -44,7 +44,7 @@
                 <button 
                   class="menu-item" 
                   onclick={() => handleMove(tab.path)}
-                  data-testid="batch-move-item"
+                  data-testid={`batch-move-item-${tab.path}`}
                   data-tab-path={tab.path}
                 >
                   {tab.name}

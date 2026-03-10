@@ -92,11 +92,11 @@
     </div>
 
     {#if isAddTabMenu && addTabMenu}
-      <button class="menu-item" onclick={() => handleAction(addTabMenu.onAddSnippets)} role="menuitem">
+      <button class="menu-item" onclick={() => handleAction(addTabMenu.onAddSnippets)} role="menuitem" data-testid="menu-item-add-snippets">
         <icons.Type size={14} />
         <span>{t.tabs.typeSnippets || "Нотатки"}</span>
       </button>
-      <button class="menu-item" onclick={() => handleAction(addTabMenu.onAddKeyboard)} role="menuitem">
+      <button class="menu-item" onclick={() => handleAction(addTabMenu.onAddKeyboard)} role="menuitem" data-testid="menu-item-add-keyboard">
         <icons.Keyboard size={14} />
         <span>{t.tabs.typeKeyboard || "Клавіатура"}</span>
       </button>
