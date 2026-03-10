@@ -1,14 +1,8 @@
 import { TauriFileSystemService } from '../services/tauriFileSystem';
 import { logService } from '../services/logService.svelte';
+import type { ShortcutInfo } from '../types';
 
 const fs = new TauriFileSystemService();
-
-export interface ShortcutInfo {
-    name: string;
-    path: string;
-    type?: 'local' | 'running' | 'system';
-    icon?: string | null;
-}
 
 /**
  * Start Menu State — Manages virtual keyboard assignments and program launching.
@@ -167,14 +161,17 @@ class StartMenuState {
         this.saveAssignments();
     }
 
-    async launchKey(keyCode: string) {
-        const shortcut = this.assignments[keyCode];
+    async launchKey(keyCode: string, currentAssignments: Record<string, ShortcutInfo>) {
+        const shortcut = currentAssignments[keyCode];
         if (!shortcut) return;
 
         try {
             const { invoke } = await import('@tauri-apps/api/core');
             if (shortcut.type === 'local') {
                 await invoke('launch_start_program', { name: shortcut.path });
+            } else if (shortcut.type === 'url') {
+                const { open } = await import('@tauri-apps/plugin-shell');
+                await open(shortcut.path);
             } else {
                 await invoke('launch_program_by_path', { path: shortcut.path });
             }

@@ -12,6 +12,16 @@ export const configState = {
     setScale(scale: number) {
         config.scale = scale;
         saveConfig();
+    },
+
+    setDefaultModeSnippets(mode: 'full' | 'minimal') {
+        config.defaultModeSnippets = mode;
+        saveConfig();
+    },
+
+    setDefaultModeKeyboard(mode: 'full' | 'minimal') {
+        config.defaultModeKeyboard = mode;
+        saveConfig();
     }
 };
 

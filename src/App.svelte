@@ -21,6 +21,7 @@
   import TabSettingsModal from "./lib/components/TabSettingsModal.svelte";
   import HotkeyConflictModal from "./lib/components/HotkeyConflictModal.svelte";
   import HotkeyPickerModal from "./lib/components/HotkeyPickerModal.svelte";
+  import GlobalSettingsModal from "./lib/components/GlobalSettingsModal.svelte";
   import DebugListener from "./lib/components/DebugListener.svelte";
   import DynamicBackground from "./lib/components/DynamicBackground.svelte";
   import SegmentedToggle from "./lib/components/ui/SegmentedToggle.svelte";
@@ -36,9 +37,12 @@
   import { t } from "./lib/i18n";
   import { logService } from "./lib/services/logService.svelte";
   import { uiState } from "./lib/stores/uiState.svelte";
-  import { Sparkles, Waves, Shapes, CircleOff, Moon, Sun } from "lucide-svelte";
+  import { fsState } from "./lib/stores/fileSystemState.svelte";
+  import { Sparkles, Waves, Shapes, CircleOff, Moon, Sun, Settings, Zap, FolderOpen } from "lucide-svelte";
 
   const appState = getState();
+
+  let globalSettingsModal = $state<ReturnType<typeof GlobalSettingsModal>>();
 
   // Determine if running in Tauri environment
   // @ts-ignore
@@ -90,21 +94,6 @@
 
   // Global keyboard listener
   function onKeydown(e: KeyboardEvent) {
-    // Special handling for minimal mode on first tab (ONLY IN TAURI)
-    if (isTauri && appState.activeTabIndex === 0 && (e.key === "1" || e.code === "Digit1")) {
-      const target = e.target as HTMLElement;
-      const isInput = target && (
-        ["INPUT", "TEXTAREA"].includes(target.tagName.toUpperCase()) ||
-        target.isContentEditable
-      );
-      
-      // Only toggle if not typing in an input/textarea
-      if (!isInput) {
-        e.preventDefault();
-        uiState.toggleMinimalMode();
-        return;
-      }
-    }
     handleGlobalKeydown(e);
   }
 
@@ -286,7 +275,7 @@
                   data-tauri-drag-region
                   data-testid="app-logo"
                 >
-                  <span class="logo-icon" data-tauri-drag-region>⚡</span>
+                  <span class="logo-icon" data-tauri-drag-region><Zap size={20} /></span>
                   {t.app.title}
                 </h1>
                 <div class="header-divider" data-tauri-drag-region></div>
@@ -294,7 +283,7 @@
                   class="root-name"
                   data-tauri-drag-region
                   title={appState.rootName}
-                  data-testid="root-name-label">📂 {appState.rootName}</span
+                  data-testid="root-name-label"><FolderOpen size={16} /> {appState.rootName}</span
                 >
               </div>
 
@@ -436,6 +425,16 @@
                     />
                   </svg>
                 </button>
+
+                <button
+                  class="icon-btn"
+                  onclick={() => globalSettingsModal?.open()}
+                  title={t.common.settings}
+                  aria-label={t.common.settings}
+                  data-testid="btn-global-settings"
+                >
+                  <Settings size={18} />
+                </button>
               </div>
             </div>
           </header>
@@ -449,16 +448,16 @@
         {/if}
 
         <!-- Main Content -->
-        <main class="app-main" class:is-minimal={uiState.isMinimalMode} class:no-scroll={isTauri && appState.activeTabIndex === 0} data-testid="app-main">
-          {#if isTauri && appState.activeTabIndex === 0}
-            <StartMenu />
+        <main class="app-main" class:is-minimal={uiState.isMinimalMode} class:no-scroll={fsState.activeTab?.type === 'keyboard'} data-testid="app-main">
+          {#if fsState.activeTab?.type === 'keyboard'}
+            <StartMenu assignments={fsState.activeTab.assignments || {}} />
           {:else}
             <CardGrid />
           {/if}
         </main>
 
         <!-- Floating Action Button for creating new card -->
-        {#if !uiState.isMinimalMode && (appState.activeTabIndex !== 0 || !isTauri)}
+        {#if !uiState.isMinimalMode && fsState.activeTab?.type !== 'keyboard'}
           <FAB />
         {/if}
       </div>
@@ -484,6 +483,8 @@
 <HotkeyConflictModal />
 
 <HotkeyPickerModal />
+
+<GlobalSettingsModal bind:this={globalSettingsModal} />
 
 <DebugListener />
 

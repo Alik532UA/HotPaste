@@ -30,6 +30,7 @@ export const uk = {
         refresh: "Оновити",
         viewShort: "Короткий",
         viewFull: "Повний",
+        viewMinimal: "Міні",
         densityCompact: "Компактно",
         densityNormal: "Звичайно",
         densityExpanded: "Розширено",
@@ -49,7 +50,10 @@ export const uk = {
         displayName: "Відображувана назва",
         dirName: "Ім'я папки",
         icon: "Іконка",
-        color: "Колір вкладки"
+        color: "Колір вкладки",
+        type: "Тип вкладки",
+        typeSnippets: "Нотатки",
+        typeKeyboard: "Клавіатура"
     },
     cards: {
         settings: "Налаштувати картку",

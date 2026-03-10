@@ -2,6 +2,8 @@
  * UI State — Manages modals, toasts, zoom, and view settings.
  */
 
+import { logService } from '../services/logService.svelte';
+import { configState } from './configState.svelte';
 import { getHotkeyLabel, TAB_CODES, isTabHotkey } from '../utils/keyboardLayout';
 import type { Card, Tab } from '../types';
 
@@ -20,7 +22,7 @@ let editingCardPath = $state('');
 let flashingCardPath = $state('');
 let selectedCardIds = $state<Set<string>>(new Set());
 let isSelectionMode = $state(false);
-let isMinimalMode = $state(isTauri);
+let isMinimalMode = $state(false);
 
 let cardView = $state<'short' | 'full'>((localStorage.getItem('hp_card_view') as any) || 'short');
 let cardDensity = $state<'expanded' | 'normal' | 'compact'>((localStorage.getItem('hp_card_density') as any) || 'normal');
@@ -130,35 +132,42 @@ function toggleCardView(): void {
 }
 
 function toggleMinimalMode(): void {
-    // Only allow enabling Minimal Mode on the first tab (Keyboard)
-    if (!isMinimalMode && activeTabIndex !== 0) return;
     isMinimalMode = !isMinimalMode;
+    logService.info('ui', `toggleMinimalMode: isMinimalMode=${isMinimalMode}`);
 }
 
 function setMinimalMode(value: boolean): void {
-    // Only allow enabling Minimal Mode on the first tab (Keyboard)
-    if (value && activeTabIndex !== 0) return;
+    logService.info('ui', `setMinimalMode: value=${value}, current=${isMinimalMode}`);
     isMinimalMode = value;
 }
 
-function selectTab(index: number, max: number): void {
+function selectTab(index: number, max: number, tabType?: 'snippets' | 'keyboard', isExplicitClick: boolean = false): void {
+    logService.info('ui', `selectTab: index=${index}, tabType=${tabType}, currentActive=${activeTabIndex}, isExplicit=${isExplicitClick}`);
     if (index >= 0 && index < max) {
-        activeTabIndex = index;
-        
-        // Auto-switch mode based on tab
-        if (index === 0) {
-            isMinimalMode = true;
+        if (index === activeTabIndex) {
+            if (isExplicitClick) {
+                // Manual toggle only when EXPLICITLY clicking the current tab
+                isMinimalMode = !isMinimalMode;
+                logService.info('ui', `selectTab (toggle): isMinimalMode=${isMinimalMode}`);
+            }
         } else {
-            isMinimalMode = false;
+            activeTabIndex = index;
+            // Use defaults from config
+            if (tabType === 'keyboard') {
+                isMinimalMode = configState.config.defaultModeKeyboard === 'minimal';
+            } else if (tabType === 'snippets') {
+                isMinimalMode = configState.config.defaultModeSnippets === 'minimal';
+            }
+            logService.info('ui', `selectTab (switch): isMinimalMode=${isMinimalMode} (type=${tabType})`);
         }
     }
 }
 
-function selectTabByHotkey(code: string, max: number): boolean {
+function selectTabByHotkey(code: string, max: number, tabType: 'snippets' | 'keyboard' = 'snippets', isExplicitClick: boolean = false): boolean {
     if (!isTabHotkey(code)) return false;
     const index = TAB_CODES.indexOf(code);
     if (index >= 0 && index < max) {
-        selectTab(index, max);
+        selectTab(index, max, tabType, isExplicitClick);
         return true;
     }
     return false;

@@ -22,12 +22,14 @@
   const contextMenu = $derived(appState.activeContextMenu);
   
   // Type guards
-  const isCard = $derived(contextMenu && "filePath" in (contextMenu.card as any));
-  const isTab = $derived(contextMenu && "path" in (contextMenu.card as any));
+  const isCard = $derived(contextMenu && contextMenu.card && "filePath" in (contextMenu.card as any));
+  const isTab = $derived(contextMenu && contextMenu.card && "path" in (contextMenu.card as any));
+  const isAddTabMenu = $derived(contextMenu && (contextMenu.card as any)?.type === 'add-tab-menu');
   
   // Casting for convenience
   const card = $derived(isCard ? (contextMenu?.card as unknown as Card) : null);
   const tab = $derived(isTab ? (contextMenu?.card as unknown as Tab) : null);
+  const addTabMenu = $derived(isAddTabMenu ? (contextMenu?.card as any) : null);
 
   let menuElement = $state<HTMLElement | null>(null);
 
@@ -84,10 +86,22 @@
     data-testid="context-menu"
   >
     <div class="menu-header">
-      <span class="card-name" data-testid="menu-title">{isCard ? card?.name : tab?.name}</span>
+      <span class="card-name" data-testid="menu-title">
+        {#if isCard}{card?.name}{:else if isTab}{tab?.name}{:else if isAddTabMenu}{t.tabs.add}{:else}Menu{/if}
+      </span>
     </div>
 
-    {#if isCard && card}
+    {#if isAddTabMenu && addTabMenu}
+      <button class="menu-item" onclick={() => handleAction(addTabMenu.onAddSnippets)} role="menuitem">
+        <icons.Type size={14} />
+        <span>{t.tabs.typeSnippets || "Нотатки"}</span>
+      </button>
+      <button class="menu-item" onclick={() => handleAction(addTabMenu.onAddKeyboard)} role="menuitem">
+        <icons.Keyboard size={14} />
+        <span>{t.tabs.typeKeyboard || "Клавіатура"}</span>
+      </button>
+
+    {:else if isCard && card}
       <!-- Card Menu Items -->
       <button class="menu-item" onclick={() => handleAction(() => copyCard(card))} role="menuitem" data-testid="menu-item-copy">
         <icons.Copy size={14} />
@@ -121,7 +135,7 @@
           {#each appState.tabs as t_item}
             {#if t_item.path !== card.filePath.split('/').slice(0, -1).join('/') && !(t_item.path === '__root__' && card.filePath.startsWith('__root__/'))}
               <button class="menu-item" onclick={() => handleMove(t_item.path)} role="menuitem" data-testid="submenu-item-move-to" data-tab-path={t_item.path}>
-                <span>{t_item.icon || "📂"} {t_item.name}</span>
+                <span>{#if t_item.icon}{t_item.icon}{:else}<icons.Folder size={14} />{/if} {t_item.name}</span>
               </button>
             {/if}
           {/each}

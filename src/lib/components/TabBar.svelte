@@ -84,11 +84,19 @@
     openContextMenu(e.clientX, e.clientY, tab as any); 
   }
 
-  function handleAddTab() {
-    const name = prompt(t.tabs.add + " (folder name):");
-    if (name) {
-      createNewTab(name);
-    }
+  function handleAddTab(e: MouseEvent) {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    openContextMenu(rect.left, rect.bottom, {
+        type: 'add-tab-menu',
+        onAddSnippets: () => {
+            const name = prompt(t.tabs.add + " (folder name) - " + (t.tabs.typeSnippets || "Нотатки") + ":");
+            if (name) createNewTab(name, 'snippets');
+        },
+        onAddKeyboard: () => {
+            const name = prompt(t.tabs.add + " (folder name) - " + (t.tabs.typeKeyboard || "Клавіатура") + ":");
+            if (name) createNewTab(name, 'keyboard');
+        }
+    } as any);
   }
 </script>
 

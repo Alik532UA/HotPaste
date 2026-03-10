@@ -4,73 +4,60 @@
  */
 
 import type { IFileSystemService } from './fileSystem';
-import type { Tab, Card } from '../types';
-import { HotPasteConfigSchema, MAX_FILE_SIZE, FileNameSchema, type ValidatedHotPasteConfig as HotPasteConfig } from '../schemas/config';
-import { logService } from './logService.svelte';
-
-const CONFIG_FILENAME = '_hotpaste.json';
-const SUPPORTED_EXTENSIONS = ['.txt', '.md', '.prompt', '.snippet'];
+import type { Tab, Card, HotPasteConfig } from '../types';
+import { CONFIG_FILENAME } from '../types';
+import { HotPasteConfigSchema } from '../schemas/config';
 
 export class TauriFileSystemService implements IFileSystemService {
-    private rootPath: string = '';
-    private isInitialized: boolean = false;
-
-    // Cache for Tauri APIs
-    private tauriFs: any = null;
-    private tauriPath: any = null;
+    private cachedApi: any = null;
 
     private async getApi() {
-        if (!this.tauriFs || !this.tauriPath) {
-            // Standard dynamic imports allow Vite to bundle these properly
-            this.tauriFs = await import('@tauri-apps/plugin-fs');
-            this.tauriPath = await import('@tauri-apps/api/path');
+        if (this.cachedApi) return this.cachedApi;
+        const fs = await import('@tauri-apps/plugin-fs');
+        const path = await import('@tauri-apps/api/path');
+        this.cachedApi = { fs, path };
+        return this.cachedApi;
+    }
+
+    private async resolvePath(pathStr: string): Promise<string> {
+        const { path } = await this.getApi();
+        const base = await path.documentDir();
+        const fullBase = await path.join(base, 'HotPaste');
+        if (pathStr === '__root__') return fullBase;
+        if (pathStr.startsWith('__root__/')) {
+            return await path.join(fullBase, pathStr.replace('__root__/', ''));
         }
-        return { fs: this.tauriFs, path: this.tauriPath };
-    }
-
-    hasAccess(): boolean {
-        return this.isInitialized;
-    }
-
-    getRootName(): string {
-        return 'default-project';
+        return await path.join(fullBase, pathStr);
     }
 
     async requestAccess(): Promise<boolean> {
-        logService.log('fileSystem', 'Tauri requestAccess starting...');
+        // Tauri has system access by default if configured in capabilities
         try {
-            const { fs, path } = await this.getApi();
-            logService.log('fileSystem', 'Tauri API acquired');
-
-            const docs = await path.documentDir();
-            logService.log('fileSystem', `Tauri documents dir: ${docs}`);
-
-            this.rootPath = await path.join(docs, 'HotPaste', 'default-project');
-            logService.log('fileSystem', `Tauri target root path: ${this.rootPath}`);
-            
-            const rootExists = await fs.exists(this.rootPath);
-            logService.log('fileSystem', `Tauri root exists: ${rootExists}`);
-
-            if (!rootExists) {
-                logService.log('fileSystem', 'Tauri creating root directory...');
-                await fs.mkdir(this.rootPath, { recursive: true });
-                logService.log('fileSystem', 'Tauri root directory created');
+            const { fs } = await this.getApi();
+            const root = await this.resolvePath('__root__');
+            if (!(await fs.exists(root))) {
+                await fs.mkdir(root, { recursive: true });
             }
-            
-            this.isInitialized = true;
-            logService.log('fileSystem', `Tauri root initialized at: ${this.rootPath}`);
             return true;
         } catch (err) {
-            logService.error('fileSystem', 'Tauri access failed with error:', err);
+            console.error('Tauri FS access error:', err);
             return false;
         }
     }
 
-    async readDirectory(): Promise<Tab[]> {
-        if (!this.isInitialized) throw new Error('Not initialized');
-        const { fs } = await this.getApi();
+    hasAccess(): boolean {
+        return true;
+    }
 
-        const entries = await fs.readDir(this.rootPath);
+    getRootName(): string {
+        return 'Documents/HotPaste';
+    }
+
+    async readDirectory(): Promise<Tab[]> {
+        const { fs } = await this.getApi();
+        const rootPath = await this.resolvePath('__root__');
+        const entries = await fs.readDir(rootPath);
+        
         const tabs: Tab[] = [];
         const rootFiles: Card[] = [];
         const rootConfig = await this.readConfig('__root__');
@@ -91,10 +78,13 @@ export class TauriFileSystemService implements IFileSystemService {
                         path: name,
                         icon: rootTabMeta.icon || config.tab?.icon || null,
                         color: rootTabMeta.color || config.tab?.color || null,
+                        type: config.tab?.type || rootTabMeta.type || 'snippets',
+                        assignments: config.tab?.assignments || rootTabMeta.assignments || {},
                     });
                 }
             } else if (entry.isFile) {
                 const ext = this.getExtension(name);
+                const SUPPORTED_EXTENSIONS = ['.txt', '.md'];
                 if (SUPPORTED_EXTENSIONS.includes(ext) && name !== CONFIG_FILENAME) {
                     const content = await this.readFileInternal(`__root__/${name}`);
                     const cardConfig = rootConfig.cards?.[name] || {};
@@ -129,110 +119,30 @@ export class TauriFileSystemService implements IFileSystemService {
 
         if (rootFiles.length > 0) {
             tabs.unshift({
-                name: rootConfig.tab?.displayName || '📄 Файли',
+                name: rootConfig.tab?.displayName || 'Файли',
                 displayName: rootConfig.tab?.displayName || null,
                 hotkey: '',
                 cards: rootFiles,
                 path: '__root__',
                 icon: rootConfig.tab?.icon || null,
                 color: rootConfig.tab?.color || null,
-            });
-        }
-
-        // Always prepend Start tab as the very first one, but ONLY in Tauri environment
-        const isTauri = !!(typeof window !== 'undefined' && ((window as any).__TAURI_INTERNALS__ || (window as any).__TAURI__));
-        if (isTauri) {
-            tabs.unshift({
-                name: 'Start',
-                displayName: 'Start',
-                hotkey: '',
-                cards: [], // No physical cards, UI will be custom
-                path: '__start__',
-                icon: '⚡',
-                color: 'var(--color-accent-cyan)',
+                type: rootConfig.tab?.type || 'snippets',
+                assignments: rootConfig.tab?.assignments || {},
             });
         }
 
         return tabs;
     }
 
-    async readFile(pathStr: string): Promise<string> {
-        return await this.readFileInternal(pathStr);
+    async readFile(path: string): Promise<string> {
+        return this.readFileInternal(path);
     }
 
     async writeFile(pathStr: string, content: string): Promise<void> {
         const { fs } = await this.getApi();
         const fullPath = await this.resolvePath(pathStr);
-        await fs.writeTextFile(fullPath, content);
-    }
-
-    async readConfig(tabPath: string): Promise<HotPasteConfig> {
-        try {
-            const { fs, path } = await this.getApi();
-            const configPath = tabPath === '__root__' 
-                ? await path.join(this.rootPath, CONFIG_FILENAME)
-                : await path.join(this.rootPath, tabPath, CONFIG_FILENAME);
-            
-            if (!(await fs.exists(configPath))) return { tab: {}, cards: {}, tabs: {} };
-            
-            const text = await this.readFileInternalByFullPath(configPath);
-            const parsed = JSON.parse(text);
-            const validated = HotPasteConfigSchema.safeParse(parsed);
-            return validated.success ? (validated.data as HotPasteConfig) : { tab: {}, cards: {}, tabs: {} };
-        } catch {
-            return { tab: {}, cards: {}, tabs: {} };
-        }
-    }
-
-    async writeConfig(tabPath: string, config: HotPasteConfig): Promise<void> {
-        const { fs, path } = await this.getApi();
-        const dirPath = tabPath === '__root__' ? this.rootPath : await path.join(this.rootPath, tabPath);
-        const configPath = await path.join(dirPath, CONFIG_FILENAME);
-
-        try {
-            if (await fs.exists(configPath)) {
-                const currentText = await this.readFileInternalByFullPath(configPath);
-                if (currentText.trim()) {
-                    await fs.writeTextFile(`${configPath}.bak`, currentText);
-                }
-            }
-        } catch {}
-
-        await fs.writeTextFile(configPath, JSON.stringify(config, null, 2));
-    }
-
-    async restoreFromBackup(tabPath: string): Promise<HotPasteConfig> {
-        const { fs, path } = await this.getApi();
-        const dirPath = tabPath === '__root__' ? this.rootPath : await path.join(this.rootPath, tabPath);
-        const backupPath = await path.join(dirPath, `${CONFIG_FILENAME}.bak`);
-
-        try {
-            const text = await this.readFileInternalByFullPath(backupPath);
-            const parsed = JSON.parse(text);
-            const validated = HotPasteConfigSchema.safeParse(parsed);
-            if (validated.success) {
-                await this.writeConfig(tabPath, validated.data as HotPasteConfig);
-                return validated.data as HotPasteConfig;
-            }
-            throw new Error('Invalid backup format');
-        } catch (err) {
-            logService.error('fileSystem', 'Failed to restore from backup', err);
-            throw err;
-        }
-    }
-
-    async renameFile(pathStr: string, newName: string): Promise<string> {
-        const { fs } = await this.getApi();
-        FileNameSchema.parse(newName);
-        const oldPath = await this.resolvePath(pathStr);
-        const parts = pathStr.split('/');
-        parts.pop();
-        const dirPath = parts.join('/');
-        const newVirtualPath = dirPath === '' || dirPath === '__root__' ? newName : `${dirPath}/${newName}`;
-        const newFullPath = await this.resolvePath(newVirtualPath);
-        
-        await fs.rename(oldPath, newFullPath);
-        return newVirtualPath;
+        const encoder = new TextEncoder();
+        await fs.writeFile(fullPath, encoder.encode(content));
     }
 
     async deleteFile(pathStr: string): Promise<void> {
@@ -241,163 +151,115 @@ export class TauriFileSystemService implements IFileSystemService {
         await fs.remove(fullPath);
     }
 
+    async renameFile(pathStr: string, newName: string): Promise<void> {
+        const { fs } = await this.getApi();
+        const fullPath = await this.resolvePath(pathStr);
+        const parentDir = fullPath.split(/[/\\]/).slice(0, -1).join('/');
+        const newFullPath = `${parentDir}/${newName}`;
+        await fs.rename(fullPath, newFullPath);
+    }
+
     async createDirectory(name: string): Promise<void> {
-        const { fs, path } = await this.getApi();
-        FileNameSchema.parse(name);
-        const fullPath = await path.join(this.rootPath, name);
-        await fs.mkdir(fullPath);
+        const { fs } = await this.getApi();
+        const fullPath = await this.resolvePath(name);
+        await fs.mkdir(fullPath, { recursive: true });
     }
 
     async deleteDirectory(pathStr: string): Promise<void> {
-        const { fs, path } = await this.getApi();
-        if (pathStr === '__root__') return;
-        const fullPath = await path.join(this.rootPath, pathStr);
+        const { fs } = await this.getApi();
+        const fullPath = await this.resolvePath(pathStr);
         await fs.remove(fullPath, { recursive: true });
     }
 
-    async renameDirectory(oldPathStr: string, newName: string): Promise<string> {
+    async renameDirectory(oldPathStr: string, newName: string): Promise<void> {
         const { fs, path } = await this.getApi();
-        FileNameSchema.parse(newName);
-        const oldFullPath = await path.join(this.rootPath, oldPathStr);
-        const newFullPath = await path.join(this.rootPath, newName);
+        const oldFullPath = await this.resolvePath(oldPathStr);
+        const parentDir = await path.dirname(oldFullPath);
+        const newFullPath = await path.join(parentDir, newName);
         await fs.rename(oldFullPath, newFullPath);
-        return newName;
     }
 
-    async copyFile(pathStr: string, newName: string): Promise<string> {
+    async copyFile(pathStr: string, newName: string): Promise<void> {
         const { fs } = await this.getApi();
-        const oldPath = await this.resolvePath(pathStr);
-        const parts = pathStr.split('/');
-        parts.pop();
-        const dirPath = parts.join('/');
-        const newVirtualPath = dirPath === '' ? newName : `${dirPath}/${newName}`;
-        const newFullPath = await this.resolvePath(newVirtualPath);
-        
-        await fs.copyFile(oldPath, newFullPath);
-        return newVirtualPath;
+        const fullPath = await this.resolvePath(pathStr);
+        const parentDir = fullPath.split(/[/\\]/).slice(0, -1).join('/');
+        const newFullPath = `${parentDir}/${newName}`;
+        await fs.copyFile(fullPath, newFullPath);
     }
 
-    async moveFile(pathStr: string, targetTabPath: string): Promise<string> {
+    async moveFile(pathStr: string, targetTabPath: string): Promise<void> {
         const { fs } = await this.getApi();
-        const oldPath = await this.resolvePath(pathStr);
-        const fileName = pathStr.split('/').pop()!;
-        const newVirtualPath = targetTabPath === '__root__' ? fileName : `${targetTabPath}/${fileName}`;
-        const newFullPath = await this.resolvePath(newVirtualPath);
-        
-        await fs.rename(oldPath, newFullPath);
-        return newVirtualPath;
+        const fullPath = await this.resolvePath(pathStr);
+        const fileName = fullPath.split(/[/\\]/).pop()!;
+        const targetTabFullPath = await this.resolvePath(targetTabPath);
+        const newFullPath = `${targetTabFullPath}/${fileName}`;
+        await fs.rename(fullPath, newFullPath);
     }
 
-    async launchProgram(pathStr: string): Promise<void> {
-        const { open } = await import('@tauri-apps/plugin-shell');
-        await open(pathStr);
-    }
-
-    async getStartShortcuts(): Promise<string[]> {
-        if (!this.isInitialized) return [];
+    async readConfig(tabPath: string): Promise<HotPasteConfig> {
         try {
-            const { fs, path } = await this.getApi();
-            const docs = await path.documentDir();
-            const startPath = await path.join(docs, 'HotPaste', 'start');
-            
-            if (!(await fs.exists(startPath))) {
-                await fs.mkdir(startPath, { recursive: true });
-                return [];
-            }
-
-            const results: string[] = [];
-
-            const walk = async (currentPath: string, relativePrefix: string = '') => {
-                const entries = await fs.readDir(currentPath);
-                for (const entry of (entries as any[])) {
-                    const entryName = entry.name || '';
-                    // Skip hidden files/folders (starting with dot)
-                    if (entryName.startsWith('.')) continue;
-
-                    const entryPath = await path.join(currentPath, entryName);
-                    const relPath = relativePrefix ? `${relativePrefix}/${entryName}` : entryName;
-                    
-                    if (entry.isDirectory) {
-                        await walk(entryPath, relPath);
-                    } else if (entry.isFile) {
-                        const lowName = entryName.toLowerCase();
-                        if (lowName.endsWith('.lnk') || lowName.endsWith('.exe')) {
-                            results.push(relPath);
-                        }
-                    }
-                }
-            };
-
-            await walk(startPath);
-            return results;
-        } catch (err) {
-            logService.error('fileSystem', 'Failed to get start shortcuts', err);
-            return [];
+            const configPath = tabPath === '__root__' ? CONFIG_FILENAME : `${tabPath}/${CONFIG_FILENAME}`;
+            const content = await this.readFile(configPath);
+            const raw = JSON.parse(content);
+            const result = HotPasteConfigSchema.safeParse(raw);
+            return result.success ? result.data : { tab: {}, cards: {} };
+        } catch {
+            return { tab: {}, cards: {} };
         }
     }
 
-    private async resolvePath(pathStr: string): Promise<string> {
-        const { path } = await this.getApi();
-        const normalized = pathStr.startsWith('__root__/') ? pathStr.slice(9) : pathStr;
-        return await path.join(this.rootPath, normalized);
+    async writeConfig(tabPath: string, config: HotPasteConfig): Promise<void> {
+        const configPath = tabPath === '__root__' ? CONFIG_FILENAME : `${tabPath}/${CONFIG_FILENAME}`;
+        await this.writeFile(configPath, JSON.stringify(config, null, 2));
     }
 
     private async readFileInternal(pathStr: string): Promise<string> {
         const { fs } = await this.getApi();
         const fullPath = await this.resolvePath(pathStr);
-        return await fs.readTextFile(fullPath);
+        const bytes = await fs.readFile(fullPath);
+        const decoder = new TextDecoder();
+        return decoder.decode(bytes);
     }
 
-    private async readFileInternalByFullPath(fullPath: string): Promise<string> {
+    private async readCardsFromDirectory(dirName: string, config: HotPasteConfig): Promise<Card[]> {
         const { fs } = await this.getApi();
-        return await fs.readTextFile(fullPath);
-    }
-
-    private async readCardsFromDirectory(virtualDirPath: string, config: HotPasteConfig): Promise<Card[]> {
-        const { fs, path } = await this.getApi();
-        const fullDirPath = await path.join(this.rootPath, virtualDirPath);
-        const entries = await fs.readDir(fullDirPath);
+        const dirPath = await this.resolvePath(dirName);
+        const entries = await fs.readDir(dirPath);
         const cards: Card[] = [];
 
-        for (const entry of entries) {
-            const name = entry.name || '';
-            if (entry.isFile && name !== CONFIG_FILENAME) {
-                const ext = this.getExtension(name);
-                if (SUPPORTED_EXTENSIONS.includes(ext)) {
-                    const content = await this.readFileInternal(`${virtualDirPath}/${name}`);
-                    const cardConfig = config.cards?.[name] || {};
+        for (const entry of (entries as any[])) {
+            if (entry.isFile) {
+                const ext = this.getExtension(entry.name);
+                const SUPPORTED_EXTENSIONS = ['.txt', '.md'];
+                if (SUPPORTED_EXTENSIONS.includes(ext) && entry.name !== CONFIG_FILENAME) {
+                    const content = await this.readFileInternal(`${dirName}/${entry.name}`);
+                    const cardConfig = config.cards?.[entry.name] || {};
+                    const fullPath = await this.resolvePath(`${dirName}/${entry.name}`);
+                    const stat = await fs.stat(fullPath);
+
                     cards.push({
-                        id: `${virtualDirPath}/${name}`,
-                        name: cardConfig.displayName || this.cleanName(name),
+                        id: `${dirName}/${entry.name}`,
+                        name: cardConfig.displayName || this.cleanName(entry.name),
                         displayName: cardConfig.displayName || null,
                         content,
                         hotkey: cardConfig.hotkey || '',
                         isCustomHotkey: cardConfig.hotkey !== undefined,
-                        filePath: `${virtualDirPath}/${name}`,
-                        fileName: name,
+                        filePath: `${dirName}/${entry.name}`,
+                        fileName: entry.name,
                         extension: ext,
                         icon: cardConfig.icon || null,
                         color: cardConfig.color || null,
                         borderColor: cardConfig.borderColor || null,
                         strikethrough: cardConfig.strikethrough || [],
-                        size: 0,
-                        lastModified: Date.now(),
+                        size: stat.size,
+                        lastModified: stat.mtime || Date.now(),
                     });
                 }
             }
         }
-
-        const orderArr = config.tab?.order || [];
-        cards.sort((a, b) => {
-            const indexA = orderArr.indexOf(a.fileName);
-            const indexB = orderArr.indexOf(b.fileName);
-            if (indexA !== -1 && indexB !== -1) return indexA - indexB;
-            return a.fileName.localeCompare(b.fileName);
-        });
-
         return cards;
     }
 
     private getExtension(f: string): string { const i = f.lastIndexOf('.'); return i >= 0 ? f.slice(i).toLowerCase() : ''; }
-    private cleanName(n: string): string { const i = n.lastIndexOf('.'); const w = i >= 0 ? n.slice(0, i) : n; return w.replace(/^\d+[_\-\s]+/, '') || w; }
+    private cleanName(n: string): string { const i = n.lastIndexOf('.'); const w = i >= 0 ? n.slice(0, i) : n; return w.replace(/^\d+[\_\-\s]+/, '') || w; }
 }

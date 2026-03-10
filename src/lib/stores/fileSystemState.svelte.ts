@@ -2,7 +2,7 @@
  * File System State — Manages directories, files, tabs, and metadata reconciliation.
  */
 
-import type { Tab, Card, HotPasteConfig } from '../types';
+import type { Tab, Card, HotPasteConfig, TabType } from '../types';
 import { createFileSystemService, type IFileSystemService } from '../services/fileSystem';
 import { logService } from '../services/logService.svelte';
 import { uiState } from './uiState.svelte';
@@ -69,8 +69,11 @@ async function connectDirectory(): Promise<void> {
 async function refreshTabs(): Promise<void> {
     if (!fileSystemService.hasAccess()) return;
 
-    logService.log('fsState', 'Refreshing tabs from disk...');
+    logService.info('fsState', 'Refreshing tabs from disk...');
     const oldActivePath = fsState.activeTab?.path;
+    const oldActiveIndex = uiState.activeTabIndex;
+    logService.info('fsState', `refreshTabs: oldActivePath=${oldActivePath}, oldActiveIndex=${oldActiveIndex}`);
+
     const loadedTabs = await fileSystemService.readDirectory();
 
     for (const tab of loadedTabs) {
@@ -85,13 +88,17 @@ async function refreshTabs(): Promise<void> {
 
     if (oldActivePath) {
         const index = tabs.findIndex(t => t.path === oldActivePath);
+        logService.info('fsState', `refreshTabs: found oldActivePath at index=${index}`);
         if (index !== -1) {
-            uiState.selectTab(index, tabs.length);
+            uiState.selectTab(index, tabs.length, tabs[index].type);
         } else {
-            uiState.selectTab(Math.min(uiState.activeTabIndex, tabs.length - 1), tabs.length);
+            const safeIdx = Math.min(oldActiveIndex, tabs.length - 1);
+            logService.info('fsState', `refreshTabs: old path not found, using safeIdx=${safeIdx}`);
+            uiState.selectTab(safeIdx, tabs.length, tabs[safeIdx]?.type);
         }
     } else {
-        uiState.selectTab(0, tabs.length);
+        logService.info('fsState', `refreshTabs: no oldActivePath, selecting 0`);
+        uiState.selectTab(0, tabs.length, tabs[0]?.type);
     }
 }
 
@@ -352,11 +359,18 @@ async function renamePhysicalFile(card: Card, newFileName: string): Promise<void
     }
 }
 
-async function createNewTab(name: string): Promise<void> {
+async function createNewTab(name: string, type: TabType = 'snippets'): Promise<void> {
     try {
         await fileSystemService.createDirectory(name);
+        
+        // Initialize config with the correct type
+        const config = await fileSystemService.readConfig(name);
+        if (!config.tab) config.tab = {};
+        config.tab.type = type;
+        await fileSystemService.writeConfig(name, config);
+
         await refreshTabs();
-        uiState.showToast(`Вкладку "${name}" створено`);
+        uiState.showToast(`Вкладку "${name}" створно (${type})`);
     } catch (err) {
         logService.log('error', 'Failed to create tab', err);
         uiState.showToast('Помилка створення вкладки!');
@@ -408,7 +422,7 @@ async function renamePhysicalTab(tab: Tab, newDirName: string): Promise<void> {
 async function updateTabSettings(tab: Tab, settings: Partial<Tab>): Promise<void> {
     Object.assign(tab, settings);
     if (settings.displayName === "") tab.displayName = null;
-    tab.name = tab.displayName || (tab.path === '__root__' ? '📄 Файли' : tab.path);
+    tab.name = tab.displayName || (tab.path === '__root__' ? 'Файли' : tab.path);
     try {
         const rootConfig = await fileSystemService.readConfig('__root__');
         if (tab.path === '__root__') {
@@ -416,6 +430,8 @@ async function updateTabSettings(tab: Tab, settings: Partial<Tab>): Promise<void
             rootConfig.tab.displayName = tab.displayName;
             rootConfig.tab.icon = tab.icon;
             rootConfig.tab.color = tab.color;
+            rootConfig.tab.type = tab.type;
+            rootConfig.tab.assignments = tab.assignments;
         } else {
             if (!rootConfig.tabs) rootConfig.tabs = {};
             if (!rootConfig.tabs[tab.path]) rootConfig.tabs[tab.path] = {};
@@ -423,13 +439,41 @@ async function updateTabSettings(tab: Tab, settings: Partial<Tab>): Promise<void
             tMeta.displayName = tab.displayName;
             tMeta.icon = tab.icon;
             tMeta.color = tab.color;
+            tMeta.type = tab.type;
+            tMeta.assignments = tab.assignments;
             if (Object.keys(tMeta).length === 0) delete rootConfig.tabs[tab.path];
         }
         await fileSystemService.writeConfig('__root__', rootConfig);
+        
+        // Also write to the tab's local config for portability
+        const localConfig = await fileSystemService.readConfig(tab.path);
+        if (!localConfig.tab) localConfig.tab = {};
+        localConfig.tab.displayName = tab.displayName;
+        localConfig.tab.icon = tab.icon;
+        localConfig.tab.color = tab.color;
+        localConfig.tab.type = tab.type;
+        localConfig.tab.assignments = tab.assignments;
+        await fileSystemService.writeConfig(tab.path, localConfig);
+
         uiState.showToast(`Налаштування вкладки збережено`);
     } catch (err) {
         logService.log('error', 'Failed to save tab settings', err);
     }
+}
+
+async function updateTabAssignment(keyCode: string, shortcut: any | 'none'): Promise<void> {
+    const tab = fsState.activeTab;
+    if (!tab || tab.type !== 'keyboard') return;
+
+    if (!tab.assignments) tab.assignments = {};
+    
+    if (shortcut === 'none') {
+        delete tab.assignments[keyCode];
+    } else {
+        tab.assignments[keyCode] = shortcut;
+    }
+
+    await updateTabSettings(tab, { assignments: { ...tab.assignments } });
 }
 
 async function duplicateTab(tab: Tab): Promise<void> {

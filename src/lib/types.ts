@@ -43,6 +43,15 @@ export interface Card {
   isNewMock?: boolean;
 }
 
+export type TabType = 'snippets' | 'keyboard';
+
+export interface ShortcutInfo {
+  name: string;
+  path: string;
+  type?: 'local' | 'running' | 'system' | 'url';
+  icon?: string | null;
+}
+
 export interface Tab {
   /** Display name (from config or derived from folder name) */
   name: string;
@@ -58,6 +67,10 @@ export interface Tab {
   icon: string | null;
   /** Tab color (CSS color or null) */
   color: string | null;
+  /** Tab mode (default: snippets) */
+  type: TabType;
+  /** Virtual keyboard assignments (if type is keyboard) */
+  assignments?: Record<string, ShortcutInfo>;
 }
 
 // ============================================
@@ -82,6 +95,8 @@ export interface TabConfigEntry {
   icon?: string | null;
   color?: string | null;
   displayName?: string | null;
+  type?: TabType;
+  assignments?: Record<string, ShortcutInfo>;
   /** Array of card filenames in custom order */
   order?: string[];
   /** Array of subdirectory names in custom order (only relevant for root config) */
@@ -110,11 +125,17 @@ export interface AppConfig {
   scale: number;
   /** Saved card sizes: { cardFilePath: { width, height } } */
   cardSizes: Record<string, { width: number; height: number }>;
+  /** Default display mode for Snippets tabs */
+  defaultModeSnippets: 'full' | 'minimal';
+  /** Default display mode for Keyboard tabs */
+  defaultModeKeyboard: 'full' | 'minimal';
 }
 
 export const DEFAULT_CONFIG: AppConfig = {
   scale: 1.0,
   cardSizes: {},
+  defaultModeSnippets: 'full',
+  defaultModeKeyboard: 'minimal',
 };
 
 /** Config filename used in each tab directory */

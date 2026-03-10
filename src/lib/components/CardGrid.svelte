@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { FolderOpen, Search as SearchIcon } from "lucide-svelte";
   import { getState, moveCard } from "../stores/appState.svelte";
   import SnippetCard from "./SnippetCard.svelte";
   import CardErrorFallback from "./ui/CardErrorFallback.svelte";
@@ -114,11 +115,11 @@
 {:else if appState.isConnected}
   <div class="empty-tab" data-testid="empty-tab">
     {#if appState.searchQuery}
-      <div class="empty-tab-icon" data-testid="empty-tab-icon">🔍</div>
+      <div class="empty-tab-icon" data-testid="empty-tab-icon"><SearchIcon size={48} /></div>
       <p class="empty-tab-text" data-testid="empty-tab-text">{t.common.empty}</p>
       <p class="empty-tab-hint" data-testid="empty-tab-hint">{t.common.search}: "{appState.searchQuery}"</p>
     {:else}
-      <div class="empty-tab-icon" data-testid="empty-tab-icon">📂</div>
+      <div class="empty-tab-icon" data-testid="empty-tab-icon"><FolderOpen size={48} /></div>
       <p class="empty-tab-text" data-testid="empty-tab-text">{t.tabs.empty}</p>
       <p class="empty-tab-hint" data-testid="empty-tab-hint">{t.tabs.emptyHint}</p>
     {/if}

@@ -2,8 +2,12 @@
   import { onMount } from 'svelte';
   import { fade, fly } from 'svelte/transition';
   import { Rocket, Trash2, X, Activity, LayoutGrid, Folder, Search } from 'lucide-svelte';
-  import { startMenuState, type ShortcutInfo } from '../states/startMenu.svelte';
+  import { startMenuState } from '../states/startMenu.svelte';
+  import type { ShortcutInfo } from '../types';
   import { uiState } from '../stores/uiState.svelte';
+  import { fsState } from '../stores/fileSystemState.svelte';
+
+  let { assignments = {} }: { assignments?: Record<string, ShortcutInfo> } = $props();
 
   interface KeyInfo {
     label: string;
@@ -97,7 +101,7 @@
       if (isInput) return;
 
       // 3. Handle assignments
-      const assignment = startMenuState.assignments[e.code];
+      const assignment = assignments[e.code];
       if (assignment && isKeyClickable(e.code)) {
         e.preventDefault();
         await handleLaunch(e.code);
@@ -117,7 +121,7 @@
       return;
     }
 
-    const assignment = startMenuState.assignments[key.code];
+    const assignment = assignments[key.code];
     if (assignment) {
       await handleLaunch(key.code);
     } else {
@@ -147,7 +151,8 @@
   function handleAssign(shortcut: ShortcutInfo | 'none') {
     import('../services/logService.svelte').then(m => m.logService.info('startMenu', `Assigning shortcut: ${shortcut === 'none' ? 'NONE' : shortcut.name}`));
     if (selectedKey && isKeyAssignable(selectedKey.code)) {
-      startMenuState.assignKey(selectedKey.code, shortcut);
+      // @ts-ignore
+      fsState.updateTabAssignment(selectedKey.code, shortcut);
       closeModal();
     }
   }
@@ -184,7 +189,7 @@
 
   async function handleLaunch(keyCode: string) {
     // Start launching in background
-    startMenuState.launchKey(keyCode);
+    startMenuState.launchKey(keyCode, assignments);
     
     // Hide window INSTANTLY for better UX
     await handleHide();
@@ -227,7 +232,7 @@
             {#if key.isSpacer}
               <div class="key-spacer" style="flex: {key.width || 1}"></div>
             {:else}
-              {@const assignment = startMenuState.assignments[key.code]}
+              {@const assignment = assignments[key.code]}
               {@const clickable = isKeyClickable(key.code)}
               <button 
                 class="key" 
@@ -330,7 +335,7 @@
             {#each currentShortcuts() as shortcut, i}
               <button 
                 class="shortcut-item card" 
-                class:active={startMenuState.assignments[selectedKey?.code || '']?.path === shortcut.path}
+                class:active={assignments[selectedKey?.code || '']?.path === shortcut.path}
                 onclick={() => handleAssign(shortcut)}
                 title={shortcut.path}
               >

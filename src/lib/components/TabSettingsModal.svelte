@@ -1,7 +1,8 @@
 <script lang="ts">
   import { getState, closeTabSettings, updateTabSettings, renamePhysicalTab } from "../stores/appState.svelte";
-  import { Layout } from "lucide-svelte";
+  import { Layout, Type, Keyboard } from "lucide-svelte";
   import BaseModal from "./ui/BaseModal.svelte";
+  import SegmentedToggle from "./ui/SegmentedToggle.svelte";
   import { t } from "../i18n";
 
   const appState = getState();
@@ -12,6 +13,7 @@
   let path = $state("");
   let icon = $state("");
   let color = $state("");
+  let type = $state<"snippets" | "keyboard">("snippets");
 
   /** Color presets */
   const colorPresets = [
@@ -31,6 +33,7 @@
       path = tab.path || "";
       icon = tab.icon || "";
       color = tab.color || "";
+      type = tab.type || "snippets";
     }
   });
 
@@ -46,6 +49,7 @@
         displayName: displayName || null,
         icon: icon || null,
         color: color || null,
+        type: type,
       });
       closeTabSettings();
     }
@@ -69,6 +73,20 @@
   {/snippet}
 
   {#if tab}
+    <!-- Tab Type -->
+    <div class="form-group" data-testid="form-group-tab-type">
+      <label for="tab-type-toggle" data-testid="label-tab-type">{t.tabs.type}</label>
+      <SegmentedToggle
+        id="tab-type-toggle"
+        options={[
+          { id: "snippets", label: t.tabs.typeSnippets, icon: Type },
+          { id: "keyboard", label: t.tabs.typeKeyboard, icon: Keyboard }
+        ]}
+        value={type}
+        onSelect={(v) => (type = v)}
+      />
+    </div>
+
     <!-- Display Name -->
     <div class="form-group" data-testid="form-group-tab-display-name">
       <label for="tab-display-name" data-testid="label-tab-display-name">{t.tabs.displayName}</label>
@@ -77,7 +95,7 @@
         type="text"
         bind:value={displayName}
         onkeydown={(e) => { e.stopPropagation(); handleKeydown(e); }}
-        placeholder={tab.path === '__root__' ? '📄 Файли' : tab.path}
+        placeholder={tab.path === '__root__' ? 'Файли' : tab.path}
         autocomplete="off"
         data-testid="input-tab-display-name"
       />
@@ -109,7 +127,8 @@
         type="text"
         bind:value={icon}
         onkeydown={(e) => { e.stopPropagation(); handleKeydown(e); }}
-        placeholder="Folder, Star, 📁, 🚀..."
+        placeholder="Folder, Star, Layout, Keyboard..."
+
         data-testid="input-tab-icon"
       />
     </div>

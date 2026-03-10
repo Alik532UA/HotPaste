@@ -16,7 +16,7 @@ use tokio::time::timeout;
 use futures::future::join_all;
 
 static APP_HANDLE: OnceLock<AppHandle> = OnceLock::new();
-static IS_MINIMAL: AtomicBool = AtomicBool::new(true);
+static IS_MINIMAL: AtomicBool = AtomicBool::new(false);
 
 /// Force rounded corners and HIDE system border/shadow via DWM API (Windows 11+).
 #[cfg(target_os = "windows")]

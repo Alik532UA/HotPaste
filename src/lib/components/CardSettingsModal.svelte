@@ -167,7 +167,7 @@
           type="text"
           bind:value={icon}
           onkeydown={(e) => { e.stopPropagation(); handleKeydown(e); }}
-          placeholder="Copy, Edit, 📁, 🚀..."
+          placeholder="Copy, Edit, Folder, Star..."
           data-testid="input-card-icon"
         />
       </div>

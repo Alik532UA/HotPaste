@@ -6,7 +6,7 @@ import { uiState } from './uiState.svelte';
 import { fsState } from './fileSystemState.svelte';
 import { configState } from './configState.svelte';
 import { logService } from '../services/logService.svelte';
-import { isTabHotkey, isCardHotkey, getHotkeyLabel } from '../utils/keyboardLayout';
+import { isTabHotkey, isCardHotkey, getHotkeyLabel, TAB_CODES } from '../utils/keyboardLayout';
 import type { Card } from '../types';
 import Fuse from 'fuse.js';
 
@@ -82,8 +82,17 @@ export const setSearchQuery = uiState.setSearchQuery;
 export const setCardView = uiState.setCardView;
 export const setCardDensity = uiState.setCardDensity;
 export const toggleCardView = uiState.toggleCardView;
-export const selectTab = (i: number) => uiState.selectTab(i, fsState.tabs.length);
-export const selectTabByHotkey = (c: string) => uiState.selectTabByHotkey(c, fsState.tabs.length);
+export const selectTab = (i: number, isExplicit: boolean = true) => {
+    const tab = fsState.tabs[i];
+    uiState.selectTab(i, fsState.tabs.length, tab?.type, isExplicit);
+};
+export const selectTabByHotkey = (c: string) => {
+    if (!isTabHotkey(c)) return false;
+    const index = TAB_CODES.indexOf(c);
+    const tab = fsState.tabs[index];
+    // Hotkey press is an explicit user action, so we pass true for isExplicitClick
+    return uiState.selectTabByHotkey(c, fsState.tabs.length, tab?.type, true);
+};
 export const toggleCardSelection = uiState.toggleCardSelection;
 export const clearSelection = uiState.clearSelection;
 export const selectAll = () => uiState.selectAll(getFilteredCards().map((c: Card) => c.id));

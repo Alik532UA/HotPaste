@@ -11,20 +11,18 @@
 </script>
 
 <div class="dynamic-bg-container" class:minimal={uiState.isMinimalMode}>
-    {#if !uiState.isMinimalMode}
-        {#if background.type === 'particles'}
-            <div class="bg-layer" transition:fade={{ duration: 1000 }}>
-                <Particles theme={currentTheme} />
-            </div>
-        {:else if background.type === 'waves'}
-            <div class="bg-layer" transition:fade={{ duration: 1000 }}>
-                <Waves theme={currentTheme} />
-            </div>
-        {:else if background.type === 'floating_shapes'}
-            <div class="bg-layer" transition:fade={{ duration: 1000 }}>
-                <FloatingShapes theme={currentTheme} />
-            </div>
-        {/if}
+    {#if background.type === 'particles'}
+        <div class="bg-layer" transition:fade={{ duration: 1000 }}>
+            <Particles theme={currentTheme} />
+        </div>
+    {:else if background.type === 'waves'}
+        <div class="bg-layer" transition:fade={{ duration: 1000 }}>
+            <Waves theme={currentTheme} />
+        </div>
+    {:else if background.type === 'floating_shapes'}
+        <div class="bg-layer" transition:fade={{ duration: 1000 }}>
+            <FloatingShapes theme={currentTheme} />
+        </div>
     {/if}
 </div>
 
@@ -37,12 +35,6 @@
         overflow: hidden;
         background-color: var(--color-bg-primary);
         transition: background-color 0.3s ease;
-    }
-
-    .dynamic-bg-container.minimal {
-        background-color: transparent !important;
-        background-image: none !important;
-        backdrop-filter: none !important;
     }
 
     .bg-layer {

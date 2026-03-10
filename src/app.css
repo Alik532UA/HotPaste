@@ -181,31 +181,25 @@ html.is-tauri:not(.is-minimal) .app-shell {
   box-shadow: 0 30px 100px rgba(0, 0, 0, 0.7) !important;
 }
 
-/* Aggressive window transparency for Minimal Mode */
+/* Aggressive window transparency for Minimal Mode - REMOVED aggressive parts */
 html.is-minimal,
 html.is-minimal body,
-html.is-minimal #app,
-html.is-minimal .app-shell,
-html.is-minimal .app-content,
-html.is-minimal .app-main,
-html.is-minimal .dynamic-bg-container,
-html.is-minimal .start-menu-container,
-html.is-minimal .theme-transition-overlay,
-.app-shell.is-minimal,
-.app-content.is-minimal,
-.app-main.is-minimal,
-.start-menu-container.minimal,
-.dynamic-bg-container.minimal {
+html.is-minimal #app {
   background-color: transparent !important;
   background: transparent !important;
-  background-image: none !important;
   border: none !important;
   box-shadow: none !important;
-  backdrop-filter: none !important;
-  transition: none !important;
   /* Clip everything to ensure NO sharp corners leak through from any layer */
   clip-path: inset(0 round var(--radius-window)) !important;
   -webkit-clip-path: inset(0 round var(--radius-window)) !important;
+}
+
+/* Ensure the shell and content allow DynamicBackground to show in both modes */
+.app-shell.is-minimal,
+.app-content.is-minimal,
+.app-main.is-minimal {
+  border: none !important;
+  box-shadow: none !important;
 }
 
 /* Ensure modals and overlays are ALWAYS interactive, even in Minimal Mode */

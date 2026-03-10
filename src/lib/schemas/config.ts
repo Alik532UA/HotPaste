@@ -30,12 +30,24 @@ export const FileNameSchema = z.string()
     .regex(/^[^\\/:*?"<>|]+$/, "Invalid filename characters");
 
 /**
+ * Zod schema for virtual keyboard shortcuts
+ */
+export const ShortcutInfoSchema = z.object({
+    name: z.string(),
+    path: z.string(),
+    type: z.enum(['local', 'running', 'system', 'url']).optional(),
+    icon: z.string().nullable().optional()
+});
+
+/**
  * Zod schema for Tab metadata (stored in _hotpaste.json inside tab folder)
  */
 export const TabConfigSchema = z.object({
     displayName: z.string().nullable().optional(),
     icon: z.string().nullable().optional(),
     color: z.string().nullable().optional(),
+    type: z.enum(['snippets', 'keyboard']).optional().default('snippets'),
+    assignments: z.record(z.string(), ShortcutInfoSchema).optional(),
     order: z.array(z.string()).optional().default([]), // Card order inside tab
     tabOrder: z.array(z.string()).optional().default([]), // Tab order inside root
 });

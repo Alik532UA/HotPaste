@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { ClipboardCheck } from "lucide-svelte";
     import { connectDirectory } from "../stores/appState.svelte";
     import { t } from "../i18n";
 
@@ -73,7 +74,7 @@
                 <span class="flow-label">{t.app.stepCard}</span>
             </div>
             <div class="flow-step">
-                <span class="flow-result">📋</span>
+                <span class="flow-result"><ClipboardCheck size={24} /></span>
                 <span class="flow-label">{t.app.stepCopied}</span>
             </div>
         </div>
@@ -252,7 +253,10 @@
     }
 
     .flow-result {
-        font-size: 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--color-accent-cyan);
     }
 
     /* Connect button */

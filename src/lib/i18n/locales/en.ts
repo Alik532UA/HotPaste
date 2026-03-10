@@ -30,6 +30,7 @@ export const en = {
         refresh: "Refresh",
         viewShort: "Short",
         viewFull: "Full",
+        viewMinimal: "Mini",
         densityCompact: "Compact",
         densityNormal: "Normal",
         densityExpanded: "Expanded",
@@ -49,7 +50,10 @@ export const en = {
         displayName: "Display name",
         dirName: "Folder name",
         icon: "Icon",
-        color: "Tab color"
+        color: "Tab color",
+        type: "Tab type",
+        typeSnippets: "Snippets",
+        typeKeyboard: "Keyboard"
     },
     cards: {
         settings: "Card settings",
