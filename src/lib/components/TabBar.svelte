@@ -10,12 +10,17 @@
     openContextMenu,
     setSearchQuery,
     toggleSelectionMode,
+    saveTabOrder,
   } from "../stores/appState.svelte";
   import { Plus, Search, X, CheckSquare } from "lucide-svelte";
   import * as icons from "lucide-svelte";
   import type { ComponentType } from "svelte";
   import type { Tab } from "../types";
   import { t } from "../i18n";
+  import { logService } from "../services/logService.svelte";
+  import { flip } from "svelte/animate";
+
+  import { draggable, dropzone } from "../utils/dnd";
 
   const appState = getState();
 
@@ -41,41 +46,22 @@
     return `--tab-color: ${tab.color}`;
   }
 
-  /** Drag and Drop logic */
-  let draggedTabIndex = $state<number | null>(null);
-  let dragOverIndex = $state<number | null>(null);
-
-  function handleDragStart(e: DragEvent, index: number) {
-    if (appState.tabs[index].path === "__root__") {
-      e.preventDefault();
-      return;
-    }
-    draggedTabIndex = index;
-    if (e.dataTransfer) {
-      e.dataTransfer.effectAllowed = "move";
-      e.dataTransfer.setData("text/plain", index.toString());
-    }
+  function selectTabWithLog(index: number) {
+    logService.log('ui', `TabBar: selectTab called for index ${index}`);
+    selectTab(index);
   }
 
-  function handleDragOver(e: DragEvent, index: number) {
-    e.preventDefault();
-    if (draggedTabIndex === null || draggedTabIndex === index) return;
-    if (appState.tabs[index].path === "__root__") return;
-    dragOverIndex = index;
+  function handleMove(fromIndex: number, toIndex: number) {
+    if (appState.tabs[toIndex].path === "__root__") return;
+    moveTab(fromIndex, toIndex);
   }
 
-  function handleDrop(e: DragEvent, toIndex: number) {
-    e.preventDefault();
-    if (draggedTabIndex !== null && draggedTabIndex !== toIndex) {
-      moveTab(draggedTabIndex, toIndex);
-    }
-    draggedTabIndex = null;
-    dragOverIndex = null;
-  }
-
-  function handleDragEnd() {
-    draggedTabIndex = null;
-    dragOverIndex = null;
+  /** Drag and Drop logic using shared actions */
+  function handleDrop(fromIndex: number, toIndex: number) {
+    logService.log('dnd', `TabBar: handleDrop from ${fromIndex} to ${toIndex}`);
+    // Movement already happened during dragenter/onMove.
+    // Just force save the final state immediately.
+    saveTabOrder();
   }
 
   /** Context Menu for Tab */
@@ -109,8 +95,6 @@
         class="tab"
         class:active={appState.activeTabIndex === i}
         class:has-custom-color={!!tab.color}
-        class:drag-over={dragOverIndex === i}
-        class:is-dragging={draggedTabIndex === i}
         role="tab"
         aria-selected={appState.activeTabIndex === i}
         aria-controls="app-main"
@@ -118,12 +102,9 @@
         onclick={() => selectTab(i)}
         oncontextmenu={(e) => handleContextMenu(e, tab)}
         style={getTabStyle(tab)}
-        draggable={tab.path !== "__root__"}
-        ondragstart={(e) => handleDragStart(e, i)}
-        ondragover={(e) => handleDragOver(e, i)}
-        ondragleave={() => (dragOverIndex = null)}
-        ondrop={(e) => handleDrop(e, i)}
-        ondragend={handleDragEnd}
+        use:draggable={{ index: i, type: 'tab' }}
+        use:dropzone={{ index: i, type: 'tab', onMove: handleMove, onDrop: handleDrop }}
+        animate:flip={{ duration: 250 }}
         data-testid={`tab-button-${tab.path}`}
         data-tab-path={tab.path}
       >
@@ -252,7 +233,7 @@
     width: 100%;
   }
 
-  .tab.is-dragging {
+  .tab.dragging {
     opacity: 0.4;
   }
 

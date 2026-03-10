@@ -14,7 +14,7 @@
     toggleCardSelection,
   } from "../stores/appState.svelte";
   import { logService } from "../services/logService.svelte";
-  import { Edit3, Menu, Copy, FileX, Keyboard, Link, Trash2, Check, Maximize2, Minimize2 } from "lucide-svelte";
+  import { Edit3, Menu, Copy, FileX, Keyboard, Link, Trash2, Check, Maximize2, Minimize2, GripVertical } from "lucide-svelte";
   import * as icons from "lucide-svelte";
   import type { ComponentType } from "svelte";
   import { renderMarkdown } from "../utils/markdown";
@@ -468,6 +468,9 @@
     <!-- Card header -->
     {#if !isCompact}
       <div class="card-header" data-testid={`card-header-${card.id}`}>
+        <div class="drag-handle" title="Перетягнути картку">
+          <GripVertical size={14} />
+        </div>
         {#if isMissing}
           <span class="card-icon error"><icons.FileX size={16} /></span>
         {:else if LucideIcon}
@@ -966,6 +969,44 @@
     gap: 8px;
     padding: 8px 16px 0;
     pointer-events: none;
+  }
+
+  .drag-handle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 2px;
+    color: var(--color-text-muted);
+    cursor: grab;
+    pointer-events: auto;
+    opacity: 0;
+    transition: all 0.2s ease;
+    margin-left: -8px;
+    user-select: auto !important;
+    -webkit-user-select: auto !important;
+  }
+
+  .snippet-card:hover .drag-handle {
+    opacity: 0.5;
+  }
+
+  .drag-handle:hover {
+    opacity: 1 !important;
+    color: var(--color-accent-cyan);
+  }
+
+  .drag-handle:active {
+    cursor: grabbing;
+  }
+
+  :global(.card-wrapper.dragging) {
+    opacity: 0.4;
+    transform: scale(0.95);
+  }
+
+  :global(.card-wrapper.drag-over) {
+    /* No transform needed for live DND as elements move with flip */
+    filter: brightness(1.1);
   }
 
   .card-icon {

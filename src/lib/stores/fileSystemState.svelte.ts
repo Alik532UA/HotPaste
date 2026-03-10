@@ -53,6 +53,8 @@ export const fsState = {
     duplicateTab,
     moveTab,
     toggleStrikethrough,
+    saveCurrentTabConfig,
+    saveTabOrder,
     startNewCardCreation,
     removeOrphanedConfig,
     linkFileManually,
@@ -516,11 +518,9 @@ async function duplicateTab(tab: Tab): Promise<void> {
     }
 }
 
-async function moveTab(fromIndex: number, toIndex: number): Promise<void> {
-    if (fromIndex < 0 || toIndex < 0 || fromIndex >= tabs.length || toIndex >= tabs.length) return;
-    const movedTab = tabs[fromIndex];
-    tabs.splice(fromIndex, 1);
-    tabs.splice(toIndex, 0, movedTab);
+let tabOrderSaveTimeout: ReturnType<typeof setTimeout> | null = null;
+
+async function saveTabOrder() {
     try {
         const rootConfig = await getFSService().readConfig('__root__');
         if (!rootConfig.tab) rootConfig.tab = {};
@@ -529,6 +529,19 @@ async function moveTab(fromIndex: number, toIndex: number): Promise<void> {
     } catch (err) {
         logService.log('error', 'Failed to save tab order', err);
     }
+}
+
+function debouncedSaveTabOrder() {
+    if (tabOrderSaveTimeout) clearTimeout(tabOrderSaveTimeout);
+    tabOrderSaveTimeout = setTimeout(() => saveTabOrder(), 500);
+}
+
+async function moveTab(fromIndex: number, toIndex: number): Promise<void> {
+    if (fromIndex < 0 || toIndex < 0 || fromIndex >= tabs.length || toIndex >= tabs.length) return;
+    const movedTab = tabs[fromIndex];
+    tabs.splice(fromIndex, 1);
+    tabs.splice(toIndex, 0, movedTab);
+    debouncedSaveTabOrder();
 }
 
 function toggleStrikethrough(card: Card, lineIndex: number): void {

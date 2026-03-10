@@ -748,7 +748,6 @@ fn toggle_window(app: &AppHandle) {
 fn resize_to_minimal(window: &tauri::WebviewWindow) {
     if let Ok(Some(monitor)) = window.primary_monitor() {
         let m_size = monitor.size();
-        let scale_factor = window.scale_factor().unwrap_or(1.0);
         
         let window_h_phys = m_size.height as f64 * 0.7;
         let window_w_phys = m_size.width as f64 * 0.7;

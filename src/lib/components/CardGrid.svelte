@@ -1,15 +1,22 @@
 <script lang="ts">
   import { FolderOpen, Search as SearchIcon } from "lucide-svelte";
-  import { getState, moveCard } from "../stores/appState.svelte";
+  import { getState, moveCard, saveCurrentTabConfig } from "../stores/appState.svelte";
   import SnippetCard from "./SnippetCard.svelte";
   import CardErrorFallback from "./ui/CardErrorFallback.svelte";
   import { draggable, dropzone } from "../utils/dnd";
   import { t } from "../i18n";
+  import { flip } from "svelte/animate";
 
   const appState = getState();
 
-  function handleDrop(fromIndex: number, toIndex: number) {
+  function handleMove(fromIndex: number, toIndex: number) {
     moveCard(fromIndex, toIndex);
+  }
+
+  function handleDrop(fromIndex: number, toIndex: number) {
+    // Movement already happened during dragenter/onMove.
+    // Just force save the final state immediately.
+    saveCurrentTabConfig();
   }
 
   function handleGridKeydown(e: KeyboardEvent) {
@@ -97,8 +104,9 @@
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div
         class="card-wrapper"
-        use:draggable={index}
-        use:dropzone={{ index, onDrop: handleDrop }}
+        use:draggable={{ index, type: 'card' }}
+        use:dropzone={{ index, type: 'card', onMove: handleMove, onDrop: handleDrop }}
+        animate:flip={{ duration: 300 }}
         data-testid="card-wrapper"
         data-index={index}
       >
@@ -128,19 +136,17 @@
 
 <style>
   .card-grid {
-    columns: 300px; /* Base column width, will be scaled by zoom */
-    column-gap: var(--space-3);
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(calc(300px * var(--scale, 1)), 1fr));
+    gap: var(--space-3);
     padding: var(--space-4);
-    max-width: 100%; /* Allow grid to grow with scale */
+    max-width: 100%;
     margin: 0 auto;
-    zoom: var(--scale, 1); /* Smooth scaling for Chromium browsers */
-    transform-origin: top center;
-    transition: zoom 0.1s ease-out;
+    transition: all 0.1s ease-out;
   }
 
   .card-wrapper {
-    break-inside: avoid;
-    margin-bottom: var(--space-3);
+    height: fit-content;
     transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1);
   }
 

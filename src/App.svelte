@@ -149,6 +149,19 @@
         // Setup programmatic drag as a backup if attribute fails
         window.addEventListener("mousedown", async (e) => {
           const target = e.target as HTMLElement;
+          
+          // CRITICAL: If we are on a DND-capable element, do NOT allow Tauri to start window dragging
+          // We check for handles, cards, tabs AND our draggable attribute
+          if (
+            target.closest(".drag-handle") || 
+            target.closest(".card-wrapper") || 
+            target.closest(".tab") ||
+            target.closest("[draggable='true']") ||
+            target.draggable === true
+          ) {
+            return;
+          }
+
           if (
             target.hasAttribute("data-tauri-drag-region") ||
             target.closest("[data-tauri-drag-region]")
@@ -158,8 +171,8 @@
                 "@tauri-apps/api/window"
               );
               const appWindow = getCurrentWindow();
-              // Only start dragging if it's the primary mouse button and not on an interactive element
-              if (e.button === 0 && !target.closest("button, input, a")) {
+              // Only start dragging if it's the primary mouse button and not on interactive elements
+              if (e.button === 0 && !target.closest("button, input, a, textarea")) {
                 await appWindow.startDragging();
               }
             } catch (err) {
