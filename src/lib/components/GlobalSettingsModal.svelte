@@ -137,13 +137,32 @@
   </div>
 
   {#snippet footer()}
-    <button class="primary-btn" onclick={close} data-testid="btn-save-settings">
-      {t.common.save}
-    </button>
+    <div class="footer-content">
+      <span class="version-tag">v0.1.2</span>
+      <button class="primary-btn" onclick={close} data-testid="btn-save-settings">
+        {t.common.save}
+      </button>
+    </div>
   {/snippet}
 </BaseModal>
 
 <style>
+  .footer-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .version-tag {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--color-text-muted);
+    opacity: 0.6;
+    letter-spacing: 0.02em;
+    font-family: var(--font-mono);
+  }
+
   .settings-content {
     display: flex;
     flex-direction: column;
