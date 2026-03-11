@@ -11,9 +11,14 @@ use windows_sys::Win32::UI::WindowsAndMessaging::*;
 use futures::future::join_all;
 use std::io::{BufRead, BufReader};
 use std::process::{Command, Stdio};
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
 use std::sync::OnceLock;
 use std::time::Duration;
 use tokio::time::timeout;
+
+#[cfg(target_os = "windows")]
+const CREATE_NO_WINDOW: u32 = 0x08000000;
 
 static APP_HANDLE: OnceLock<AppHandle> = OnceLock::new();
 static IS_MINIMAL: AtomicBool = AtomicBool::new(false);
@@ -193,6 +198,7 @@ async fn launch_program_by_path(path: String) -> Result<(), String> {
             log::info!("[LAUNCH] Detected as command with arguments, using cmd /C");
             let _ = Command::new("cmd")
                 .args(["/C", &path])
+                .creation_flags(CREATE_NO_WINDOW)
                 .spawn()
                 .map_err(|e| {
                     log::error!("[LAUNCH] Command launch failed: {}", e);
@@ -263,8 +269,9 @@ async fn get_running_processes() -> Result<Vec<ShortcutInfo>, String> {
         let output = Command::new("powershell")
             .args([
                 "-NoProfile",
+                "-NonInteractive",
                 "-Command",
-                "Get-Process | Where-Object { $_.MainWindowHandle -ne 0 -and $_.MainWindowTitle } | ForEach-Object {
+                "$ErrorActionPreference = 'SilentlyContinue'; $WarningPreference = 'SilentlyContinue'; Get-Process | Where-Object { $_.MainWindowHandle -ne 0 -and $_.MainWindowTitle } | ForEach-Object {
                     try {
                         $p = $_.Path;
                         if (!$p) { $p = $_.MainModule.FileName }
@@ -272,6 +279,7 @@ async fn get_running_processes() -> Result<Vec<ShortcutInfo>, String> {
                     } catch { }
                  } | ConvertTo-Json"
             ])
+            .creation_flags(CREATE_NO_WINDOW)
             .output()
             .map_err(|e| e.to_string())?;
 
@@ -290,11 +298,13 @@ async fn get_system_shortcuts() -> Result<Vec<ShortcutInfo>, String> {
         let output = Command::new("powershell")
             .args([
                 "-NoProfile",
+                "-NonInteractive",
                 "-Command",
-                "Get-ChildItem -Path @(\"$env:AppData\\Microsoft\\Windows\\Start Menu\\Programs\", \"$env:ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\") -Filter *.lnk -Recurse | ForEach-Object {
+                "$ErrorActionPreference = 'SilentlyContinue'; $WarningPreference = 'SilentlyContinue'; Get-ChildItem -Path @(\"$env:AppData\\Microsoft\\Windows\\Start Menu\\Programs\", \"$env:ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\") -Filter *.lnk -Recurse | ForEach-Object {
                     [PSCustomObject]@{ Name=$_.BaseName; Path=$_.FullName; Icon=$null }
                 } | ConvertTo-Json"
             ])
+            .creation_flags(CREATE_NO_WINDOW)
             .output()
             .map_err(|e| e.to_string())?;
 
@@ -345,6 +355,7 @@ async fn get_local_shortcuts(app: AppHandle) -> Result<Vec<ShortcutInfo>, String
                 "-EncodedCommand",
                 &encoded_script,
             ])
+            .creation_flags(CREATE_NO_WINDOW)
             .output()
             .map_err(|e| e.to_string())?;
 
@@ -439,7 +450,7 @@ async fn extract_single_icon(path: String) -> Result<String, String> {
     use base64::{engine::general_purpose, Engine as _};
 
     let script = format!(
-        r##"[Console]::OutputEncoding = [System.Text.Encoding]::UTF8;
+        r##"$ErrorActionPreference = 'SilentlyContinue'; $WarningPreference = 'SilentlyContinue'; [Console]::OutputEncoding = [System.Text.Encoding]::UTF8;
 [void][Reflection.Assembly]::LoadWithPartialName('System.Drawing');
 
 if (-not ([System.Management.Automation.PSTypeName]'JumboIcon').Type) {{
@@ -654,6 +665,7 @@ if (![string]::IsNullOrEmpty($b64)) {{
             "-EncodedCommand",
             &encoded_script,
         ])
+        .creation_flags(CREATE_NO_WINDOW)
         .output()
         .map_err(|e| e.to_string())?;
 
@@ -696,11 +708,13 @@ async fn get_system_apps() -> Result<Vec<ShortcutInfo>, String> {
         let output = Command::new("powershell")
             .args([
                 "-NoProfile",
+                "-NonInteractive",
                 "-Command",
-                "Get-StartApps | ForEach-Object {
+                "$ErrorActionPreference = 'SilentlyContinue'; $WarningPreference = 'SilentlyContinue'; Get-StartApps | ForEach-Object {
                     [PSCustomObject]@{ Name=$_.Name; Path=$_.AppID; Icon=$null }
                 } | ConvertTo-Json",
             ])
+            .creation_flags(CREATE_NO_WINDOW)
             .output()
             .map_err(|e| e.to_string())?;
 
@@ -895,6 +909,7 @@ pub fn run() {
                 let mut child = Command::new(current_exe)
                     .arg("--hook-worker")
                     .stdout(Stdio::piped())
+                    .creation_flags(CREATE_NO_WINDOW)
                     .spawn()
                     .expect("failed to spawn hook worker");
 
