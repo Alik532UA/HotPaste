@@ -146,9 +146,11 @@
                                     <span>{opt.label}</span>
                                 {/if}
                             </div>
-                            {#if value === opt.id}
-                                <Check size={14} class="check-icon" />
-                            {/if}
+                            <div class="check-placeholder" style="width: 14px; height: 14px; display: flex; flex-shrink: 0; align-items: center; justify-content: center;">
+                                {#if value === opt.id}
+                                    <Check size={14} class="segmented-check-icon" />
+                                {/if}
+                            </div>
                         </button>
                     {/each}
                 </div>
@@ -268,11 +270,14 @@
     }
 
     .menu-item {
+        display: flex;
+        align-items: center;
         width: 100%;
         justify-content: space-between;
         padding: 8px 10px;
         border-radius: 8px;
         color: var(--color-text-secondary);
+        gap: 12px;
     }
 
     .item-content {
@@ -286,7 +291,7 @@
         color: var(--color-accent-cyan);
     }
 
-    :global(.check-icon) {
+    :global(.segmented-check-icon) {
         color: var(--color-accent-cyan);
     }
 

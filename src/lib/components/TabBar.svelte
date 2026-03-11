@@ -333,7 +333,7 @@
     display: flex;
     align-items: center;
     height: 100%;
-    padding-bottom: 6px;
+    padding-bottom: 0;
     gap: 8px;
   }
 
@@ -341,8 +341,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
+    width: 36px;
+    height: 36px;
     border-radius: 10px;
     border: 1px solid var(--color-border);
     background: var(--color-surface-2);

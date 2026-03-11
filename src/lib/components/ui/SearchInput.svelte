@@ -2,19 +2,19 @@
   import { Search, X } from "lucide-svelte";
   import Input from "./Input.svelte";
   import { t } from "../../i18n";
-  import type { HTMLInputAttributes } from "svelte/elements";
 
   interface Props {
     value?: string;
     placeholder?: string;
     testId?: string;
     class?: string;
+    [key: string]: any;
   }
 
   let { 
     value = $bindable(""), 
     placeholder = t.common.search,
-    testId,
+    testId = "search-input",
     class: className,
     ...rest 
   }: Props = $props();
@@ -24,60 +24,80 @@
   }
 </script>
 
-<div class="search-container">
+<div class="search-wrapper {className || ''}" class:has-value={!!value}>
   <Input
     icon={Search}
     bind:value={value}
-    placeholder={t.common.search}
-    class="search-input"
+    placeholder={placeholder}
+    class="search-field"
     testId={testId}
     autocomplete="off"
     {...rest}
   />
   {#if value}
     <button 
-      class="clear-btn" 
+      class="clear-action" 
       onclick={clear} 
+      title={t.common.cancel}
       aria-label={t.common.cancel}
       data-testid="{testId}-clear"
     >
-      <X size={14} />
+      <X size={16} strokeWidth={2.5} />
     </button>
   {/if}
 </div>
 
 <style>
-  .search-container {
+  .search-wrapper {
     position: relative;
     width: 100%;
     display: flex;
     align-items: center;
+    min-height: 36px;
   }
 
-  .clear-btn {
+  :global(.search-field input) {
+    height: 36px !important;
+    width: 100% !important;
+    padding-right: 44px !important; /* Increased space for the button */
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    border-radius: 12px !important;
+    background: var(--color-surface-1) !important;
+    border: 1px solid var(--color-border) !important;
+    transition: all 0.2s ease-in-out !important;
+  }
+
+  :global(.search-field input:focus) {
+    border-color: var(--color-accent-violet) !important;
+    background: var(--color-surface-2) !important;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent-violet) 15%, transparent) !important;
+  }
+
+  .clear-action {
     position: absolute;
-    right: 12px;
-    background: var(--color-surface-3);
+    right: 7px;
+    width: 28px;
+    height: 28px;
+    background: color-mix(in srgb, var(--color-text-muted) 10%, transparent);
     border: none;
     color: var(--color-text-muted);
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
+    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: all 0.2s;
-    z-index: 2;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 3;
   }
 
-  .clear-btn:hover {
-    background: var(--color-accent-violet);
+  .clear-action:hover {
+    background: var(--color-danger);
     color: white;
-    transform: scale(1.1);
+    transform: scale(1.05);
   }
 
-  :global(.search-input) {
-    width: 100%;
+  .clear-action:active {
+    transform: scale(0.95);
   }
 </style>

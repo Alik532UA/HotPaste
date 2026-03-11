@@ -250,10 +250,10 @@
             <SegmentedToggle
               id="theme"
               options={[
-                { id: "dark-gray", icon: Moon, label: "" },
-                { id: "light-gray", icon: Sun, label: "" },
-                { id: "orange", icon: Citrus, label: "" },
-                { id: "green", icon: Leaf, label: "" },
+                { id: "dark-gray", icon: Moon, label: "Dark" },
+                { id: "light-gray", icon: Sun, label: "Light" },
+                { id: "orange", icon: Citrus, label: "Orange" },
+                { id: "green", icon: Leaf, label: "Green" },
               ]}
               value={theme.current}
               onSelect={(id) => theme.set(id as any)}
@@ -274,10 +274,10 @@
             <SegmentedToggle
               id="bg-type"
               options={[
-                { id: "none", icon: Ban, label: "" },
-                { id: "particles", icon: Sparkles, label: "" },
-                { id: "waves", icon: Waves, label: "" },
-                { id: "floating_shapes", icon: Shapes, label: "" },
+                { id: "none", icon: Ban, label: "None" },
+                { id: "particles", icon: Sparkles, label: "Particles" },
+                { id: "waves", icon: Waves, label: "Waves" },
+                { id: "floating_shapes", icon: Shapes, label: "Shapes" },
               ]}
               value={background.current}
               onSelect={(id) => background.set(id as any)}
@@ -419,6 +419,7 @@
     display: flex;
     align-items: center;
     flex-shrink: 0;
+    position: relative;
     z-index: 100;
   }
 
@@ -429,7 +430,7 @@
     width: 100%;
     max-width: 100%;
     gap: 24px;
-    overflow: hidden;
+    /* overflow: hidden; -- removed to allow dropdowns */
   }
 
   .header-left {
@@ -479,13 +480,15 @@
     align-items: center;
     gap: 12px;
     flex-shrink: 0; /* Right side NEVER cuts off */
-    overflow: hidden; /* Needed for measurement */
+    /* overflow: hidden; -- removed to allow dropdowns */
   }
 
   .tab-bar-wrapper {
     background: var(--color-surface-1);
     border-bottom: 1px solid var(--color-border);
     flex-shrink: 0;
+    position: relative;
+    z-index: 10;
   }
 
   .scale-control {
