@@ -1,6 +1,8 @@
 import { TauriFileSystemService } from '../services/tauriFileSystem';
 import { logService } from '../services/logService.svelte';
 import type { ShortcutInfo } from '../types';
+import { invoke } from '@tauri-apps/api/core';
+import { open } from '@tauri-apps/plugin-shell';
 
 const fs = new TauriFileSystemService();
 
@@ -52,8 +54,6 @@ class StartMenuState {
         if (!isTauri) return;
 
         try {
-            const { invoke } = await import('@tauri-apps/api/core');
-            
             logService.info('startMenu', 'Fetching shortcut metadata...');
 
             // 1. Fetch metadata only (very fast)
@@ -136,7 +136,6 @@ class StartMenuState {
                 if (isUriLike) continue;
 
                 try {
-                    const { invoke } = await import('@tauri-apps/api/core');
                     const icon = await invoke<string>('get_shortcut_icon', { path: assignment.path });
                     if (icon) assignment.icon = icon;
                 } catch (err) {
@@ -149,7 +148,6 @@ class StartMenuState {
     private async loadIconsForList(list: ShortcutInfo[]) {
         if (list.length === 0) return;
         
-        const { invoke } = await import('@tauri-apps/api/core');
         const category = list[0].type || 'unknown';
         
         // Check if we already have icons for most items
@@ -205,8 +203,6 @@ class StartMenuState {
         if (!shortcut) return;
 
         try {
-            const { invoke } = await import('@tauri-apps/api/core');
-            
             // Strictly define what goes to shell.open (standard web protocols ONLY)
             const isWebUrl = shortcut.path.startsWith('http://') || 
                              shortcut.path.startsWith('https://') || 
@@ -220,7 +216,6 @@ class StartMenuState {
                                !shortcut.path.includes(' ');
 
             if (isWebUrl) {
-                const { open } = await import('@tauri-apps/plugin-shell');
                 await open(shortcut.path);
             } else if (isOtherUri) {
                 // For custom protocols like ms-settings:, always use our Rust handler

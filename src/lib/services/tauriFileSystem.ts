@@ -7,17 +7,14 @@ import type { IFileSystemService } from './fileSystem';
 import type { Tab, Card, HotPasteConfig } from '../types';
 import { CONFIG_FILENAME } from '../types';
 import { HotPasteConfigSchema } from '../schemas/config';
+import * as fs from '@tauri-apps/plugin-fs';
+import * as path from '@tauri-apps/api/path';
 
 export class TauriFileSystemService implements IFileSystemService {
-    private cachedApi: any = null;
     private customRoot: string | null = null;
 
     private async getApi() {
-        if (this.cachedApi) return this.cachedApi;
-        const fs = await import('@tauri-apps/plugin-fs');
-        const path = await import('@tauri-apps/api/path');
-        this.cachedApi = { fs, path };
-        return this.cachedApi;
+        return { fs, path };
     }
 
     async setProjectRoot(pathStr: string | null): Promise<boolean> {

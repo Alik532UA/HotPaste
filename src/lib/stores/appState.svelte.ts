@@ -9,6 +9,9 @@ import { logService } from '../services/logService.svelte';
 import { isTabHotkey, isCardHotkey, getHotkeyLabel, TAB_CODES } from '../utils/keyboardLayout';
 import type { Card } from '../types';
 import Fuse from 'fuse.js';
+import { readText } from '@tauri-apps/plugin-clipboard-manager';
+import { invoke } from '@tauri-apps/api/core';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 
 /** Fuse.js instance for fuzzy search */
 const fuse = $derived(new Fuse(fsState.activeCards, {
@@ -144,7 +147,6 @@ export async function quickPasteFromClipboard() {
         const isTauri = !!(typeof window !== "undefined" && (window.__TAURI_INTERNALS__ || window.__TAURI__));
 
         if (isTauri) {
-            const { readText } = await import('@tauri-apps/plugin-clipboard-manager');
             text = await readText();
         } else {
             text = await navigator.clipboard.readText();
@@ -254,12 +256,8 @@ export function handleGlobalKeydown(event: KeyboardEvent): void {
 
     if (event.code === 'Escape') {
         event.preventDefault();
-        import('@tauri-apps/api/core').then(({ invoke }) => {
-            invoke('hide_window').catch(() => {
-                import('@tauri-apps/api/window').then(({ getCurrentWindow }) => {
-                    getCurrentWindow().hide();
-                });
-            });
+        invoke('hide_window').catch(() => {
+            getCurrentWindow().hide();
         });
         return;
     }
