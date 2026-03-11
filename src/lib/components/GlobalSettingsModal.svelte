@@ -18,6 +18,7 @@
   import SegmentedToggle from "./ui/SegmentedToggle.svelte";
 
   let isOpen = $state(false);
+  let isClearing = $state(false);
 
   export function open() {
     isOpen = true;
@@ -39,10 +40,18 @@
     { id: "green", label: t.settings.themeGreen },
   ];
 
-  async function clearAllData() {
+  async function handleClearAllData() {
+    if (isClearing) return;
+    
     if (confirm(t.settings.clearCacheConfirm)) {
-      await dataService.clearAllData();
-      window.location.reload();
+      isClearing = true;
+      try {
+        await dataService.clearAllData();
+        window.location.reload();
+      } catch (e) {
+        console.error("Failed to clear data", e);
+        isClearing = false;
+      }
     }
   }
 </script>
@@ -149,10 +158,11 @@
       <div class="setting-row">
         <button
           class="danger-btn"
-          onclick={clearAllData}
+          onclick={handleClearAllData}
+          disabled={isClearing}
           data-testid="btn-clear-cache"
         >
-          {t.settings.clearCacheBtn}
+          {isClearing ? t.common.loading : t.settings.clearCacheBtn}
         </button>
       </div>
     </section>

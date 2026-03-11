@@ -43,7 +43,9 @@
 
             if (pauseClickCount >= CLEAR_THRESHOLD) {
                 pauseClickCount = 0;
-                dataService.clearAllData();
+                dataService.clearAllData().then(() => {
+                    window.location.reload();
+                });
             }
         }
     }

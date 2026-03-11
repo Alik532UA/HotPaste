@@ -6,10 +6,6 @@ export const dataService = {
      * cookies, Cache Storage, and IndexedDB.
      */
     async clearAllData() {
-        if (!confirm(t.settings.clearCacheConfirm)) {
-            return;
-        }
-
         localStorage.clear();
         sessionStorage.clear();
         
@@ -29,11 +25,15 @@ export const dataService = {
         // Clear IndexedDB
         if ('indexedDB' in window) {
             const dbs = await window.indexedDB.databases();
-            dbs.forEach(db => {
-                if (db.name) window.indexedDB.deleteDatabase(db.name);
-            });
+            for (const db of dbs) {
+                if (db.name) {
+                    try {
+                        window.indexedDB.deleteDatabase(db.name);
+                    } catch (e) {
+                        console.error(`Failed to delete DB: ${db.name}`, e);
+                    }
+                }
+            }
         }
-
-        window.location.reload();
     }
 };
