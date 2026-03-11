@@ -32,7 +32,11 @@ try {
     fs.writeFileSync("public/app-version.json", JSON.stringify({ version }, null, 2));
 
     // 5. Додаємо всі змінені файли до поточного коміту
-    execSync(`git add package.json package-lock.json ${tauriPath} ${cargoPath} public/app-version.json`, { stdio: "inherit" });
+    const cargoLockPath = "src-tauri/Cargo.lock";
+    let addFiles = `package.json package-lock.json ${tauriPath} ${cargoPath} public/app-version.json`;
+    if (fs.existsSync(cargoLockPath)) addFiles += ` ${cargoLockPath}`;
+
+    execSync(`git add ${addFiles}`, { stdio: "inherit" });
 
     console.log(`✅ Версія оновлена до: ${version}`);
 } catch (error) {
