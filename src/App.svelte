@@ -172,6 +172,9 @@
     language.init();
     background.init();
     initUrlSync();
+    
+    // Check for updates on startup
+    checkForUpdates();
   });
 
   // Adaptive header init — $effect reacts to header DOM appearing/disappearing.

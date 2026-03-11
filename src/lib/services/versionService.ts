@@ -23,19 +23,32 @@ export async function checkForUpdates() {
     try {
         const res = await fetch(`${VERSION_URL}?t=${Date.now()}`, { cache: "no-store" });
         const { version: serverV } = await res.json();
-        const localV = localStorage.getItem(LOCAL_V_KEY) || "0.0.0";
+        
+        // Отримуємо версію, яка зараз реально запущена
+        const currentRunningV = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0';
+        
+        // Отримуємо версію, яку ми вважаємо "поточною" в цьому браузері
+        let localV = localStorage.getItem(LOCAL_V_KEY);
 
-        if (localV !== serverV) {
+        // Якщо це перший запуск (немає запису), просто фіксуємо поточну версію як встановлену
+        if (!localV) {
+            localStorage.setItem(LOCAL_V_KEY, currentRunningV);
+            return;
+        }
+
+        // Якщо версія на сервері новіша за ту, що збережена в браузері
+        if (isNewer(serverV, localV)) {
             const refusedV = localStorage.getItem(REFUSED_V_KEY);
             const refusedAt = parseInt(localStorage.getItem(REFUSED_AT_KEY) || "0");
             const now = Date.now();
 
-            // Логіка Slovko:
             // Пропонуємо оновлення, якщо:
-            // 1. Раніше не відмовлялися
+            // 1. Раніше не відмовлялися від ЦІЄЇ конкретної версії (або будь-якої)
             // 2. АБО вийшла версія НОВІША за ту, від якої відмовилися
             // 3. АБО минуло більше 5 днів
-            if (!refusedV || isNewer(serverV, refusedV) || (now - refusedAt > COOLDOWN)) {
+            const isDifferentFromServer = !refusedV || isNewer(serverV, refusedV);
+            
+            if (isDifferentFromServer || (now - refusedAt > COOLDOWN)) {
                 versionStore.setVersion(serverV);
                 versionStore.setUpdate(true);
             }

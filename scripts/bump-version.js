@@ -26,6 +26,14 @@ try {
         let cargo = fs.readFileSync(cargoPath, "utf8");
         cargo = cargo.replace(/^version = ".*"/m, `version = "${version}"`);
         fs.writeFileSync(cargoPath, cargo);
+        
+        // СИНХРОНІЗАЦІЯ Cargo.lock: Запускаємо cargo update для оновлення версії в lock-файлі
+        try {
+            console.log("📦 Синхронізація Cargo.lock...");
+            execSync("cd src-tauri && cargo update --workspace", { stdio: "inherit" });
+        } catch (e) {
+            console.warn("⚠️ Не вдалося оновити Cargo.lock автоматично. Можливо, Rust не встановлено.");
+        }
     }
 
     // 4. Створюємо маркер для фронтенду в папці public
