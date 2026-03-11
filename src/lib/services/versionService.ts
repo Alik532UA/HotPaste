@@ -53,21 +53,28 @@ export async function applyUpdateAndDeepClean() {
         }
 
         // 2. Очищення Web Storage (localStorage, sessionStorage, IndexedDB)
-        // УВАГА: Файли на ПК (через Tauri FS) залишаються, бо вони поза браузерним сховищем.
-        // Тимчасово радикальне очищення (localStorage.clear()) для тесту зручності.
         localStorage.clear();
         sessionStorage.clear();
 
         // 3. Записуємо нову версію ПІСЛЯ очищення
         localStorage.setItem(LOCAL_V_KEY, versionStore.serverVersion);
 
-        // 4. Повний перезапуск Tauri додатка
-        await relaunch();
+        // 4. Перезапуск
+        // @ts-ignore
+        const isTauri = !!(typeof window !== "undefined" && (window.__TAURI_INTERNALS__ || window.__TAURI__));
+
+        if (isTauri) {
+            await relaunch();
+        } else {
+            // У браузері просто оновлюємо сторінку
+            window.location.reload();
+        }
     } catch (e) {
         console.error("Relaunch failed", e);
-        // Fallback: якщо авто-перезапуск не вдався (наприклад, права доступу)
+        // Fallback: якщо щось пішло не так (наприклад, у браузері reload заблоковано)
         versionStore.setManualRestart(true);
     }
+}
 }
 
 /** Відкласти оновлення (Slovko logic) */
