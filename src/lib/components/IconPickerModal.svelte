@@ -42,21 +42,22 @@
     flags: ["🏁", "🚩", "🎌", "🏴", "🏳️", "🏳️‍🌈", "🏳️‍⚧️", "🏴‍☠️", "🇦🇺", "🇦🇹", "🇧🇪", "🇧🇷", "🇨🇦", "🇨🇭", "🇨🇳", "🇩🇪", "🇩🇰", "🇪🇸", "🇪🇺", "🇫🇮", "🇫🇷", "🇬🇧", "🇬🇷", "🇭🇰", "🇭🇺", "🇮🇩", "🇮🇪", "🇮🇱", "🇮🇳", "🇮🇹", "🇯🇵", "🇰🇷", "🇲🇽", "🇳🇱", "🇳🇴", "🇳🇿", "🇵🇱", "🇵🇹", "🇸🇪", "🇸🇬", "🇹🇷", "🇺🇦", "🇺🇸", "🇻🇳"]
   };
 
-  // Performance optimization: limit initial rendering to 200 items
-  const MAX_DISPLAY = 200;
+  // Performance: rendering 1500+ SVGs is heavy, but without labels it's much faster.
+  // We'll show all icons in categories, and a large enough chunk for "All" to be usable.
+  const MAX_DISPLAY_ALL = 2000; 
 
   const filteredLucide = $derived(
     searchQuery.trim() === "" 
       ? (activeLucideCategory === "all" 
-          ? lucideIconNames.slice(0, MAX_DISPLAY) 
+          ? lucideIconNames.slice(0, MAX_DISPLAY_ALL) 
           : (lucideCategories[activeLucideCategory] || []))
-      : lucideIconNames.filter(name => name.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, MAX_DISPLAY)
+      : lucideIconNames.filter(name => name.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   const filteredEmojis = $derived(
     searchQuery.trim() === ""
       ? (emojiCategories[activeEmojiCategory] || [])
-      : Object.values(emojiCategories).flat().filter(e => e.includes(searchQuery)).slice(0, MAX_DISPLAY)
+      : Object.values(emojiCategories).flat().filter(e => e.includes(searchQuery))
   );
 
   function handleSelect(icon: string) {
@@ -76,7 +77,7 @@
   onClose={handleClose}
   title={picker?.title || t.cards.icon}
   zIndex={3000}
-  maxWidth="600px"
+  maxWidth="650px"
   testId="icon-picker-modal"
 >
   <div class="picker-container">
@@ -103,12 +104,13 @@
     <!-- Search -->
     <SearchInput 
       bind:value={searchQuery} 
+      placeholder={activeTab === "lucide" ? t.modals.searchIcons : t.modals.searchEmojis}
       testId="icon-search-input"
     />
 
     <!-- Sub-tabs (Categories) -->
     {#if searchQuery.trim() === ""}
-      <div class="sub-tabs-scroll">
+      <div class="sub-tabs-container">
         <div class="sub-tabs">
           {#if activeTab === "lucide"}
             {#each Object.keys(lucideCategories) as cat}
@@ -148,9 +150,8 @@
               title={name}
             >
               {#if IconComp}
-                <IconComp size={24} />
+                <IconComp size={22} />
               {/if}
-              <span class="icon-name">{name}</span>
             </button>
           {/each}
         </div>
@@ -216,23 +217,19 @@
     box-shadow: var(--shadow-sm);
   }
 
-  .sub-tabs-scroll {
-    overflow-x: auto;
-    scrollbar-width: none;
-    margin: 0 -4px;
-    padding: 0 4px;
+  .sub-tabs-container {
+    max-height: 120px;
+    overflow-y: auto;
+    padding-right: 4px;
   }
-
-  .sub-tabs-scroll::-webkit-scrollbar { display: none; }
 
   .sub-tabs {
     display: flex;
+    flex-wrap: wrap;
     gap: 6px;
-    padding-bottom: 4px;
   }
 
   .sub-tab-btn {
-    white-space: nowrap;
     padding: 6px 12px;
     border-radius: 20px;
     border: 1px solid var(--color-border);
@@ -263,20 +260,18 @@
 
   .icons-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(85px, 1fr));
-    gap: 8px;
+    grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+    gap: 6px;
   }
 
   .icon-item {
     display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    padding: 12px 8px;
+    height: 44px;
     background: var(--color-surface-1);
     border: 1px solid var(--color-border);
-    border-radius: 12px;
+    border-radius: 10px;
     cursor: pointer;
     transition: all 0.2s;
     color: var(--color-text-secondary);
@@ -286,23 +281,14 @@
     background: var(--color-surface-2);
     border-color: var(--color-accent-violet);
     color: var(--color-accent-violet);
-    transform: translateY(-2px);
+    transform: scale(1.05);
   }
 
   .icon-item.selected {
-    background: color-mix(in srgb, var(--color-accent-violet) 10%, transparent);
+    background: color-mix(in srgb, var(--color-accent-violet) 15%, transparent);
     border-color: var(--color-accent-violet);
     color: var(--color-accent-violet);
-  }
-
-  .icon-name {
-    font-size: 0.65rem;
-    text-align: center;
-    width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    opacity: 0.8;
+    box-shadow: 0 0 0 2px var(--color-accent-violet);
   }
 
   .emoji-grid {
@@ -330,8 +316,9 @@
   }
 
   .emoji-item.selected {
-    background: color-mix(in srgb, var(--color-accent-violet) 10%, transparent);
+    background: color-mix(in srgb, var(--color-accent-violet) 15%, transparent);
     border-color: var(--color-accent-violet);
+    box-shadow: 0 0 0 2px var(--color-accent-violet);
   }
 
   .empty-state {

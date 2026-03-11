@@ -7,7 +7,8 @@ export const en = {
         settings: "Settings",
         copy: "Copy",
         select: "Select",
-        search: "Search snippets...",
+        search: "Search...",
+        searchSnippets: "Search snippets...",
         empty: "Nothing found",
         loading: "Loading...",
         default: "Default",
@@ -81,6 +82,8 @@ export const en = {
         tabStartMenu: "Start Menu",
         tabSystem: "System",
         searchPrograms: "Search programs...",
+        searchIcons: "Search icons...",
+        searchEmojis: "Search emojis...",
         noPrograms: "No programs found",
         viewGrid: "Grid",
         viewList: "List"

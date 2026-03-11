@@ -34,6 +34,7 @@
     }
 
     function selectOption(id: string) {
+        console.log(`[SegmentedToggle ${id}] selecting: ${id}`);
         onSelect(id);
         isOpen = false;
     }

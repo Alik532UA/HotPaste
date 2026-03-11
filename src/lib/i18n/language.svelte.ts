@@ -34,6 +34,10 @@ class LanguageState {
             }, 100);
         }, 200);
     }
+
+    toggle() {
+        this.set(this.current === 'uk' ? 'en' : 'uk');
+    }
 }
 
 export const language = new LanguageState();

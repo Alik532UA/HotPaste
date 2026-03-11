@@ -1,40 +1,74 @@
 <script lang="ts">
   import { AlertOctagon, RefreshCcw } from "lucide-svelte";
   import { t } from "../../i18n";
+  import type { Snippet } from "svelte";
 
   interface Props {
-    error: any;
-    reset: () => void;
+    children?: Snippet;
   }
 
-  let { error, reset }: Props = $props();
+  let { children }: Props = $props();
 </script>
 
-<div class="global-error-container" data-testid="global-error-fallback">
-  <div class="error-card" data-testid="global-error-card">
-    <div class="icon-wrapper">
-      <AlertOctagon size={48} strokeWidth={1.5} />
+{#if children}
+  <svelte:boundary>
+    <div class="boundary-wrapper">
+      {@render children()}
     </div>
-    
-    <h1 data-testid="global-error-title">{t.errors?.rendering || "Критична помилка додатку"}</h1>
-    <p class="description" data-testid="global-error-desc">
-      Виникла непередбачувана помилка під час роботи інтерфейсу.
-    </p>
-    
-    {#if error?.message}
-      <div class="error-details" data-testid="global-error-details">
-        <code>{error.message}</code>
-      </div>
-    {/if}
+    {#snippet failed(error: unknown, reset: () => void)}
+      <div class="global-error-container" data-testid="global-error-fallback">
+        <div class="error-card" data-testid="global-error-card">
+          <div class="icon-wrapper">
+            <AlertOctagon size={48} strokeWidth={1.5} />
+          </div>
+          
+          <h1 data-testid="global-error-title">{t.errors?.rendering || "Критична помилка додатку"}</h1>
+          <p class="description" data-testid="global-error-desc">
+            Виникла непередбачувана помилка під час роботи інтерфейсу.
+          </p>
+          
+          {#if error && typeof error === 'object' && 'message' in error}
+            <div class="error-details" data-testid="global-error-details">
+              <code>{(error as any).message}</code>
+            </div>
+          {/if}
 
-    <button class="reset-btn" onclick={reset} data-testid="btn-global-error-retry">
-      <RefreshCcw size={18} />
-      <span>{t.common?.retry || "Спробувати знову"}</span>
-    </button>
+          <button class="reset-btn" onclick={reset} data-testid="btn-global-error-retry">
+            <RefreshCcw size={18} />
+            <span>{t.common?.retry || "Спробувати знову"}</span>
+          </button>
+        </div>
+      </div>
+    {/snippet}
+  </svelte:boundary>
+{:else}
+  <div class="global-error-container" data-testid="global-error-fallback">
+    <div class="error-card" data-testid="global-error-card">
+      <div class="icon-wrapper">
+        <AlertOctagon size={48} strokeWidth={1.5} />
+      </div>
+      
+      <h1 data-testid="global-error-title">{t.errors?.rendering || "Критична помилка додатку"}</h1>
+      <p class="description" data-testid="global-error-desc">
+        Виникла непередбачувана помилка під час роботи інтерфейсу.
+      </p>
+      
+      <button class="reset-btn" onclick={() => window.location.reload()} data-testid="btn-global-error-retry">
+        <RefreshCcw size={18} />
+        <span>{t.common?.retry || "Спробувати знову"}</span>
+      </button>
+    </div>
   </div>
-</div>
+{/if}
 
 <style>
+  .boundary-wrapper {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+  }
+
   .global-error-container {
     position: fixed;
     inset: 0;

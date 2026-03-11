@@ -11,15 +11,15 @@
 </script>
 
 <div class="dynamic-bg-container" class:minimal={uiState.isMinimalMode}>
-    {#if background.type === 'particles'}
+    {#if background.current === 'particles'}
         <div class="bg-layer" transition:fade={{ duration: 1000 }}>
             <Particles theme={currentTheme} />
         </div>
-    {:else if background.type === 'waves'}
+    {:else if background.current === 'waves'}
         <div class="bg-layer" transition:fade={{ duration: 1000 }}>
             <Waves theme={currentTheme} />
         </div>
-    {:else if background.type === 'floating_shapes'}
+    {:else if background.current === 'floating_shapes'}
         <div class="bg-layer" transition:fade={{ duration: 1000 }}>
             <FloatingShapes theme={currentTheme} />
         </div>

@@ -38,6 +38,10 @@ class ThemeState {
         }, 400);
     }
 
+    next() {
+        return this.toggle();
+    }
+
     set(theme: ThemeType) {
         if (THEMES.includes(theme)) {
             this._current.value = theme;

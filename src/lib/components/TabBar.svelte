@@ -147,6 +147,7 @@
         <div class="search-field-outer">
           <SearchInput
             bind:value={uiState.searchQuery}
+            placeholder={t.common.searchSnippets}
             testId="search-input"
           />
         </div>

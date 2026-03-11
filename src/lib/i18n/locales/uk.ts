@@ -7,7 +7,8 @@ export const uk = {
         settings: "Налаштування",
         copy: "Копіювати",
         select: "Вибрати",
-        search: "Пошук сніпетів...",
+        search: "Пошук...",
+        searchSnippets: "Пошук сніпетів...",
         empty: "Нічого не знайдено",
         loading: "Завантаження...",
         default: "За замовчуванням",
@@ -81,6 +82,8 @@ export const uk = {
         tabStartMenu: "Start Menu",
         tabSystem: "System",
         searchPrograms: "Пошук програм...",
+        searchIcons: "Пошук іконок...",
+        searchEmojis: "Пошук емодзі...",
         noPrograms: "Програм не знайдено",
         viewGrid: "Сітка",
         viewList: "Список"

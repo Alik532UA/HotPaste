@@ -3,13 +3,23 @@
     import { connectDirectory, connectDefaultProject } from "../stores/appState.svelte";
     import { t } from "../i18n";
 
+    interface Props {
+        onConnect?: () => void | Promise<void>;
+    }
+
+    let { onConnect }: Props = $props();
+
     let isHoveringStart = $state(false);
     let isHoveringConnect = $state(false);
 
     const isTauri = typeof window !== 'undefined' && (!!(window as any).__TAURI_INTERNALS__ || !!(window as any).__TAURI__);
 
     async function handleConnect() {
-        await connectDirectory();
+        if (onConnect) {
+            await onConnect();
+        } else {
+            await connectDirectory();
+        }
     }
 
     async function handleStart() {

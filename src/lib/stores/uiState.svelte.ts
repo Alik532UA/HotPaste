@@ -72,6 +72,7 @@ export const uiState = {
     setCardView,
     setCardDensity,
     toggleCardView,
+    toggleCardDensity,
     setSelectionMode,
     toggleSelectionMode,
     toggleMinimalMode,
@@ -157,6 +158,13 @@ function setCardDensity(density: 'expanded' | 'normal' | 'compact'): void {
 
 function toggleCardView(): void {
     setCardView(cardView === 'short' ? 'full' : 'short');
+}
+
+function toggleCardDensity(): void {
+    const densities: Array<'expanded' | 'normal' | 'compact'> = ['expanded', 'normal', 'compact'];
+    const currentIndex = densities.indexOf(cardDensity);
+    const nextIndex = (currentIndex + 1) % densities.length;
+    setCardDensity(densities[nextIndex]);
 }
 
 function toggleMinimalMode(): void {
