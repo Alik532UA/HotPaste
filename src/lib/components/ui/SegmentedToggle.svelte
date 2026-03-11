@@ -10,18 +10,22 @@
         iconClass?: string; 
     }
 
-    let { id, options, value, onSelect, isCompact = false }: { 
+    let { id, options, value, onSelect, isCompact = false, testId }: { 
         id: string, 
         options: Option[], 
         value: string, 
         onSelect: (id: any) => void,
-        isCompact?: boolean
+        isCompact?: boolean,
+        testId?: string
     } = $props();
 
     let isOpen = $state(false);
 
     // Helper to get active option
     const activeOption = $derived(options.find(opt => opt.id === value) || options[0]);
+
+    // Final test ID: use provided testId or build default one
+    const finalTestId = $derived(testId || (id === 'view' ? `segmented-wrapper-${id}` : `segmented-control-desktop-${id}`));
     
     // Toggle for 2-option case
     function handleToggle() {
@@ -59,105 +63,113 @@
      class:has-two={options.length === 2} 
      class:has-many={options.length > 2} 
      class:is-compact={isCompact}
-     data-testid={`segmented-wrapper-${id}`}>
+     data-testid={finalTestId}>
     
     <!-- 1. Full View -->
-    {#if !isCompact}
-        <div class="view-full segmented-control" data-testid={`segmented-control-desktop-${id}`}>
-            {#each options as opt}
-                <button 
-                    class:active={value === opt.id}
-                    class:icon-only={opt.icon && !opt.label}
-                    onclick={() => onSelect(opt.id)}
-                    title={opt.label}
-                    type="button"
-                    data-testid={`segmented-opt-${id}-${opt.id}`}
-                >
-                    {#if opt.icon} 
-                        <opt.icon size={14} class={opt.iconClass} /> 
-                    {/if}
-                    {#if opt.label}
-                        <span class="label">{opt.label}</span>
-                    {/if}
-                </button>
-            {/each}
-        </div>
-    {/if}
+    <div class="view-full segmented-control" class:is-hidden={isCompact} aria-hidden={isCompact}>
+        {#each options as opt}
+            <button 
+                class:active={value === opt.id}
+                class:icon-only={opt.icon && !opt.label}
+                onclick={() => onSelect(opt.id)}
+                title={opt.label}
+                type="button"
+                data-testid={`segmented-opt-${id}-${opt.id}`}
+                tabindex={isCompact ? -1 : 0}
+            >
+                {#if opt.icon} 
+                    <opt.icon size={14} class={opt.iconClass} /> 
+                {/if}
+                {#if opt.label}
+                    <span class="label">{opt.label}</span>
+                {/if}
+            </button>
+        {/each}
+    </div>
 
     <!-- 2. Compact View -->
-    {#if isCompact}
-        <div class="view-compact" use:handleClickOutside data-testid={`segmented-control-compact-${id}`}>
-            {#if options.length === 2}
-                <!-- 2 options -> Single Switch Button -->
-                <button 
-                    class="compact-trigger toggle-mode" 
-                    class:icon-only={activeOption.icon && !activeOption.label}
-                    onclick={handleToggle}
-                    title={activeOption.label}
-                    type="button"
-                    data-testid={`segmented-toggle-compact-${id}`}
-                >
-                    {#if activeOption.icon} 
-                        <activeOption.icon size={14} class={activeOption.iconClass} /> 
-                    {/if}
-                    {#if activeOption.label}
-                        <span class="label">{activeOption.label}</span>
-                    {/if}
-                </button>
-            {:else}
-                <!-- More than 2 options -> Custom Dropdown -->
-                <button 
-                    class="compact-trigger dropdown-mode" 
-                    class:active={isOpen}
-                    onclick={handleToggle}
-                    type="button"
-                    data-testid={`segmented-dropdown-trigger-${id}`}
-                >
-                    {#if activeOption.icon} 
-                        <activeOption.icon size={14} class={activeOption.iconClass} /> 
-                    {/if}
-                    {#if activeOption.label}
-                        <span class="label">{activeOption.label}</span>
-                    {/if}
-                    <ChevronDown size={14} class={"chevron " + (isOpen ? "rotated" : "")} />
-                </button>
-
-                {#if isOpen}
-                    <div class="dropdown-menu" 
-                        in:fly={{ y: 5, duration: 150 }} 
-                        out:fade={{ duration: 100 }} 
-                        data-testid={`segmented-dropdown-menu-${id}`}>
-                        {#each options as opt}
-                            <button 
-                                class="menu-item" 
-                                class:selected={value === opt.id}
-                                onclick={() => selectOption(opt.id)}
-                                data-testid={`segmented-menu-opt-${id}-${opt.id}`}
-                            >
-                                <div class="item-content">
-                                    {#if opt.icon} 
-                                        <opt.icon size={14} class={opt.iconClass} /> 
-                                    {/if}
-                                    {#if opt.label}
-                                        <span>{opt.label}</span>
-                                    {/if}
-                                </div>
-                                {#if value === opt.id}
-                                    <Check size={14} class="check-icon" />
-                                {/if}
-                            </button>
-                        {/each}
-                    </div>
+    <div class="view-compact" class:is-hidden={!isCompact} aria-hidden={!isCompact} use:handleClickOutside>
+        {#if options.length === 2}
+            <!-- 2 options -> Single Switch Button -->
+            <button 
+                class="compact-trigger toggle-mode" 
+                class:icon-only={activeOption.icon && !activeOption.label}
+                onclick={handleToggle}
+                title={activeOption.label}
+                type="button"
+                data-testid={`segmented-toggle-compact-${id}`}
+                tabindex={!isCompact ? -1 : 0}
+            >
+                {#if activeOption.icon} 
+                    <activeOption.icon size={14} class={activeOption.iconClass} /> 
                 {/if}
+                {#if activeOption.label}
+                    <span class="label">{activeOption.label}</span>
+                {/if}
+            </button>
+        {:else}
+            <!-- More than 2 options -> Custom Dropdown -->
+            <button 
+                class="compact-trigger dropdown-mode" 
+                class:active={isOpen}
+                onclick={handleToggle}
+                type="button"
+                data-testid={`segmented-dropdown-trigger-${id}`}
+                tabindex={!isCompact ? -1 : 0}
+            >
+                {#if activeOption.icon} 
+                    <activeOption.icon size={14} class={activeOption.iconClass} /> 
+                {/if}
+                {#if activeOption.label}
+                    <span class="label">{activeOption.label}</span>
+                {/if}
+                <ChevronDown size={14} class={"chevron " + (isOpen ? "rotated" : "")} />
+            </button>
+
+            {#if isOpen}
+                <div class="dropdown-menu" 
+                    in:fly={{ y: 5, duration: 150 }} 
+                    out:fade={{ duration: 100 }} 
+                    data-testid={`segmented-dropdown-menu-${id}`}>
+                    {#each options as opt}
+                        <button 
+                            class="menu-item" 
+                            class:selected={value === opt.id}
+                            onclick={() => selectOption(opt.id)}
+                            data-testid={`segmented-menu-opt-${id}-${opt.id}`}
+                        >
+                            <div class="item-content">
+                                {#if opt.icon} 
+                                    <opt.icon size={14} class={opt.iconClass} /> 
+                                {/if}
+                                {#if opt.label}
+                                    <span>{opt.label}</span>
+                                {/if}
+                            </div>
+                            {#if value === opt.id}
+                                <Check size={14} class="check-icon" />
+                            {/if}
+                        </button>
+                    {/each}
+                </div>
             {/if}
-        </div>
-    {/if}
+        {/if}
+    </div>
 </div>
 
 <style>
     .segmented-wrapper {
         display: inline-flex;
         position: relative;
+    }
+
+    /* Keep both views for measurements, but hide inactive one */
+    .is-hidden {
+        position: absolute;
+        visibility: hidden;
+        pointer-events: none;
+        opacity: 0;
+        z-index: -1;
     }
 
     /* Standard Segmented Control */
@@ -283,7 +295,7 @@
         display: flex;
     }
     .view-compact {
-        display: none;
+        display: flex;
     }
 
     /* Global animation support */

@@ -1,104 +1,185 @@
 import { tick } from "svelte";
+import { logService } from "../services/logService.svelte";
 
 /**
- * AdaptiveHeader Controller
- * Manages the smart collapsing of header elements based on available space.
+ * AdaptiveHeader Controller — Deterministic Stateless Adaptive Logic
  */
 class AdaptiveHeader {
-  // Config
-  private readonly COLLAPSE_ORDER = ['background', 'language', 'theme', 'density', 'view'] as const;
-  private readonly MIN_GAP = 24;
+    // Sequence of collapsing (from first to last)
+    private readonly COLLAPSE_ORDER = ['bg-type', 'lang', 'theme', 'density', 'view'] as const;
 
-  // State
-  private _collapsedStates = $state<Record<string, boolean>>({
-    background: false,
-    language: false,
-    theme: false,
-    density: false,
-    view: false
-  });
+    // Minimum width for left side to prevent logo/divider overlap
+    private readonly MIN_LEFT_WIDTH = 200;
+    private readonly CONTAINER_GAP = 24;
+    private readonly ITEM_GAP = 12; // Gap between items in header-right (from CSS)
 
-  private _isUpdating = false;
-  private _lastWidth = 0;
+    // State
+    private _collapsedStates = $state<Record<string, boolean>>({
+        'bg-type': false,
+        'lang': false,
+        'theme': false,
+        'density': false,
+        'view': false
+    });
 
-  // Refs (passed from component)
-  private _container: HTMLElement | null = null;
-  private _left: HTMLElement | null = null;
-  private _right: HTMLElement | null = null;
+    private _isProcessing = false;
+    private _container: HTMLElement | null = null;
+    private _left: HTMLElement | null = null;
+    private _right: HTMLElement | null = null;
+    private _lastWidth = 0;
 
-  constructor() {}
+    constructor() { }
 
-  /**
-   * Initialize with DOM references
-   */
-  init(container: HTMLElement, left: HTMLElement, right: HTMLElement) {
-    this._container = container;
-    this._left = left;
-    this._right = right;
-    
-    const observer = new ResizeObserver(() => this.update());
-    observer.observe(container);
-    return () => observer.disconnect();
-  }
+    init(container: HTMLElement, left: HTMLElement, right: HTMLElement) {
+        // Reset processing lock on re-init (e.g., when $effect re-runs)
+        this._isProcessing = false;
 
-  /**
-   * Current collapsed states
-   */
-  get collapsed() {
-    return this._collapsedStates;
-  }
+        this._container = container;
+        this._left = left;
+        this._right = right;
 
-  /**
-   * Main update logic
-   */
-  async update(force = false) {
-    if (!this._container || !this._left || !this._right || this._isUpdating) return;
+        logService.info('header', 'AdaptiveHeader.init()', {
+            containerWidth: container.clientWidth,
+            rightChildren: right.children.length,
+        });
 
-    const currentWidth = this._container.getBoundingClientRect().width;
-    if (currentWidth === 0) return;
+        // 1. ResizeObserver with threshold to prevent jitter
+        const resizeObserver = new ResizeObserver((entries) => {
+            const width = Math.floor(entries[0].contentRect.width);
+            if (Math.abs(this._lastWidth - width) > 1) {
+                this._lastWidth = width;
+                requestAnimationFrame(() => this.update());
+            }
+        });
 
-    // Small changes don't trigger update unless forced
-    if (!force && Math.abs(currentWidth - this._lastWidth) < 5) return;
+        if (container) resizeObserver.observe(container);
 
-    const isExpanding = currentWidth > this._lastWidth;
-    this._lastWidth = currentWidth;
-    this._isUpdating = true;
+        // 2. MutationObserver for content changes
+        const mutationObserver = new MutationObserver(() => {
+            this.update();
+        });
 
-    try {
-      if (isExpanding) {
-        // Reset all to full mode to measure their "ideal" size
-        for (const key of this.COLLAPSE_ORDER) {
-          this._collapsedStates[key] = false;
+        const config = { childList: true, subtree: true, characterData: true };
+        if (left) mutationObserver.observe(left, config);
+        if (right) mutationObserver.observe(right, config);
+
+        // 3. Robust Cold Start Sequence
+        const forceUpdate = () => this.update();
+
+        requestAnimationFrame(forceUpdate);
+        const timers = [
+            setTimeout(forceUpdate, 50),
+            setTimeout(forceUpdate, 200),
+            setTimeout(forceUpdate, 600),
+            setTimeout(forceUpdate, 1500),
+            setTimeout(forceUpdate, 3000)
+        ];
+
+        if (typeof document !== 'undefined' && (document as any).fonts) {
+            (document as any).fonts.ready.then(forceUpdate);
         }
-        await tick();
-        // Wait for potential CSS transitions
-        await new Promise(r => requestAnimationFrame(r));
-      }
 
-      // Sequentially collapse elements from right to left (as they appear in COLLAPSE_ORDER)
-      // Note: order is background, language, theme, density, view
-      for (const key of this.COLLAPSE_ORDER) {
-        // Measure current desired space
-        // scrollWidth of left side (logo + root name) + right side (controls)
-        const leftWidth = this._left.scrollWidth;
-        const rightWidth = this._right.scrollWidth;
-        const totalDesired = leftWidth + rightWidth + this.MIN_GAP;
-
-        if (totalDesired > currentWidth) {
-          if (!this._collapsedStates[key]) {
-            this._collapsedStates[key] = true;
-            await tick();
-            await new Promise(r => requestAnimationFrame(r));
-          }
-        } else {
-          // If it fits and we are not expanding, we can stop early
-          if (!isExpanding) break;
-        }
-      }
-    } finally {
-      this._isUpdating = false;
+        return () => {
+            resizeObserver.disconnect();
+            mutationObserver.disconnect();
+            timers.forEach(clearTimeout);
+        };
     }
-  }
+
+    get collapsed() {
+        return this._collapsedStates;
+    }
+
+    /**
+     * Deterministic update logic — avoids infinite loops by simulating width before applying state
+     */
+    public async update() {
+        if (!this._container || !this._right || this._isProcessing) return;
+
+        const containerWidth = Math.floor(this._container.clientWidth);
+        if (containerWidth === 0) return;
+
+        this._isProcessing = true;
+
+        try {
+            // How much space we have for the right side
+            const availableSpace = containerWidth - this.MIN_LEFT_WIDTH - this.CONTAINER_GAP;
+
+            // 1. Map children to dimensions (stateless measurement)
+            const children = Array.from(this._right.children) as HTMLElement[];
+            const measurements: Record<string, { full: number, compact: number }> = {};
+            let fixedWidth = 0;
+            let collapsibleKeys: string[] = [];
+
+            children.forEach((child) => {
+                const testId = child.getAttribute('data-testid') || '';
+                const key = this.COLLAPSE_ORDER.find(k => testId.includes(k));
+
+                if (key) {
+                    const fullEl = child.querySelector('.view-full');
+                    const compactEl = child.querySelector('.view-compact');
+
+                    measurements[key] = {
+                        full: fullEl ? (fullEl as HTMLElement).scrollWidth : child.scrollWidth,
+                        compact: compactEl ? (compactEl as HTMLElement).scrollWidth : child.scrollWidth
+                    };
+                    collapsibleKeys.push(key);
+                } else {
+                    fixedWidth += child.scrollWidth;
+                }
+            });
+
+            // 2. Simulate optimal state
+            // We start with all elements expanded
+            const nextStates: Record<string, boolean> = {};
+            this.COLLAPSE_ORDER.forEach(k => nextStates[k] = false);
+
+            const calculateTotalWidth = (states: Record<string, boolean>) => {
+                let total = fixedWidth;
+                let visibleCount = children.length;
+
+                // Add widths based on simulated state
+                collapsibleKeys.forEach(k => {
+                    total += states[k] ? measurements[k].compact : measurements[k].full;
+                });
+
+                // Add gaps
+                if (visibleCount > 1) {
+                    total += (visibleCount - 1) * this.ITEM_GAP;
+                }
+                return Math.ceil(total);
+            };
+
+            // Iteratively collapse based on COLLAPSE_ORDER until fits
+            const TOLERANCE = 5;
+            for (const key of this.COLLAPSE_ORDER) {
+                if (calculateTotalWidth(nextStates) <= availableSpace) break;
+                nextStates[key] = true;
+            }
+
+            // 3. Apply state only if changed
+            let hasChanged = false;
+            for (const key of this.COLLAPSE_ORDER) {
+                if (this._collapsedStates[key] !== nextStates[key]) {
+                    this._collapsedStates[key] = nextStates[key];
+                    hasChanged = true;
+                }
+            }
+
+            if (hasChanged) {
+                const currentWidth = calculateTotalWidth(nextStates);
+                logService.info('header', `Layout adjusted: ${currentWidth}px / ${availableSpace}px`, nextStates);
+                await tick(); // Let Svelte update DOM
+            }
+
+        } finally {
+            if (this._container) {
+                this._lastWidth = Math.floor(this._container.clientWidth);
+            }
+            this._isProcessing = false;
+        }
+    }
 }
 
 export const adaptiveHeader = new AdaptiveHeader();
+//
