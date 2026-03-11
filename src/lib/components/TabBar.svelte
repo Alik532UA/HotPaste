@@ -12,8 +12,10 @@
     toggleSelectionMode,
     saveTabOrder,
   } from "../stores/appState.svelte";
+  import { uiState } from "../stores/uiState.svelte";
   import { Plus, Search, X, CheckSquare } from "lucide-svelte";
   import * as icons from "lucide-svelte";
+  import SearchInput from "./ui/SearchInput.svelte";
   import type { ComponentType } from "svelte";
   import type { Tab } from "../types";
   import { t } from "../i18n";
@@ -142,22 +144,11 @@
         >
           <CheckSquare size={16} />
         </button>
-        <div class="search-wrapper" data-testid="search-input-wrapper">
-          <Search size={14} class="search-icon" />
-          <input
-            type="text"
-            class="search-input"
-            placeholder={t.common.search}
-            value={appState.searchQuery}
-            oninput={handleSearchInput}
-            onkeydown={(e) => e.stopPropagation()}
-            data-testid="search-input"
+        <div class="search-field-outer">
+          <SearchInput
+            bind:value={uiState.searchQuery}
+            testId="search-input"
           />
-          {#if appState.searchQuery}
-            <button class="search-clear" onclick={clearSearch} title={t.common.cancel} data-testid="btn-clear-search">
-              <X size={14} />
-            </button>
-          {/if}
         </div>
       </div>
     {/if}
@@ -372,63 +363,12 @@
     box-shadow: 0 0 12px color-mix(in srgb, var(--color-accent-cyan) 20%, transparent);
   }
 
-  .search-wrapper {
-    position: relative;
-    display: flex;
-    align-items: center;
-    background: var(--color-surface-2);
-    border: 1px solid var(--color-border);
-    border-radius: 10px;
-    padding: 0 10px;
+  .search-field-outer {
     width: 220px;
-    height: 32px;
-    transition: all 0.2s ease;
+    transition: width 0.2s ease;
   }
 
-  .search-wrapper:focus-within {
-    border-color: var(--color-accent-cyan);
-    background: var(--color-surface-3);
+  .search-field-outer:focus-within {
     width: 280px;
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent-cyan) 10%, transparent);
-  }
-
-  .search-wrapper :global(.search-icon) {
-    color: var(--color-text-muted);
-    margin-right: 8px;
-    flex-shrink: 0;
-  }
-
-  .search-input {
-    background: transparent;
-    border: none;
-    color: var(--color-text-primary);
-    font-size: 0.85rem;
-    width: 100%;
-    outline: none;
-    padding: 0;
-  }
-
-  .search-input::placeholder {
-    color: var(--color-text-muted);
-    opacity: 0.6;
-  }
-
-  .search-clear {
-    background: transparent;
-    border: none;
-    color: var(--color-text-muted);
-    cursor: pointer;
-    padding: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    margin-right: -4px;
-    transition: all 0.2s;
-  }
-
-  .search-clear:hover {
-    background: var(--color-surface-1);
-    color: var(--color-text-primary);
   }
 </style>

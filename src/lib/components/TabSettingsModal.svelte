@@ -1,7 +1,9 @@
 <script lang="ts">
-  import { getState, closeTabSettings, updateTabSettings, renamePhysicalTab } from "../stores/appState.svelte";
-  import { Layout, Type, Keyboard } from "lucide-svelte";
+  import { getState, closeTabSettings, updateTabSettings, renamePhysicalTab, openIconPicker } from "../stores/appState.svelte";
+  import { Layout, Type, Keyboard, Search } from "lucide-svelte";
+  import * as LucideIcons from "lucide-svelte";
   import BaseModal from "./ui/BaseModal.svelte";
+  import Input from "./ui/Input.svelte";
   import SegmentedToggle from "./ui/SegmentedToggle.svelte";
   import { t } from "../i18n";
 
@@ -88,49 +90,53 @@
     </div>
 
     <!-- Display Name -->
-    <div class="form-group" data-testid="form-group-tab-display-name">
-      <label for="tab-display-name" data-testid="label-tab-display-name">{t.tabs.displayName}</label>
-      <input
-        id="tab-display-name"
-        type="text"
-        bind:value={displayName}
-        onkeydown={(e) => { e.stopPropagation(); handleKeydown(e); }}
-        placeholder={tab.path === '__root__' ? 'Файли' : tab.path}
-        autocomplete="off"
-        data-testid="input-tab-display-name"
-      />
-      <p class="field-hint" data-testid="hint-tab-display-name">{t.tabs.displayName} ({t.common.edit})</p>
-    </div>
+    <Input
+      label={t.tabs.displayName}
+      bind:value={displayName}
+      onkeydown={(e) => { e.stopPropagation(); handleKeydown(e); }}
+      placeholder={tab.path === '__root__' ? 'Файли' : tab.path}
+      hint="{t.tabs.displayName} ({t.common.edit})"
+      testId="input-tab-display-name"
+    />
 
     <!-- Directory Name (Physical) -->
     {#if tab.path !== '__root__'}
-      <div class="form-group" data-testid="form-group-tab-path">
-        <label for="tab-path" data-testid="label-tab-path">{t.tabs.dirName}</label>
-        <input
-          id="tab-path"
-          type="text"
-          bind:value={path}
-          onkeydown={(e) => { e.stopPropagation(); handleKeydown(e); }}
-          placeholder="folder_name"
-          autocomplete="off"
-          data-testid="input-tab-path"
-        />
-        <p class="field-hint" data-testid="hint-tab-path">{t.tabs.dirName} (Warning: renames physical directory)</p>
-      </div>
+      <Input
+        label={t.tabs.dirName}
+        bind:value={path}
+        onkeydown={(e) => { e.stopPropagation(); handleKeydown(e); }}
+        placeholder="folder_name"
+        hint="{t.tabs.dirName} (Warning: renames physical directory)"
+        testId="input-tab-path"
+      />
     {/if}
 
     <!-- Icon -->
     <div class="form-group" data-testid="form-group-tab-icon">
-      <label for="tab-icon" data-testid="label-tab-icon">{t.tabs.icon} (Lucide/Emoji)</label>
-      <input
-        id="tab-icon"
-        type="text"
-        bind:value={icon}
-        onkeydown={(e) => { e.stopPropagation(); handleKeydown(e); }}
-        placeholder="Folder, Star, Layout, Keyboard..."
-
-        data-testid="input-tab-icon"
-      />
+      <label for="icon-picker-btn" data-testid="label-tab-icon">{t.tabs.icon} (Lucide/Emoji)</label>
+      <button
+        id="icon-picker-btn"
+        class="icon-picker-btn"
+        onclick={() => openIconPicker(icon, (v) => (icon = v), t.tabs.settings)}
+        data-testid="btn-tab-icon-picker"
+      >
+        {#if icon}
+          {@const IconComp = (LucideIcons as any)[icon]}
+          <div class="selected-icon-preview">
+            {#if IconComp}
+              <IconComp size={18} />
+            {:else}
+              <span class="emoji-preview">{icon}</span>
+            {/if}
+            <span class="selected-icon-name">{icon}</span>
+          </div>
+        {:else}
+          <div class="icon-placeholder">
+            <Search size={16} />
+            <span>{t.common.select}...</span>
+          </div>
+        {/if}
+      </button>
     </div>
 
     <!-- Color Picker -->
@@ -209,26 +215,49 @@
     color: var(--color-text-secondary);
   }
 
-  input[type="text"] {
+  .icon-picker-btn {
+    width: 100%;
     background: var(--color-surface-2);
     border: 1px solid var(--color-border);
     border-radius: 8px;
-    padding: 10px 14px;
+    padding: 8px 14px;
     color: var(--color-text-primary);
     font-family: inherit;
     font-size: 0.9rem;
     transition: all 0.2s;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    min-height: 40px;
   }
 
-  input[type="text"]:focus {
-    outline: none;
+  .icon-picker-btn:hover {
     border-color: var(--color-accent-violet);
     background: var(--color-surface-3);
   }
 
-  .field-hint {
-    font-size: 0.7rem;
+  .icon-placeholder {
+    display: flex;
+    align-items: center;
+    gap: 10px;
     color: var(--color-text-muted);
+  }
+
+  .selected-icon-preview {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--color-accent-violet);
+    font-weight: 500;
+  }
+
+  .emoji-preview {
+    font-size: 1.1rem;
+  }
+
+  .selected-icon-name {
+    font-size: 0.85rem;
+    color: var(--color-text-primary);
   }
 
   .color-grid {

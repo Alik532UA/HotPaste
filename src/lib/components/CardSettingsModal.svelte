@@ -1,7 +1,10 @@
 <script lang="ts">
-  import { getState, closeSettings, updateCardSettings, renamePhysicalFile } from "../stores/appState.svelte";
-  import { Settings } from "lucide-svelte";
+  import { getState, closeSettings, updateCardSettings, renamePhysicalFile, openIconPicker, openHotkeyPicker } from "../stores/appState.svelte";
+  import { Settings, Search } from "lucide-svelte";
+  import * as LucideIcons from "lucide-svelte";
   import BaseModal from "./ui/BaseModal.svelte";
+  import Input from "./ui/Input.svelte";
+  import SearchInput from "./ui/SearchInput.svelte";
   import { t } from "../i18n";
 
   const appState = getState();
@@ -60,6 +63,13 @@
     }
   });
 
+  // Keep local hotkey in sync with the card's hotkey in case it's changed by the picker
+  $effect(() => {
+    if (card && card.hotkey !== hotkey) {
+      hotkey = card.hotkey;
+    }
+  });
+
   async function handleSave() {
     if (card) {
       if (fileName && fileName !== card.fileName) {
@@ -80,21 +90,6 @@
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === "Enter" && e.ctrlKey) handleSave();
   }
-
-  /** Capture physical key code */
-  function handleHotkeyKeydown(e: KeyboardEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    if (['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) return;
-    
-    if (e.key === 'Backspace' || e.key === 'Delete') {
-      hotkey = "";
-      return;
-    }
-
-    hotkey = e.code;
-  }
 </script>
 
 <BaseModal 
@@ -111,34 +106,24 @@
 
   {#if card}
     <!-- Display Name -->
-    <div class="form-group" data-testid="form-group-display-name">
-      <label for="display-name" data-testid="label-display-name">{t.cards.displayName}</label>
-      <input
-        id="display-name"
-        type="text"
-        bind:value={displayName}
-        onkeydown={(e) => { e.stopPropagation(); handleKeydown(e); }}
-        placeholder={card.fileName}
-        autocomplete="off"
-        data-testid="input-display-name"
-      />
-      <p class="field-hint" data-testid="hint-display-name">{t.cards.displayName} ({t.common.edit})</p>
-    </div>
+    <Input
+      label={t.cards.displayName}
+      bind:value={displayName}
+      onkeydown={(e) => { e.stopPropagation(); handleKeydown(e); }}
+      placeholder={card.fileName}
+      hint="{t.cards.displayName} ({t.common.edit})"
+      testId="input-display-name"
+    />
 
     <!-- File Name (Physical) -->
-    <div class="form-group" data-testid="form-group-file-name">
-      <label for="file-name" data-testid="label-file-name">{t.cards.fileName}</label>
-      <input
-        id="file-name"
-        type="text"
-        bind:value={fileName}
-        onkeydown={(e) => { e.stopPropagation(); handleKeydown(e); }}
-        placeholder="example.txt"
-        autocomplete="off"
-        data-testid="input-file-name"
-      />
-      <p class="field-hint" data-testid="hint-file-name">{t.cards.fileName} (Warning: renames physical file)</p>
-    </div>
+    <Input
+      label={t.cards.fileName}
+      bind:value={fileName}
+      onkeydown={(e) => { e.stopPropagation(); handleKeydown(e); }}
+      placeholder="example.txt"
+      hint="{t.cards.fileName} (Warning: renames physical file)"
+      testId="input-file-name"
+    />
 
     <div class="form-row" data-testid="form-row-hotkey-icon">
       <!-- Hotkey -->
@@ -149,7 +134,7 @@
           type="text"
           readonly
           value={appState.getHotkeyLabel(hotkey)}
-          onkeydown={(e) => { e.stopPropagation(); handleHotkeyKeydown(e); }}
+          onclick={() => openHotkeyPicker(card)}
           placeholder={t.modals.pickerTitle}
           class="hotkey-input"
           title={t.cards.hotkeyChange}
@@ -160,15 +145,30 @@
 
       <!-- Icon -->
       <div class="form-group flex-2" data-testid="form-group-icon">
-        <label for="icon-name" data-testid="label-icon">{t.cards.icon} (Lucide/Emoji)</label>
-        <input
-          id="icon-name"
-          type="text"
-          bind:value={icon}
-          onkeydown={(e) => { e.stopPropagation(); handleKeydown(e); }}
-          placeholder="Copy, Edit, Folder, Star..."
-          data-testid="input-card-icon"
-        />
+        <label for="icon-picker-btn" data-testid="label-icon">{t.cards.icon} (Lucide/Emoji)</label>
+        <button
+          id="icon-picker-btn"
+          class="icon-picker-btn"
+          onclick={() => openIconPicker(icon, (v) => (icon = v), t.cards.settings)}
+          data-testid="btn-card-icon-picker"
+        >
+          {#if icon}
+            {@const IconComp = (LucideIcons as any)[icon]}
+            <div class="selected-icon-preview">
+              {#if IconComp}
+                <IconComp size={20} />
+              {:else}
+                <span class="emoji-preview">{icon}</span>
+              {/if}
+              <span class="selected-icon-name">{icon}</span>
+            </div>
+          {:else}
+            <div class="icon-placeholder">
+              <Search size={18} />
+              <span>{t.common.select}...</span>
+            </div>
+          {/if}
+        </button>
       </div>
     </div>
 
@@ -268,35 +268,73 @@
 
   .form-row {
     display: flex;
+    flex-wrap: wrap;
     gap: 16px;
     margin-bottom: 20px;
   }
 
-  .flex-1 { flex: 1; }
-  .flex-2 { flex: 2; }
+  .flex-1 { 
+    flex: 1 1 150px; 
+    min-width: 0;
+  }
+  
+  .flex-2 { 
+    flex: 2 1 220px; 
+    min-width: 0;
+  }
 
   label {
     font-size: 0.85rem;
     font-weight: 600;
     color: var(--color-text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
-  input[type="text"] {
+  .icon-picker-btn {
+    width: 100%;
     background: var(--color-surface-1);
     border: 1px solid var(--color-border);
     border-radius: 10px;
-    padding: 12px 16px;
+    padding: 10px 16px;
     color: var(--color-text-primary);
     font-family: inherit;
     font-size: 0.95rem;
     transition: all 0.2s;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    min-height: 45px;
   }
 
-  input[type="text"]:focus {
-    outline: none;
+  .icon-picker-btn:hover {
     border-color: var(--color-accent-violet);
     background: var(--color-bg-primary);
-    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent-violet) 10%, transparent);
+  }
+
+  .icon-placeholder {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--color-text-muted);
+  }
+
+  .selected-icon-preview {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--color-accent-violet);
+    font-weight: 600;
+  }
+
+  .emoji-preview {
+    font-size: 1.2rem;
+  }
+
+  .selected-icon-name {
+    font-size: 0.9rem;
+    color: var(--color-text-primary);
   }
 
   .hotkey-input {

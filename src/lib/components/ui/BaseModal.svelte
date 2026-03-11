@@ -11,6 +11,7 @@
     children: Snippet;
     footer?: Snippet;
     maxWidth?: string;
+    zIndex?: number;
     testId?: string;
   }
 
@@ -22,6 +23,7 @@
     children, 
     footer, 
     maxWidth = "480px",
+    zIndex = 2000,
     testId = "base-modal"
   }: Props = $props();
 
@@ -44,6 +46,7 @@
   <div 
     class="modal-overlay" 
     onclick={handleOverlayClick}
+    style="z-index: {zIndex}"
     data-testid="modal-overlay"
   >
     <div 

@@ -2,6 +2,7 @@
   import { X, Search, Monitor, Play, Folder, Settings2, Trash2, LayoutGrid, List, Link, Terminal, Power, RotateCcw, Moon, Zap, Lock, LogOut } from "lucide-svelte";
   import { fade, scale } from "svelte/transition";
   import { uiState } from "../stores/uiState.svelte";
+  import SearchInput from "./ui/SearchInput.svelte";
   import { updateTabAssignment } from "../stores/appState.svelte";
   import { t } from "../i18n";
   import { logService } from "../services/logService.svelte";
@@ -217,28 +218,11 @@
       </div>
 
       <div class="search-box">
-        <div class="search-input-wrapper">
-          <Search size={uiState.isMinimalMode ? 16 : 18} class="search-icon" />
-          <input 
-            type="text" 
-            bind:value={searchQuery} 
-            placeholder={t.modals.searchPrograms}
-            spellcheck="false"
-            data-testid="input-program-search"
-            onkeydown={(e) => e.stopPropagation()}
-          />
-          {#if searchQuery}
-            <button 
-              class="clear-search-btn" 
-              onclick={() => searchQuery = ""}
-              transition:fade={{ duration: 150 }}
-              title={t.common.cancel}
-              data-testid="btn-clear-program-search"
-            >
-              <X size={12} />
-            </button>
-          {/if}
-        </div>
+        <SearchInput 
+          bind:value={searchQuery} 
+          placeholder={t.modals.searchPrograms}
+          testId="input-program-search"
+        />
         <div class="view-toggle">
           <button class="view-btn" class:active={viewMode === 'grid'} onclick={() => viewMode = 'grid'} data-testid="btn-view-grid">
             <LayoutGrid size={uiState.isMinimalMode ? 16 : 18} />
@@ -335,14 +319,15 @@
   .modal-backdrop {
     position: fixed;
     inset: 0;
-    background: color-mix(in srgb, black 70%, transparent);
-    backdrop-filter: blur(12px);
+    background: color-mix(in srgb, var(--color-bg-primary) 70%, transparent);
+    backdrop-filter: blur(8px);
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1200;
+    z-index: 3000; /* Above BaseModal (2000) */
     padding: 20px;
   }
+
 
   .modal-content {
     background: var(--color-bg-secondary);
@@ -542,31 +527,6 @@
   .minimal-layout .search-box {
     padding: 10px 16px;
     gap: 8px;
-  }
-
-  .search-input-wrapper {
-    position: relative;
-    flex: 1;
-    display: flex;
-    align-items: center;
-    background: var(--color-surface-2);
-    border: 1px solid var(--color-border);
-    border-radius: 12px;
-    padding: 0 12px;
-  }
-
-  .search-input-wrapper input {
-    width: 100%;
-    background: transparent;
-    border: none;
-    padding: 12px 10px;
-    color: var(--color-text-primary);
-    outline: none;
-  }
-
-  .minimal-layout .search-input-wrapper input {
-    padding: 8px 6px;
-    font-size: 0.85rem;
   }
 
   .view-toggle {

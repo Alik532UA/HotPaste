@@ -140,7 +140,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1100; /* Higher than conflict modal */
+    z-index: 3000; /* Above BaseModal (2000) */
     padding: 20px;
   }
 

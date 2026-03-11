@@ -34,6 +34,11 @@ let activeSettingsTab = $state<Tab | null>(null);
 let activeHotkeyPickerCard = $state<Card | null>(null);
 let activeHotkeyConflict = $state<{ code: string, cards: Card[] } | null>(null);
 let activeProgramPicker = $state<{ key: string, tab: Tab } | null>(null);
+let activeIconPicker = $state<{ 
+    current: string, 
+    onSelect: (icon: string) => void,
+    title?: string 
+} | null>(null);
 
 // --- Getters ---
 
@@ -56,6 +61,7 @@ export const uiState = {
     get activeHotkeyPickerCard() { return activeHotkeyPickerCard; },
     get activeHotkeyConflict() { return activeHotkeyConflict; },
     get activeProgramPicker() { return activeProgramPicker; },
+    get activeIconPicker() { return activeIconPicker; },
     
     // Actions
     showToast,
@@ -87,11 +93,21 @@ export const uiState = {
     setHotkeyConflict,
     openProgramPicker,
     closeProgramPicker,
+    openIconPicker,
+    closeIconPicker,
     startEditingCard,
     stopEditingCard,
 };
 
 // --- Action Implementations ---
+
+function openIconPicker(current: string, onSelect: (icon: string) => void, title?: string): void {
+    activeIconPicker = { current, onSelect, title };
+}
+
+function closeIconPicker(): void {
+    activeIconPicker = null;
+}
 
 function openProgramPicker(key: string, tab: Tab): void {
     activeProgramPicker = { key, tab };

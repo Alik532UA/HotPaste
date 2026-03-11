@@ -276,7 +276,7 @@ export class TauriFileSystemService implements IFileSystemService {
                         borderColor: cardConfig.borderColor || null,
                         strikethrough: cardConfig.strikethrough || [],
                         size: stat.size,
-                        lastModified: stat.mtime || Date.now(),
+                        lastModified: stat.mtime instanceof Date ? stat.mtime.getTime() : (stat.mtime || Date.now()),
                     });
                 }
             }

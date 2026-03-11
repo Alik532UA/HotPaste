@@ -44,6 +44,7 @@ export function getState() {
         get activeSettingsTab() { return uiState.activeSettingsTab; },
         get activeHotkeyPickerCard() { return uiState.activeHotkeyPickerCard; },
         get activeHotkeyConflict() { return uiState.activeHotkeyConflict; },
+        get activeIconPicker() { return uiState.activeIconPicker; },
         get isSelectionMode() { return uiState.isSelectionMode; },
         get isMinimalMode() { return uiState.isMinimalMode; },
         
@@ -110,6 +111,8 @@ export const closeTabSettings = uiState.closeTabSettings;
 export const openHotkeyPicker = uiState.openHotkeyPicker;
 export const closeHotkeyPicker = uiState.closeHotkeyPicker;
 export const closeHotkeyConflict = uiState.closeHotkeyConflict;
+export const openIconPicker = uiState.openIconPicker;
+export const closeIconPicker = uiState.closeIconPicker;
 export const startEditingCard = uiState.startEditingCard;
 export const stopEditingCard = uiState.stopEditingCard;
 export const setSelectionMode = uiState.setSelectionMode;
@@ -224,19 +227,27 @@ export async function copyCardByHotkey(code: string): Promise<boolean> {
 
 // --- Keyboard handler ---
 
-import { isInputFocused } from '../utils/keyboardLayout';
-
 export function handleGlobalKeydown(event: KeyboardEvent): void {
-    if (isInputFocused() || event.defaultPrevented) return;
+    // 1. SYSTEMIC FIX: Robust input detection
+    const target = event.target as HTMLElement;
+    const isInput = target && (
+        ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || 
+        target.isContentEditable ||
+        target.closest('input, textarea, [contenteditable="true"]')
+    );
 
+    if (isInput || event.defaultPrevented) return;
+
+    // 2. Block hotkeys when modals are open
     if (
-        uiState.editingCardPath || 
-        uiState.activeSettingsCard || 
-        uiState.activeSettingsTab || 
-        uiState.activeHotkeyPickerCard || 
-        uiState.activeHotkeyConflict
+        uiState.editingCardPath ||
+        uiState.activeSettingsCard ||
+        uiState.activeSettingsTab ||
+        uiState.activeHotkeyPickerCard ||
+        uiState.activeHotkeyConflict ||
+        uiState.activeIconPicker ||
+        uiState.activeProgramPicker
     ) return;
-
     if (!fsState.isConnected) return;
 
     // Quick paste from clipboard on Control key

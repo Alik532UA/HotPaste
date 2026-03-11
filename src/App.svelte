@@ -16,12 +16,14 @@
   import Toast from "./lib/components/Toast.svelte";
   import EmptyState from "./lib/components/EmptyState.svelte";
   import FAB from "./lib/components/FAB.svelte";
+  import SearchInput from "./lib/components/ui/SearchInput.svelte";
   import ContextMenu from "./lib/components/ContextMenu.svelte";
   import CardSettingsModal from "./lib/components/CardSettingsModal.svelte";
   import TabSettingsModal from "./lib/components/TabSettingsModal.svelte";
   import HotkeyConflictModal from "./lib/components/HotkeyConflictModal.svelte";
   import HotkeyPickerModal from "./lib/components/HotkeyPickerModal.svelte";
   import ProgramPickerModal from "./lib/components/ProgramPickerModal.svelte";
+  import IconPickerModal from "./lib/components/IconPickerModal.svelte";
   import GlobalSettingsModal from "./lib/components/GlobalSettingsModal.svelte";
   import DebugListener from "./lib/components/DebugListener.svelte";
   import DynamicBackground from "./lib/components/DynamicBackground.svelte";
@@ -440,6 +442,7 @@
 <HotkeyConflictModal />
 <HotkeyPickerModal />
 <ProgramPickerModal />
+<IconPickerModal />
 <GlobalSettingsModal bind:this={globalSettingsModal} />
 <DebugListener />
 
