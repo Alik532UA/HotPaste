@@ -124,64 +124,71 @@ async function refreshTabs(): Promise<void> {
 async function reconcileTabMetadata(tab: Tab): Promise<void> {
     try {
         const config = await getFSService().readConfig(tab.path);
-        if (!config.cards || Object.keys(config.cards).length === 0) return;
+        
+        // Even if there are no card metadata entries, we still want to proceed to sorting
+        if (config.cards && Object.keys(config.cards).length > 0) {
+            const diskFileNames = new Set(tab.cards.map(c => c.fileName));
+            const configKeys = Object.keys(config.cards);
+            const orphanedKeys = configKeys.filter(k => !diskFileNames.has(k));
 
-        const diskFileNames = new Set(tab.cards.map(c => c.fileName));
-        const configKeys = Object.keys(config.cards);
-        const orphanedKeys = configKeys.filter(k => !diskFileNames.has(k));
-        if (orphanedKeys.length === 0) return;
+            if (orphanedKeys.length > 0) {
+                const unrecognizedCards = tab.cards.filter(c => !config.cards![c.fileName]);
+                let modified = false;
 
-        const unrecognizedCards = tab.cards.filter(c => !config.cards![c.fileName]);
-        let modified = false;
+                for (const orphanKey of orphanedKeys) {
+                    const orphanConfig = config.cards[orphanKey];
+                    if (!orphanConfig.fingerprint) continue;
 
-        for (const orphanKey of orphanedKeys) {
-            const orphanConfig = config.cards[orphanKey];
-            if (!orphanConfig.fingerprint) continue;
+                    let match = unrecognizedCards.find(c => 
+                        c.size === orphanConfig.fingerprint?.size && 
+                        c.lastModified === orphanConfig.fingerprint?.lastModified
+                    );
 
-            let match = unrecognizedCards.find(c => 
-                c.size === orphanConfig.fingerprint?.size && 
-                c.lastModified === orphanConfig.fingerprint?.lastModified
-            );
+                    if (!match) {
+                        match = unrecognizedCards.find(c => 
+                            c.lastModified === orphanConfig.fingerprint?.lastModified
+                        );
+                    }
 
-            if (!match) {
-                match = unrecognizedCards.find(c => 
-                    c.lastModified === orphanConfig.fingerprint?.lastModified
-                );
-            }
+                    if (match) {
+                        config.cards[match.fileName] = { ...orphanConfig };
+                        delete config.cards[orphanKey];
+                        
+                        match.displayName = orphanConfig.displayName || null;
+                        match.icon = orphanConfig.icon || null;
+                        match.color = orphanConfig.color || null;
+                        match.borderColor = orphanConfig.borderColor || null;
+                        match.strikethrough = orphanConfig.strikethrough || [];
+                        match.name = match.displayName || match.fileName.replace(/\.[^/.]+$/, "");
+                        match.hotkey = orphanConfig.hotkey || '';
 
-            if (match) {
-                config.cards[match.fileName] = { ...orphanConfig };
-                delete config.cards[orphanKey];
-                
-                match.displayName = orphanConfig.displayName || null;
-                match.icon = orphanConfig.icon || null;
-                match.color = orphanConfig.color || null;
-                match.borderColor = orphanConfig.borderColor || null;
-                match.strikethrough = orphanConfig.strikethrough || [];
-                match.name = match.displayName || match.fileName.replace(/\.[^/.]+$/, "");
-                match.hotkey = orphanConfig.hotkey || '';
+                        modified = true;
+                        unrecognizedCards.splice(unrecognizedCards.indexOf(match), 1);
+                    } else {
+                        const ghostCard: Card = {
+                            id: tab.path === '__root__' ? orphanKey : `${tab.path}/${orphanKey}`,
+                            name: orphanConfig.displayName || orphanKey.replace(/\.[^/.]+$/, ""),
+                            displayName: orphanConfig.displayName || null,
+                            fileName: orphanKey,
+                            filePath: tab.path === '__root__' ? orphanKey : `${tab.path}/${orphanKey}`,
+                            content: "ФАЙЛ НЕ ЗНАЙДЕНО",
+                            extension: orphanKey.split('.').pop() || 'txt',
+                            hotkey: orphanConfig.hotkey || '',
+                            icon: orphanConfig.icon || 'AlertTriangle',
+                            color: orphanConfig.color || null,
+                            borderColor: orphanConfig.borderColor || '#ff4b4b',
+                            strikethrough: orphanConfig.strikethrough || [],
+                            size: 0,
+                            lastModified: 0,
+                            isMissing: true
+                        };
+                        tab.cards.push(ghostCard);
+                    }
+                }
 
-                modified = true;
-                unrecognizedCards.splice(unrecognizedCards.indexOf(match), 1);
-            } else {
-                const ghostCard: Card = {
-                    id: tab.path === '__root__' ? orphanKey : `${tab.path}/${orphanKey}`,
-                    name: orphanConfig.displayName || orphanKey.replace(/\.[^/.]+$/, ""),
-                    displayName: orphanConfig.displayName || null,
-                    fileName: orphanKey,
-                    filePath: tab.path === '__root__' ? orphanKey : `${tab.path}/${orphanKey}`,
-                    content: "ФАЙЛ НЕ ЗНАЙДЕНО",
-                    extension: orphanKey.split('.').pop() || 'txt',
-                    hotkey: orphanConfig.hotkey || '',
-                    icon: orphanConfig.icon || 'AlertTriangle',
-                    color: orphanConfig.color || null,
-                    borderColor: orphanConfig.borderColor || '#ff4b4b',
-                    strikethrough: orphanConfig.strikethrough || [],
-                    size: 0,
-                    lastModified: 0,
-                    isMissing: true
-                };
-                tab.cards.push(ghostCard);
+                if (modified) {
+                    await getFSService().writeConfig(tab.path, config);
+                }
             }
         }
 
@@ -194,10 +201,6 @@ async function reconcileTabMetadata(tab: Tab): Promise<void> {
             if (indexB !== -1) return 1;
             return a.fileName.localeCompare(b.fileName);
         });
-
-        if (modified) {
-            await getFSService().writeConfig(tab.path, config);
-        }
     } catch (err) {
         logService.log('error', 'Metadata reconciliation failed', err);
     }

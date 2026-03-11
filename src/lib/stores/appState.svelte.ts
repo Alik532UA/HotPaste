@@ -250,8 +250,8 @@ export function handleGlobalKeydown(event: KeyboardEvent): void {
     ) return;
     if (!fsState.isConnected) return;
 
-    // Quick paste from clipboard on Control key
-    if ((event.code === 'ControlLeft' || event.code === 'ControlRight') && !event.shiftKey && !event.altKey && !event.metaKey) {
+    // Quick paste from clipboard on Ctrl+V
+    if ((event.ctrlKey || event.metaKey) && event.code === 'KeyV') {
         event.preventDefault();
         quickPasteFromClipboard();
         return;
