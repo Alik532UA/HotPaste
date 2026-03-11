@@ -1,5 +1,14 @@
 <script lang="ts">
-  import { Settings, X, Layout, Keyboard, Maximize2, Minimize2, Trash2, Palette } from "lucide-svelte";
+  import {
+    Settings,
+    X,
+    Layout,
+    Keyboard,
+    Maximize2,
+    Minimize2,
+    Trash2,
+    Palette,
+  } from "lucide-svelte";
   import { uiState } from "../stores/uiState.svelte";
   import { configState } from "../stores/configState.svelte";
   import { theme } from "../states/theme.svelte";
@@ -32,8 +41,8 @@
 
   async function clearAllData() {
     if (confirm(t.settings.clearCacheConfirm)) {
-        await dataService.clearAllData();
-        window.location.reload();
+      await dataService.clearAllData();
+      window.location.reload();
     }
   }
 </script>
@@ -44,10 +53,15 @@
     <section class="settings-section">
       <h3 class="section-title">
         <Palette size={18} />
-        {t.common.settings} — {t.tabs.color || 'Тема'}
+        {t.common.settings} — {t.tabs.color || "Тема"}
       </h3>
-      <p class="section-desc">{t.settings.modeToggleDesc.replace(/.*/, 'Виберіть колірну схему інтерфейсу')}</p>
-      
+      <p class="section-desc">
+        {t.settings.modeToggleDesc.replace(
+          /.*/,
+          "Виберіть колірну схему інтерфейсу",
+        )}
+      </p>
+
       <div class="setting-row">
         <SegmentedToggle
           id="theme-selection"
@@ -65,8 +79,10 @@
         <Layout size={18} />
         {t.tabs.typeSnippets}
       </h3>
-      <p class="section-desc">Режим відображення за замовчуванням при відкритті вкладок з нотатками</p>
-      
+      <p class="section-desc">
+        Режим відображення за замовчуванням при відкритті вкладок з нотатками
+      </p>
+
       <div class="setting-row">
         <SegmentedToggle
           id="default-mode-snippets"
@@ -84,8 +100,10 @@
         <Keyboard size={18} />
         {t.tabs.typeKeyboard}
       </h3>
-      <p class="section-desc">Режим відображення за замовчуванням при відкритті вкладок з клавіатурою</p>
-      
+      <p class="section-desc">
+        Режим відображення за замовчуванням при відкритті вкладок з клавіатурою
+      </p>
+
       <div class="setting-row">
         <SegmentedToggle
           id="default-mode-keyboard"
@@ -104,7 +122,7 @@
         {t.settings.modeToggle}
       </h3>
       <p class="section-desc">{t.settings.modeToggleDesc}</p>
-      
+
       <div class="setting-row">
         <SegmentedToggle
           id="mode-toggle-hotkey"
@@ -127,9 +145,13 @@
         {t.settings.clearCache}
       </h3>
       <p class="section-desc">{t.settings.clearCacheDesc}</p>
-      
+
       <div class="setting-row">
-        <button class="danger-btn" onclick={clearAllData} data-testid="btn-clear-cache">
+        <button
+          class="danger-btn"
+          onclick={clearAllData}
+          data-testid="btn-clear-cache"
+        >
           {t.settings.clearCacheBtn}
         </button>
       </div>
@@ -138,8 +160,12 @@
 
   {#snippet footer()}
     <div class="footer-content">
-      <span class="version-tag">v0.1.2</span>
-      <button class="primary-btn" onclick={close} data-testid="btn-save-settings">
+      <span class="version-tag">v{__APP_VERSION__}</span>
+      <button
+        class="primary-btn"
+        onclick={close}
+        data-testid="btn-save-settings"
+      >
         {t.common.save}
       </button>
     </div>
@@ -218,12 +244,14 @@
     font-weight: 700;
     cursor: pointer;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 4px 12px color-mix(in srgb, var(--color-accent) 25%, transparent);
+    box-shadow: 0 4px 12px
+      color-mix(in srgb, var(--color-accent) 25%, transparent);
   }
 
   .primary-btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 20px color-mix(in srgb, var(--color-accent) 40%, transparent);
+    box-shadow: 0 8px 20px
+      color-mix(in srgb, var(--color-accent) 40%, transparent);
     filter: brightness(1.1);
   }
 
@@ -242,6 +270,7 @@
     background: var(--color-danger);
     color: white;
     border-color: var(--color-danger);
-    box-shadow: 0 4px 12px color-mix(in srgb, var(--color-danger) 30%, transparent);
+    box-shadow: 0 4px 12px
+      color-mix(in srgb, var(--color-danger) 30%, transparent);
   }
 </style>

@@ -194,10 +194,15 @@
                     customUrl = assignment.path || "";
                     customUrlIcon = assignment.icon || "lucide:Link";
                     activeTab = 'url';
+                    isLoading = false;
                 } else if (assignment.type === 'commands' && !SYSTEM_COMMANDS.some(c => c.path === assignment.path)) {
                     customCommand = assignment.path || "";
                     customCommandIcon = assignment.icon || "lucide:Terminal";
                     activeTab = 'commands';
+                    isLoading = false;
+                } else {
+                    activeTab = (assignment.type as any) || "running";
+                    isLoading = true;
                 }
             } else {
                 // Reset fields if no assignment or a different key
@@ -206,6 +211,7 @@
                 customUrlIcon = "lucide:Link";
                 customCommandIcon = "lucide:Terminal";
                 activeTab = "running";
+                isLoading = true; // Show skeleton immediately
             }
           });
       }
@@ -222,6 +228,22 @@
     if (e.key === "Escape") handleClose();
   }
 </script>
+
+{#snippet skeleton()}
+  <div class="program-container" class:grid-mode={viewMode === 'grid'} class:list-mode={viewMode === 'list'} data-testid="program-picker-skeleton">
+    {#each Array(12) as _}
+      <div class="program-item skeleton-item">
+        <div class="prog-icon skeleton-bg"></div>
+        <div class="prog-info">
+          <div class="skeleton-line skeleton-bg" style="width: 80%; height: 14px; margin-bottom: 8px; border-radius: 4px;"></div>
+          {#if viewMode === 'list'}
+            <div class="skeleton-line skeleton-bg" style="width: 60%; height: 10px; border-radius: 3px;"></div>
+          {/if}
+        </div>
+      </div>
+    {/each}
+  </div>
+{/snippet}
 
 <svelte:window onkeydown={onKeydown} />
 
@@ -258,7 +280,12 @@
             class="tab-btn" 
             class:active={activeTab === tab.id}
             class:disabled={disabled}
-            onclick={() => { if (!disabled) activeTab = tab.id; }}
+            onclick={() => { 
+              if (!disabled) {
+                activeTab = tab.id;
+                if (tab.id !== 'url' && tab.id !== 'commands') isLoading = true;
+              }
+            }}
             data-testid="tab-btn-{tab.id}"
             title={disabled ? "Ця функція доступна лише у десктопній версії програми" : ""}
           >
@@ -340,7 +367,7 @@
             </div>
           </div>
         {:else if isLoading}
-          <div class="loading" data-testid="program-picker-loading">{t.common.loading}</div>
+          {@render skeleton()}
         {:else if filteredPrograms.length === 0}
           <div class="empty" data-testid="program-picker-empty">{t.modals.noPrograms}</div>
         {:else}
@@ -785,5 +812,28 @@
     color: var(--color-text-primary);
     font-weight: 600;
     cursor: pointer;
+  }
+
+  /* Skeleton Loading */
+  .skeleton-bg {
+    background: linear-gradient(
+      90deg,
+      var(--color-surface-2) 25%,
+      var(--color-surface-3) 50%,
+      var(--color-surface-2) 75%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-loading 1.5s infinite linear;
+  }
+
+  @keyframes skeleton-loading {
+    0% { background-position: 100% 0; }
+    100% { background-position: -100% 0; }
+  }
+
+  .skeleton-item {
+    pointer-events: none;
+    border-color: var(--color-border) !important;
+    opacity: 0.6;
   }
 </style>
