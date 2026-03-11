@@ -75,7 +75,6 @@ export async function applyUpdateAndDeepClean() {
         versionStore.setManualRestart(true);
     }
 }
-}
 
 /** Відкласти оновлення (Slovko logic) */
 export function skipUpdate() {
