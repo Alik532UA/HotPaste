@@ -367,7 +367,7 @@ async fn get_shortcut_icons_batch(
         use md5;
 
         let docs = app.path().document_dir().map_err(|e| e.to_string())?;
-        let cache_dir = docs.join("HotPaste").join("start").join("icon-cache");
+        let cache_dir = docs.join("HotPaste").join(".private").join("cache").join("icons");
         if !cache_dir.exists() {
             let _ = std::fs::create_dir_all(&cache_dir);
         }

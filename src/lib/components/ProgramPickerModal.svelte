@@ -10,6 +10,7 @@
   import { invoke } from "@tauri-apps/api/core";
   import type { ShortcutInfo } from "../types";
   import { onMount, untrack } from "svelte";
+  import { iconService } from "../services/iconService.svelte";
 
   const context = $derived(uiState.activeProgramPicker);
   let searchQuery = $state("");
@@ -115,11 +116,17 @@
     }
   }
 
-  function handleSelect(prog: ShortcutInfo) {
+  async function handleSelect(prog: ShortcutInfo) {
     if (context) {
       const fullIconData = icons[prog.path] || "";
-      // Save the full data URL since IconRenderer expects it (either data: or lucide: or .private)
-      const finalIcon = fullIconData || (prog.icon ? `lucide:${prog.icon}` : null);
+      
+      let finalIcon = prog.icon ? `lucide:${prog.icon}` : null;
+      if (fullIconData.startsWith("data:")) {
+          finalIcon = await iconService.saveBase64Icon(fullIconData, prog.name);
+      } else if (fullIconData) {
+          finalIcon = fullIconData;
+      }
+      
       updateTabAssignment(context.key, {
         name: prog.name,
         path: prog.path,
@@ -177,6 +184,33 @@
     }
   });
 
+  // Pre-fill existing assignments when context changes
+  $effect(() => {
+      if (context) {
+          untrack(() => {
+            const assignment = context.tab.assignments?.[context.key];
+            if (assignment) {
+                if (assignment.type === 'url') {
+                    customUrl = assignment.path || "";
+                    customUrlIcon = assignment.icon || "lucide:Link";
+                    activeTab = 'url';
+                } else if (assignment.type === 'commands' && !SYSTEM_COMMANDS.some(c => c.path === assignment.path)) {
+                    customCommand = assignment.path || "";
+                    customCommandIcon = assignment.icon || "lucide:Terminal";
+                    activeTab = 'commands';
+                }
+            } else {
+                // Reset fields if no assignment or a different key
+                customUrl = "";
+                customCommand = "";
+                customUrlIcon = "lucide:Link";
+                customCommandIcon = "lucide:Terminal";
+                activeTab = "running";
+            }
+          });
+      }
+  });
+
   const filteredPrograms = $derived(
     programs.filter(p => 
       p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -219,11 +253,14 @@
 
       <div class="tabs-bar" data-testid="program-picker-tabs">
         {#each tabs as tab}
+          {@const disabled = !isTauri && tab.id !== 'url'}
           <button 
             class="tab-btn" 
             class:active={activeTab === tab.id}
-            onclick={() => activeTab = tab.id}
+            class:disabled={disabled}
+            onclick={() => { if (!disabled) activeTab = tab.id; }}
             data-testid="tab-btn-{tab.id}"
+            title={disabled ? "Ця функція доступна лише у десктопній версії програми" : ""}
           >
             <tab.icon size={uiState.isMinimalMode ? 14 : 16} />
             <span class="tab-label">{tab.label}</span>
@@ -285,7 +322,7 @@
             <div class="custom-command-box" data-testid="box-custom-command">
                 <h4>Custom Command</h4>
                 <div style="display: flex; gap: 16px; align-items: center; margin-bottom: 12px;">
-                    <button class="section-icon" onclick={() => openIconPicker(customCommandIcon, v => customCommandIcon = v)} data-testid="btn-pick-command-icon" title={t.common.select} style="width: 48px; height: 48px; min-width: 48px; border-radius: 12px; border: none; cursor: pointer;">
+                    <button class="section-icon small" onclick={() => openIconPicker(customCommandIcon, v => customCommandIcon = v)} data-testid="btn-pick-command-icon" title={t.common.select}>
                         <IconRenderer icon={customCommandIcon} size={24} />
                     </button>
                     <div class="input-group">
@@ -354,9 +391,8 @@
     background: var(--color-bg-secondary);
     border: 1px solid var(--color-border);
     border-radius: 20px;
-    width: 100%;
-    max-width: 90%;
-    max-height: 90vh;
+    width: 90%;
+    height: 90%;
     box-shadow: var(--shadow-lg);
     display: flex;
     flex-direction: column;
@@ -364,8 +400,8 @@
   }
 
   .modal-content.minimal-layout {
-    max-height: 95vh;
-    max-width: 98%;
+    width: 98%;
+    height: 95%;
     border-radius: 12px;
   }
 
@@ -438,6 +474,12 @@
     transition: all 0.2s;
   }
 
+  .tab-btn.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background: transparent;
+  }
+
   .minimal-layout .tab-btn {
     padding: 6px 4px;
     gap: 4px;
@@ -478,15 +520,28 @@
     background: var(--color-surface-2);
     width: 96px;
     height: 96px;
+    min-width: 96px;
+    min-height: 96px;
     border-radius: 24px;
+    border: none;
+    cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: all 0.2s;
+    padding: 0;
+  }
+
+  .section-icon:hover {
+    background: var(--color-surface-3);
+    transform: scale(1.05);
   }
 
   .minimal-layout .section-icon {
     width: 48px;
     height: 48px;
+    min-width: 48px;
+    min-height: 48px;
     border-radius: 12px;
   }
 

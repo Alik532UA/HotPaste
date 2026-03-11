@@ -10,7 +10,7 @@
   const appState = getState();
   const picker = $derived(appState.activeIconPicker);
 
-  const isTauri = typeof window !== "undefined" && !!(window as any).__TAURI_INTERNALS__;
+  const isTauri = typeof window !== "undefined" && (!!(window as any).__TAURI_INTERNALS__ || !!(window as any).__TAURI__);
 
   let searchQuery = $state("");
   let activeTab = $state<"lucide" | "emoji">("lucide");
@@ -85,11 +85,12 @@
 >
   <div class="picker-container">
     <!-- Main Tabs -->
-    <div class="tabs">
+    <div class="tabs" data-testid="icon-picker-tabs">
       <button 
         class="tab-btn" 
         class:active={activeTab === "lucide"} 
         onclick={() => { activeTab = "lucide"; searchQuery = ""; }}
+        data-testid="tab-btn-lucide"
       >
         <Search size={16} />
         Lucide
@@ -98,23 +99,23 @@
         class="tab-btn" 
         class:active={activeTab === "emoji"} 
         onclick={() => { activeTab = "emoji"; searchQuery = ""; }}
+        data-testid="tab-btn-emoji"
       >
         <Smile size={16} />
         Emoji
       </button>
-      {#if isTauri}
-        <button 
-          class="tab-btn upload-btn" 
-          onclick={async () => {
-            const path = await iconService.pickAndSaveIcon();
-            if (path) handleSelect(path);
-          }}
-          title="Upload from PC"
-        >
-          <Upload size={16} />
-          Upload
-        </button>
-      {/if}
+      <button 
+        class="tab-btn upload-btn" 
+        onclick={async () => {
+          const path = await iconService.pickAndSaveIcon();
+          if (path) handleSelect(path);
+        }}
+        title="Upload from PC"
+        data-testid="tab-btn-upload"
+      >
+        <Upload size={16} />
+        Upload
+      </button>
     </div>
 
     <!-- Search -->
@@ -126,7 +127,7 @@
 
     <!-- Sub-tabs (Categories) -->
     {#if searchQuery.trim() === ""}
-      <div class="sub-tabs-container">
+      <div class="sub-tabs-container" data-testid="icon-picker-sub-tabs">
         <div class="sub-tabs">
           {#if activeTab === "lucide"}
             {#each Object.keys(lucideCategories) as cat}
@@ -134,6 +135,7 @@
                 class="sub-tab-btn" 
                 class:active={activeLucideCategory === cat}
                 onclick={() => activeLucideCategory = cat}
+                data-testid="sub-tab-lucide-{cat}"
               >
                 {cat.charAt(0).toUpperCase() + cat.slice(1)}
               </button>
@@ -144,6 +146,7 @@
                 class="sub-tab-btn" 
                 class:active={activeEmojiCategory === cat}
                 onclick={() => activeEmojiCategory = cat}
+                data-testid="sub-tab-emoji-{cat}"
               >
                 {cat.charAt(0).toUpperCase() + cat.slice(1)}
               </button>
@@ -154,9 +157,9 @@
     {/if}
 
     <!-- Content -->
-    <div class="icons-grid-scroll">
+    <div class="icons-grid-scroll" data-testid="icon-picker-scroll-area">
       {#if activeTab === "lucide"}
-        <div class="icons-grid">
+        <div class="icons-grid" data-testid="icons-grid">
           {#each filteredLucide as name}
             {@const IconComp = (LucideIcons as any)[name]}
             <button 
@@ -164,6 +167,7 @@
               class:selected={picker?.current === name}
               onclick={() => handleSelect(name)}
               title={name}
+              data-testid="icon-item-{name}"
             >
               {#if IconComp}
                 <IconComp size={22} />
@@ -172,22 +176,23 @@
           {/each}
         </div>
         {#if filteredLucide.length === 0}
-          <div class="empty-state">{t.common.empty}</div>
+          <div class="empty-state" data-testid="icon-picker-empty">{t.common.empty}</div>
         {/if}
       {:else}
-        <div class="emoji-grid">
+        <div class="emoji-grid" data-testid="emoji-grid">
           {#each filteredEmojis as emoji}
             <button 
               class="emoji-item" 
               class:selected={picker?.current === emoji}
               onclick={() => handleSelect(emoji)}
+              data-testid="emoji-item-{emoji}"
             >
               {emoji}
             </button>
           {/each}
         </div>
         {#if filteredEmojis.length === 0}
-          <div class="empty-state">{t.common.empty}</div>
+          <div class="empty-state" data-testid="icon-picker-empty">{t.common.empty}</div>
         {/if}
       {/if}
     </div>

@@ -14,7 +14,8 @@ export interface IFileSystemService {
     getRootName(): string;
     readDirectory(): Promise<Tab[]>;
     readFile(path: string): Promise<string>;
-    writeFile(path: string, content: string): Promise<void>;
+    readFileAsBlob(path: string): Promise<Blob>;
+    writeFile(path: string, content: string | Uint8Array): Promise<void>;
     deleteFile(path: string): Promise<void>;
     renameFile(path: string, newName: string): Promise<void>;
     copyFile(path: string, newName: string): Promise<void>;
@@ -143,6 +144,11 @@ class LocalFileSystemService implements IFileSystemService {
         return this.readFileInternal(handle);
     }
 
+    async readFileAsBlob(path: string): Promise<Blob> {
+        const handle = await this.getFileHandle(path);
+        return await handle.getFile();
+    }
+
     async writeFile(path: string, content: string): Promise<void> {
         const handle = await this.getFileHandle(path, true);
         const writable = await (handle as any).createWritable();
@@ -181,7 +187,11 @@ class LocalFileSystemService implements IFileSystemService {
 
     async createDirectory(name: string): Promise<void> {
         if (!this.rootHandle) return;
-        await this.rootHandle.getDirectoryHandle(name, { create: true });
+        const parts = name.split('/');
+        let current = this.rootHandle;
+        for (const part of parts) {
+            current = await current.getDirectoryHandle(part, { create: true });
+        }
     }
 
     async deleteDirectory(path: string): Promise<void> {

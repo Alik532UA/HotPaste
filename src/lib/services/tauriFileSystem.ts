@@ -162,11 +162,28 @@ export class TauriFileSystemService implements IFileSystemService {
         return this.readFileInternal(path);
     }
 
-    async writeFile(pathStr: string, content: string): Promise<void> {
+    async readFileAsBlob(pathStr: string): Promise<Blob> {
         const { fs } = await this.getApi();
         const fullPath = await this.resolvePath(pathStr);
-        const encoder = new TextEncoder();
-        await fs.writeFile(fullPath, encoder.encode(content));
+        const bytes = await fs.readFile(fullPath);
+        
+        const ext = pathStr.split('.').pop()?.toLowerCase();
+        const mime = ext === 'ico' ? 'image/x-icon' : ext === 'svg' ? 'image/svg+xml' : 'image/png';
+        
+        return new Blob([bytes], { type: mime });
+    }
+
+    async writeFile(pathStr: string, content: string | Uint8Array): Promise<void> {
+        const { fs } = await this.getApi();
+        const fullPath = await this.resolvePath(pathStr);
+        let data: Uint8Array;
+        if (typeof content === 'string') {
+            const encoder = new TextEncoder();
+            data = encoder.encode(content);
+        } else {
+            data = content;
+        }
+        await fs.writeFile(fullPath, data);
     }
 
     async deleteFile(pathStr: string): Promise<void> {

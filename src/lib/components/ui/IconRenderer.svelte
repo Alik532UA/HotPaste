@@ -28,7 +28,7 @@
 
   $effect(() => {
     if (icon) {
-        if (icon.startsWith('.private/')) {
+        if (icon.startsWith('.assets/')) {
             iconService.getLocalIconUrl(icon).then(url => {
                 localUrl = url;
             });

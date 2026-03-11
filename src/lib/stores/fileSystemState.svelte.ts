@@ -13,7 +13,7 @@ import { QWERTY_CODES } from '../utils/keyboardLayout';
 // --- Singleton state ---
 
 let _fileSystemService: IFileSystemService | null = null;
-function getFSService() {
+export function getFSService() {
     if (!_fileSystemService) {
         _fileSystemService = createFileSystemService();
     }
