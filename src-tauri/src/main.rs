@@ -5,7 +5,7 @@ use std::env;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    
+
     // Check if we should run as a background hook worker
     if args.iter().any(|arg| arg == "--hook-worker") {
         app_lib::run_hook_worker();

@@ -39,6 +39,8 @@
   import { logService } from "./lib/services/logService.svelte";
   import { uiState } from "./lib/stores/uiState.svelte";
   import { fsState } from "./lib/stores/fileSystemState.svelte";
+  import { checkForUpdates } from "./lib/services/versionService";
+  import UpdateModal from "./lib/components/ui/UpdateModal.svelte";
   import { Sparkles, Waves, Shapes, Moon, Sun, Settings, Zap, FolderOpen, MousePointer2, Citrus, Leaf } from "lucide-svelte";
 
   const appState = getState();
@@ -244,6 +246,7 @@
     };
 
     initTauri();
+    checkForUpdates();
 
     document.addEventListener("keydown", onKeydown);
     document.addEventListener("wheel", onWheel, { passive: false });
@@ -428,6 +431,7 @@
   </svelte:boundary>
 </div>
 
+<UpdateModal />
 <Toast />
 <BatchActionBar />
 <ContextMenu />

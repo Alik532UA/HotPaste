@@ -17,8 +17,17 @@
     {
       "identifier": "shell:allow-open",
       "allow": [
-        { "schemes": ["https", "http", "mailto", "tel"] },
-        { "regex": "^ms-settings:[\\w\\-:]+$" }
+        {
+          "schemes": [
+            "https",
+            "http",
+            "mailto",
+            "tel"
+          ]
+        },
+        {
+          "regex": "^ms-settings:[\\w\\-:]+$"
+        }
       ]
     },
     "fs:allow-read-text-file",
@@ -34,13 +43,26 @@
     {
       "identifier": "fs:scope",
       "allow": [
-        { "path": "$DOCUMENT/HotPaste" },
-        { "path": "$DOCUMENT/HotPaste/**" },
-        { "path": "$DOCUMENT/HotPaste/default-project" },
-        { "path": "$DOCUMENT/HotPaste/default-project/**" },
-        { "path": "$DOCUMENT/HotPaste/start" },
-        { "path": "$DOCUMENT/HotPaste/start/**" }
+        {
+          "path": "$DOCUMENT/HotPaste"
+        },
+        {
+          "path": "$DOCUMENT/HotPaste/**"
+        },
+        {
+          "path": "$DOCUMENT/HotPaste/default-project"
+        },
+        {
+          "path": "$DOCUMENT/HotPaste/default-project/**"
+        },
+        {
+          "path": "$DOCUMENT/HotPaste/start"
+        },
+        {
+          "path": "$DOCUMENT/HotPaste/start/**"
+        }
       ]
-    }
+    },
+    "process:default"
   ]
 }

@@ -1,19 +1,19 @@
-use tauri::{AppHandle, Manager, WindowEvent};
-use tauri::tray::{TrayIconBuilder, TrayIconEvent};
-use tauri::menu::{MenuBuilder, MenuItemBuilder};
 use std::sync::atomic::{AtomicBool, Ordering};
-use windows_sys::Win32::UI::WindowsAndMessaging::*;
-use windows_sys::Win32::UI::Input::KeyboardAndMouse::*;
+use tauri::menu::{MenuBuilder, MenuItemBuilder};
+use tauri::tray::{TrayIconBuilder, TrayIconEvent};
+use tauri::{AppHandle, Manager, WindowEvent};
 use windows_sys::Win32::Foundation::LPARAM;
 #[cfg(target_os = "windows")]
 use windows_sys::Win32::Graphics::Dwm::DwmSetWindowAttribute;
+use windows_sys::Win32::UI::Input::KeyboardAndMouse::*;
+use windows_sys::Win32::UI::WindowsAndMessaging::*;
 
-use std::sync::OnceLock;
-use std::process::{Command, Stdio};
+use futures::future::join_all;
 use std::io::{BufRead, BufReader};
+use std::process::{Command, Stdio};
+use std::sync::OnceLock;
 use std::time::Duration;
 use tokio::time::timeout;
-use futures::future::join_all;
 
 static APP_HANDLE: OnceLock<AppHandle> = OnceLock::new();
 static IS_MINIMAL: AtomicBool = AtomicBool::new(false);
@@ -25,7 +25,7 @@ fn set_rounded_corners(window: &tauri::WebviewWindow) {
     if let Ok(handle) = window.window_handle() {
         if let raw_window_handle::RawWindowHandle::Win32(win32_handle) = handle.as_raw() {
             let hwnd = win32_handle.hwnd.get() as windows_sys::Win32::Foundation::HWND;
-            
+
             let corner_preference: u32 = 2; // DWMWCP_ROUND (Standard rounding)
             let border_color: u32 = 0x00010101; // Near Black
             let caption_color: u32 = 0x00010101; // Near Black
@@ -33,17 +33,49 @@ fn set_rounded_corners(window: &tauri::WebviewWindow) {
             let nc_policy: u32 = 2; // DWMNCRP_ENABLED
 
             unsafe {
-                DwmSetWindowAttribute(hwnd, 33, &corner_preference as *const _ as *const std::ffi::c_void, 4);
-                DwmSetWindowAttribute(hwnd, 34, &border_color as *const _ as *const std::ffi::c_void, 4);
-                DwmSetWindowAttribute(hwnd, 35, &caption_color as *const _ as *const std::ffi::c_void, 4);
-                DwmSetWindowAttribute(hwnd, 20, &dark_mode as *const _ as *const std::ffi::c_void, 4);
-                DwmSetWindowAttribute(hwnd, 2, &nc_policy as *const _ as *const std::ffi::c_void, 4);
+                DwmSetWindowAttribute(
+                    hwnd,
+                    33,
+                    &corner_preference as *const _ as *const std::ffi::c_void,
+                    4,
+                );
+                DwmSetWindowAttribute(
+                    hwnd,
+                    34,
+                    &border_color as *const _ as *const std::ffi::c_void,
+                    4,
+                );
+                DwmSetWindowAttribute(
+                    hwnd,
+                    35,
+                    &caption_color as *const _ as *const std::ffi::c_void,
+                    4,
+                );
+                DwmSetWindowAttribute(
+                    hwnd,
+                    20,
+                    &dark_mode as *const _ as *const std::ffi::c_void,
+                    4,
+                );
+                DwmSetWindowAttribute(
+                    hwnd,
+                    2,
+                    &nc_policy as *const _ as *const std::ffi::c_void,
+                    4,
+                );
 
                 if let Ok(size) = window.outer_size() {
                     let scale_factor = window.scale_factor().unwrap_or(1.0);
                     let radius = (4.0 * scale_factor) as i32;
                     let diameter = radius * 1;
-                    let rgn = CreateRoundRectRgn(0, 0, size.width as i32, size.height as i32, diameter, diameter);
+                    let rgn = CreateRoundRectRgn(
+                        0,
+                        0,
+                        size.width as i32,
+                        size.height as i32,
+                        diameter,
+                        diameter,
+                    );
                     SetWindowRgn(hwnd as _, rgn as _, 1);
                 }
             }
@@ -54,12 +86,24 @@ fn set_rounded_corners(window: &tauri::WebviewWindow) {
 #[cfg(target_os = "windows")]
 extern "system" {
     fn SetWindowRgn(hwnd: *mut std::ffi::c_void, hrgn: *mut std::ffi::c_void, bRedraw: i32) -> i32;
-    fn CreateRoundRectRgn(nLeftRect: i32, nTopRect: i32, nRightRect: i32, nBottomRect: i32, nWidthEllipse: i32, nHeightEllipse: i32) -> *mut std::ffi::c_void;
+    fn CreateRoundRectRgn(
+        nLeftRect: i32,
+        nTopRect: i32,
+        nRightRect: i32,
+        nBottomRect: i32,
+        nWidthEllipse: i32,
+        nHeightEllipse: i32,
+    ) -> *mut std::ffi::c_void;
 }
 
 pub fn run_hook_worker() {
     unsafe {
-        let hook = SetWindowsHookExW(WH_KEYBOARD_LL, Some(low_level_keyboard_proc_worker), std::ptr::null_mut(), 0);
+        let hook = SetWindowsHookExW(
+            WH_KEYBOARD_LL,
+            Some(low_level_keyboard_proc_worker),
+            std::ptr::null_mut(),
+            0,
+        );
         let mut msg = std::mem::zeroed();
         while GetMessageW(&mut msg, std::ptr::null_mut(), 0, 0) != 0 {
             TranslateMessage(&msg);
@@ -72,7 +116,11 @@ pub fn run_hook_worker() {
 static WIN_PRESSED: AtomicBool = AtomicBool::new(false);
 static OTHER_KEY_PRESSED: AtomicBool = AtomicBool::new(false);
 
-unsafe extern "system" fn low_level_keyboard_proc_worker(n_code: i32, w_param: usize, l_param: LPARAM) -> isize {
+unsafe extern "system" fn low_level_keyboard_proc_worker(
+    n_code: i32,
+    w_param: usize,
+    l_param: LPARAM,
+) -> isize {
     if n_code == HC_ACTION as i32 {
         let kb_data = *(l_param as *const KBDLLHOOKSTRUCT);
         let vk_code = kb_data.vkCode as u32;
@@ -127,8 +175,11 @@ async fn launch_program_by_path(path: String) -> Result<(), String> {
         use std::path::Path;
 
         // 1. Detect URI protocol (e.g., ms-settings:, http:)
-        let is_uri = path.contains(':') && !path.contains('\\') && !path.contains('/') && !path.contains(' ');
-        
+        let is_uri = path.contains(':')
+            && !path.contains('\\')
+            && !path.contains('/')
+            && !path.contains(' ');
+
         // 2. Check if it's a direct file path that exists
         let path_exists = Path::new(&path).exists();
 
@@ -166,11 +217,17 @@ async fn launch_program_by_path(path: String) -> Result<(), String> {
 
 #[cfg(target_os = "windows")]
 fn launch_via_shell_execute(path: &str) -> Result<(), String> {
-    use windows_sys::Win32::UI::Shell::ShellExecuteW;
     use std::os::windows::ffi::OsStrExt;
+    use windows_sys::Win32::UI::Shell::ShellExecuteW;
 
-    let wide_path: Vec<u16> = std::ffi::OsStr::new(path).encode_wide().chain(Some(0)).collect();
-    let wide_open: Vec<u16> = std::ffi::OsStr::new("open").encode_wide().chain(Some(0)).collect();
+    let wide_path: Vec<u16> = std::ffi::OsStr::new(path)
+        .encode_wide()
+        .chain(Some(0))
+        .collect();
+    let wide_open: Vec<u16> = std::ffi::OsStr::new("open")
+        .encode_wide()
+        .chain(Some(0))
+        .collect();
 
     unsafe {
         let h_instance = ShellExecuteW(
@@ -183,7 +240,10 @@ fn launch_via_shell_execute(path: &str) -> Result<(), String> {
         );
 
         if h_instance as isize <= 32 {
-            return Err(format!("ShellExecuteW failed (error code: {})", h_instance as isize));
+            return Err(format!(
+                "ShellExecuteW failed (error code: {})",
+                h_instance as isize
+            ));
         }
     }
     Ok(())
@@ -218,7 +278,9 @@ async fn get_running_processes() -> Result<Vec<ShortcutInfo>, String> {
         parse_shortcuts_json(output.stdout)
     }
     #[cfg(not(target_os = "windows"))]
-    { Ok(vec![]) }
+    {
+        Ok(vec![])
+    }
 }
 
 #[tauri::command]
@@ -239,23 +301,26 @@ async fn get_system_shortcuts() -> Result<Vec<ShortcutInfo>, String> {
         parse_shortcuts_json(output.stdout)
     }
     #[cfg(not(target_os = "windows"))]
-    { Ok(vec![]) }
+    {
+        Ok(vec![])
+    }
 }
 
 #[tauri::command]
 async fn get_local_shortcuts(app: AppHandle) -> Result<Vec<ShortcutInfo>, String> {
     #[cfg(target_os = "windows")]
     {
-        use base64::{Engine as _, engine::general_purpose};
+        use base64::{engine::general_purpose, Engine as _};
         let docs = app.path().document_dir().map_err(|e| e.to_string())?;
         let start_path = docs.join("HotPaste").join("start");
-        
+
         if !start_path.exists() {
             std::fs::create_dir_all(&start_path).map_err(|e| e.to_string())?;
             return Ok(vec![]);
         }
 
-        let start_path_b64 = general_purpose::STANDARD.encode(start_path.to_string_lossy().as_bytes());
+        let start_path_b64 =
+            general_purpose::STANDARD.encode(start_path.to_string_lossy().as_bytes());
 
         let script = format!(
             r##"[Console]::OutputEncoding = [System.Text.Encoding]::UTF8;
@@ -267,25 +332,38 @@ async fn get_local_shortcuts(app: AppHandle) -> Result<Vec<ShortcutInfo>, String
         );
 
         let utf16_script: Vec<u16> = script.encode_utf16().collect();
-        let u8_script: Vec<u8> = utf16_script.iter().flat_map(|&u| u.to_le_bytes().to_vec()).collect();
+        let u8_script: Vec<u8> = utf16_script
+            .iter()
+            .flat_map(|&u| u.to_le_bytes().to_vec())
+            .collect();
         let encoded_script = general_purpose::STANDARD.encode(&u8_script);
 
         let output = Command::new("powershell")
-            .args(["-NoProfile", "-NonInteractive", "-EncodedCommand", &encoded_script])
+            .args([
+                "-NoProfile",
+                "-NonInteractive",
+                "-EncodedCommand",
+                &encoded_script,
+            ])
             .output()
             .map_err(|e| e.to_string())?;
 
         parse_shortcuts_json(output.stdout)
     }
     #[cfg(not(target_os = "windows"))]
-    { Ok(vec![]) }
+    {
+        Ok(vec![])
+    }
 }
 
 #[tauri::command]
-async fn get_shortcut_icons_batch(app: AppHandle, paths: Vec<String>) -> Result<Vec<(String, String)>, String> {
+async fn get_shortcut_icons_batch(
+    app: AppHandle,
+    paths: Vec<String>,
+) -> Result<Vec<(String, String)>, String> {
     #[cfg(target_os = "windows")]
     {
-        use base64::{Engine as _, engine::general_purpose};
+        use base64::{engine::general_purpose, Engine as _};
         use md5;
 
         let docs = app.path().document_dir().map_err(|e| e.to_string())?;
@@ -293,14 +371,14 @@ async fn get_shortcut_icons_batch(app: AppHandle, paths: Vec<String>) -> Result<
         if !cache_dir.exists() {
             let _ = std::fs::create_dir_all(&cache_dir);
         }
-        
+
         let mut results = Vec::new();
         let mut missing_paths = Vec::new();
 
         for path in &paths {
             let hash = format!("{:x}", md5::compute(path.as_bytes()));
             let cache_file = cache_dir.join(format!("{}.png", hash));
-            
+
             if cache_file.exists() {
                 if let Ok(data) = std::fs::read(&cache_file) {
                     results.push((path.clone(), general_purpose::STANDARD.encode(data)));
@@ -321,7 +399,8 @@ async fn get_shortcut_icons_batch(app: AppHandle, paths: Vec<String>) -> Result<
                 let path_clone = path.clone();
                 let result = timeout(Duration::from_secs(3), async {
                     extract_single_icon(path_clone).await
-                }).await;
+                })
+                .await;
 
                 match result {
                     Ok(Ok(b64)) => {
@@ -344,18 +423,21 @@ async fn get_shortcut_icons_batch(app: AppHandle, paths: Vec<String>) -> Result<
             }
         });
 
-        let extracted: Vec<(String, String)> = join_all(futures).await.into_iter().flatten().collect();
+        let extracted: Vec<(String, String)> =
+            join_all(futures).await.into_iter().flatten().collect();
         results.extend(extracted);
 
         Ok(results)
     }
     #[cfg(not(target_os = "windows"))]
-    { Err("Not supported".to_string()) }
+    {
+        Err("Not supported".to_string())
+    }
 }
 
 async fn extract_single_icon(path: String) -> Result<String, String> {
-    use base64::{Engine as _, engine::general_purpose};
-    
+    use base64::{engine::general_purpose, Engine as _};
+
     let script = format!(
         r##"[Console]::OutputEncoding = [System.Text.Encoding]::UTF8;
 [void][Reflection.Assembly]::LoadWithPartialName('System.Drawing');
@@ -559,17 +641,27 @@ if (![string]::IsNullOrEmpty($b64)) {{
     );
 
     let utf16_script: Vec<u16> = script.encode_utf16().collect();
-    let u8_script: Vec<u8> = utf16_script.iter().flat_map(|&u| u.to_le_bytes().to_vec()).collect();
+    let u8_script: Vec<u8> = utf16_script
+        .iter()
+        .flat_map(|&u| u.to_le_bytes().to_vec())
+        .collect();
     let encoded_script = general_purpose::STANDARD.encode(&u8_script);
 
     let output = Command::new("powershell")
-        .args(["-NoProfile", "-NonInteractive", "-EncodedCommand", &encoded_script])
+        .args([
+            "-NoProfile",
+            "-NonInteractive",
+            "-EncodedCommand",
+            &encoded_script,
+        ])
         .output()
         .map_err(|e| e.to_string())?;
 
     let result_str = String::from_utf8_lossy(&output.stdout).to_string();
     if let Some(idx) = result_str.find("---B64_START---") {
-        return Ok(result_str[idx + "---B64_START---".len()..].trim().to_string());
+        return Ok(result_str[idx + "---B64_START---".len()..]
+            .trim()
+            .to_string());
     }
 
     Err("Icon not found in output".to_string())
@@ -607,7 +699,7 @@ async fn get_system_apps() -> Result<Vec<ShortcutInfo>, String> {
                 "-Command",
                 "Get-StartApps | ForEach-Object {
                     [PSCustomObject]@{ Name=$_.Name; Path=$_.AppID; Icon=$null }
-                } | ConvertTo-Json"
+                } | ConvertTo-Json",
             ])
             .output()
             .map_err(|e| e.to_string())?;
@@ -615,7 +707,9 @@ async fn get_system_apps() -> Result<Vec<ShortcutInfo>, String> {
         parse_shortcuts_json(output.stdout)
     }
     #[cfg(not(target_os = "windows"))]
-    { Ok(vec![]) }
+    {
+        Ok(vec![])
+    }
 }
 
 fn parse_shortcuts_json(stdout: Vec<u8>) -> Result<Vec<ShortcutInfo>, String> {
@@ -654,7 +748,7 @@ async fn set_minimal_mode_tauri(window: tauri::WebviewWindow, minimal: bool) -> 
     {
         let _ = window.set_shadow(false);
         set_rounded_corners(&window);
-        
+
         if minimal {
             resize_to_minimal(&window);
             let _ = window.center();
@@ -675,12 +769,16 @@ async fn hide_window(window: tauri::WebviewWindow) {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_log::Builder::new().build())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_shell::init())
-        .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, Some(vec!["--minimized"])))
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            Some(vec!["--minimized"]),
+        ))
         .invoke_handler(tauri::generate_handler![
-            launch_start_program, 
+            launch_start_program,
             launch_program_by_path,
             get_running_processes,
             get_system_shortcuts,
@@ -708,22 +806,40 @@ pub fn run() {
             let handle = app.handle().clone();
             let _ = APP_HANDLE.set(handle);
 
-            let show_item = MenuItemBuilder::with_id("show", "Show HotPaste").build(app).expect("failed to build menu item");
-            let quit_item = MenuItemBuilder::with_id("quit", "Quit").build(app).expect("failed to build menu item");
-            let menu = MenuBuilder::new(app).items(&[&show_item, &quit_item]).build().expect("failed to build menu");
+            let show_item = MenuItemBuilder::with_id("show", "Show HotPaste")
+                .build(app)
+                .expect("failed to build menu item");
+            let quit_item = MenuItemBuilder::with_id("quit", "Quit")
+                .build(app)
+                .expect("failed to build menu item");
+            let menu = MenuBuilder::new(app)
+                .items(&[&show_item, &quit_item])
+                .build()
+                .expect("failed to build menu");
             let tray_menu = menu.clone();
 
             let _tray = TrayIconBuilder::new()
                 .icon(app.default_window_icon().unwrap().clone())
                 .on_menu_event(|app, event| match event.id.as_ref() {
-                    "show" => { toggle_window(app); }
-                    "quit" => { std::process::exit(0); }
+                    "show" => {
+                        toggle_window(app);
+                    }
+                    "quit" => {
+                        std::process::exit(0);
+                    }
                     _ => {}
                 })
                 .on_tray_icon_event(move |tray, event| {
-                    if let TrayIconEvent::Click { button, button_state: tauri::tray::MouseButtonState::Up, .. } = event {
+                    if let TrayIconEvent::Click {
+                        button,
+                        button_state: tauri::tray::MouseButtonState::Up,
+                        ..
+                    } = event
+                    {
                         match button {
-                            tauri::tray::MouseButton::Left => { toggle_window(tray.app_handle()); }
+                            tauri::tray::MouseButton::Left => {
+                                toggle_window(tray.app_handle());
+                            }
                             tauri::tray::MouseButton::Right => {
                                 if let Some(window) = tray.app_handle().get_webview_window("main") {
                                     let _ = window.popup_menu(&tray_menu);
@@ -733,16 +849,17 @@ pub fn run() {
                         }
                     }
                 })
-                .build(app).expect("failed to build tray icon");
+                .build(app)
+                .expect("failed to build tray icon");
 
             let window = app.get_webview_window("main").unwrap();
-            
+
             if IS_MINIMAL.load(Ordering::SeqCst) {
                 resize_to_minimal(&window);
             } else {
                 resize_to_90_percent(&window);
             }
-            
+
             let _ = window.show();
             let _ = window.center();
 
@@ -820,7 +937,7 @@ fn toggle_window(app: &AppHandle) {
 fn resize_to_minimal(window: &tauri::WebviewWindow) {
     if let Ok(Some(monitor)) = window.primary_monitor() {
         let m_size = monitor.size();
-        
+
         // Keyboard-like proportions: wide but short
         let window_w_phys = m_size.width as f64 * 0.85; // 85% width
         let window_h_phys = m_size.height as f64 * 0.45; // 45% height (significantly shorter)
