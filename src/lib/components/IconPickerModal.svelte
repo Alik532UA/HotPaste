@@ -1,13 +1,16 @@
 <script lang="ts">
   import { getState, closeIconPicker } from "../stores/appState.svelte";
-  import { Search, Smile, Type, X } from "lucide-svelte";
+  import { Search, Smile, Type, X, Upload } from "lucide-svelte";
   import * as LucideIcons from "lucide-svelte";
   import BaseModal from "./ui/BaseModal.svelte";
   import SearchInput from "./ui/SearchInput.svelte";
   import { t } from "../i18n";
+  import { iconService } from "../services/iconService.svelte";
 
   const appState = getState();
   const picker = $derived(appState.activeIconPicker);
+
+  const isTauri = typeof window !== "undefined" && !!(window as any).__TAURI_INTERNALS__;
 
   let searchQuery = $state("");
   let activeTab = $state<"lucide" | "emoji">("lucide");
@@ -99,6 +102,19 @@
         <Smile size={16} />
         Emoji
       </button>
+      {#if isTauri}
+        <button 
+          class="tab-btn upload-btn" 
+          onclick={async () => {
+            const path = await iconService.pickAndSaveIcon();
+            if (path) handleSelect(path);
+          }}
+          title="Upload from PC"
+        >
+          <Upload size={16} />
+          Upload
+        </button>
+      {/if}
     </div>
 
     <!-- Search -->

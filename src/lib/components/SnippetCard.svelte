@@ -21,6 +21,7 @@
   import { sanitize } from "../utils/sanitizer";
   import { t } from "../i18n";
   import TextHighlight from "./ui/TextHighlight.svelte";
+  import IconRenderer from "./ui/IconRenderer.svelte";
 
   interface Props {
     card: Card;
@@ -329,11 +330,7 @@
     data-testid={isMaximized ? "card-editing-maximized" : "card-editing-standard"}
   >
     <div class="card-header" data-testid="card-header">
-      {#if LucideIcon}
-        <span class="card-icon"><LucideIcon size={16} /></span>
-      {:else if card.icon}
-        <span class="card-icon emoji">{card.icon}</span>
-      {/if}
+      <span class="card-icon"><IconRenderer icon={card.icon} size={16} /></span>
       <h3 class="card-title" data-testid="card-title">{card.name}</h3>
       <div class="edit-header-actions" data-testid="edit-header-actions">
         <span class="card-ext" data-testid="card-extension">{card.extension}</span>

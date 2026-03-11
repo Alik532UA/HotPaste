@@ -21,6 +21,7 @@
   import { t } from "../i18n";
   import { logService } from "../services/logService.svelte";
   import { flip } from "svelte/animate";
+  import IconRenderer from "./ui/IconRenderer.svelte";
 
   import { draggable, dropzone } from "../utils/dnd";
 
@@ -115,11 +116,9 @@
             {tab.hotkey ? appState.getHotkeyLabel(tab.hotkey) : (i + 1)}
           </span>
 
-          {#if LucideIcon}
-            <span class="tab-icon" data-testid={`tab-icon-${tab.path}`}><LucideIcon size={14} /></span>
-          {:else if tab.icon}
-            <span class="tab-icon emoji" data-testid={`tab-icon-emoji-${tab.path}`}>{tab.icon}</span>
-          {/if}
+          <span class="tab-icon" data-testid={`tab-icon-${tab.path}`}>
+            <IconRenderer icon={tab.icon} size={14} />
+          </span>
 
           <span class="tab-name" data-testid={`tab-name-${tab.path}`}>{tab.name}</span>
           <span class="tab-count" data-testid={`tab-count-${tab.path}`}>{tab.cards.length}</span>
@@ -272,10 +271,6 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-  }
-
-  .tab-icon.emoji {
-    font-size: 1rem;
   }
 
   .tab-name {

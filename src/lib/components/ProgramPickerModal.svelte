@@ -3,7 +3,8 @@
   import { fade, scale } from "svelte/transition";
   import { uiState } from "../stores/uiState.svelte";
   import SearchInput from "./ui/SearchInput.svelte";
-  import { updateTabAssignment } from "../stores/appState.svelte";
+  import IconRenderer from "./ui/IconRenderer.svelte";
+  import { updateTabAssignment, openIconPicker } from "../stores/appState.svelte";
   import { t } from "../i18n";
   import { logService } from "../services/logService.svelte";
   import { invoke } from "@tauri-apps/api/core";
@@ -16,9 +17,13 @@
   let viewMode = $state<"grid" | "list">("grid");
   let customUrl = $state("");
   let customCommand = $state("");
+  let customUrlIcon = $state("lucide:Link");
+  let customCommandIcon = $state("lucide:Terminal");
   let programs = $state<ShortcutInfo[]>([]);
   let isLoading = $state(false);
   let icons = $state<Record<string, string>>({});
+
+  const isTauri = typeof window !== "undefined" && !!(window as any).__TAURI_INTERNALS__;
 
   const SYSTEM_COMMANDS: ShortcutInfo[] = [
     { name: "Shutdown", path: "shutdown /s /t 0", icon: "power" },
@@ -54,22 +59,30 @@
         isLoading = false;
         return;
     }
+    
+    if (!isTauri) {
+      logService.info("icons", `Skipping program load (Not in Tauri environment)`);
+      programs = [];
+      isLoading = false;
+      return;
+    }
+
     isLoading = true;
     logService.info("icons", `Loading programs for tab: ${activeTab}`);
     try {
       let result: ShortcutInfo[] = [];
       switch (activeTab) {
         case "local":
-          result = await invoke("get_local_shortcuts");
+          result = await invoke<ShortcutInfo[]>("get_local_shortcuts");
           break;
         case "running":
-          result = await invoke("get_running_processes");
+          result = await invoke<ShortcutInfo[]>("get_running_processes");
           break;
         case "start":
-          result = await invoke("get_system_shortcuts");
+          result = await invoke<ShortcutInfo[]>("get_system_shortcuts");
           break;
         case "system":
-          result = await invoke("get_system_apps");
+          result = await invoke<ShortcutInfo[]>("get_system_apps");
           break;
       }
       programs = result;
@@ -77,14 +90,14 @@
       // Trigger chunked icon loading
       loadIconsChunked(result.map(p => p.path));
     } catch (err) {
-      logService.error("icons", "Failed to load programs", err);
+      logService.error("icons", "Failed to load programs", typeof err === 'object' && err !== null ? JSON.stringify(err, Object.getOwnPropertyNames(err)) : String(err));
     } finally {
       isLoading = false;
     }
   }
 
   async function loadIconsChunked(paths: string[]) {
-    if (paths.length === 0) return;
+    if (paths.length === 0 || !isTauri) return;
     const CHUNK_SIZE = 1;
     const allPaths = [...paths];
     for (let i = 0; i < allPaths.length; i += CHUNK_SIZE) {
@@ -105,12 +118,13 @@
   function handleSelect(prog: ShortcutInfo) {
     if (context) {
       const fullIconData = icons[prog.path] || "";
-      const base64Icon = fullIconData.startsWith("data:") ? fullIconData.split(",")[1] : fullIconData;
+      // Save the full data URL since IconRenderer expects it (either data: or lucide: or .private)
+      const finalIcon = fullIconData || (prog.icon ? `lucide:${prog.icon}` : null);
       updateTabAssignment(context.key, {
         name: prog.name,
         path: prog.path,
         type: activeTab as any,
-        icon: base64Icon || (prog.icon ? `lucide:${prog.icon}` : null)
+        icon: finalIcon
       });
       handleClose();
     }
@@ -127,7 +141,7 @@
             name: customUrl.trim(),
             path: url,
             type: 'url',
-            icon: 'lucide:link'
+            icon: customUrlIcon
         });
         customUrl = "";
         handleClose();
@@ -140,7 +154,7 @@
             name: customCommand,
             path: customCommand,
             type: 'commands',
-            icon: 'lucide:terminal'
+            icon: customCommandIcon
         });
         handleClose();
     }
@@ -236,7 +250,9 @@
       <div class="modal-body" data-testid="program-picker-body">
         {#if activeTab === 'url'}
           <div class="custom-input-section" in:fade data-testid="section-custom-url">
-            <div class="section-icon"><Link size={uiState.isMinimalMode ? 32 : 48} /></div>
+            <button class="section-icon" onclick={() => openIconPicker(customUrlIcon, v => customUrlIcon = v)} data-testid="btn-pick-url-icon" title={t.common.select}>
+              <IconRenderer icon={customUrlIcon} size={uiState.isMinimalMode ? 32 : 48} />
+            </button>
             <h3>Add Custom URL</h3>
             {#if !uiState.isMinimalMode}<p>Enter a website address or a custom protocol link</p>{/if}
             <div class="input-group">
@@ -268,16 +284,21 @@
             </div>
             <div class="custom-command-box" data-testid="box-custom-command">
                 <h4>Custom Command</h4>
-                <div class="input-group">
-                    <input 
-                      type="text" 
-                      bind:value={customCommand} 
-                      placeholder="e.g. ms-settings:colors" 
-                      spellcheck="false" 
-                      data-testid="input-custom-command"
-                      onkeydown={(e) => { e.stopPropagation(); if (e.key === 'Enter') handleAddCustomCommand(); }} 
-                    />
-                    <button class="btn-add" onclick={handleAddCustomCommand} disabled={!customCommand} data-testid="btn-add-custom-command">Add</button>
+                <div style="display: flex; gap: 16px; align-items: center; margin-bottom: 12px;">
+                    <button class="section-icon" onclick={() => openIconPicker(customCommandIcon, v => customCommandIcon = v)} data-testid="btn-pick-command-icon" title={t.common.select} style="width: 48px; height: 48px; min-width: 48px; border-radius: 12px; border: none; cursor: pointer;">
+                        <IconRenderer icon={customCommandIcon} size={24} />
+                    </button>
+                    <div class="input-group">
+                        <input 
+                          type="text" 
+                          bind:value={customCommand} 
+                          placeholder="e.g. ms-settings:colors" 
+                          spellcheck="false" 
+                          data-testid="input-custom-command"
+                          onkeydown={(e) => { e.stopPropagation(); if (e.key === 'Enter') handleAddCustomCommand(); }} 
+                        />
+                        <button class="btn-add" onclick={handleAddCustomCommand} disabled={!customCommand} data-testid="btn-add-custom-command">Add</button>
+                    </div>
                 </div>
             </div>
           </div>

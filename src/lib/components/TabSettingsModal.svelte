@@ -5,6 +5,7 @@
   import BaseModal from "./ui/BaseModal.svelte";
   import Input from "./ui/Input.svelte";
   import SegmentedToggle from "./ui/SegmentedToggle.svelte";
+  import IconRenderer from "./ui/IconRenderer.svelte";
   import { t } from "../i18n";
 
   const appState = getState();

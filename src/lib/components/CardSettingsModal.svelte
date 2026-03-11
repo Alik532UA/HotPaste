@@ -4,6 +4,7 @@
   import * as LucideIcons from "lucide-svelte";
   import BaseModal from "./ui/BaseModal.svelte";
   import Input from "./ui/Input.svelte";
+  import IconRenderer from "./ui/IconRenderer.svelte";
   import { t } from "../i18n";
   import type { Card } from "../types";
   import SnippetCard from "./SnippetCard.svelte";
@@ -185,12 +186,7 @@
                     title={t.cards.icon}
                   >
                     {#if icon}
-                      {@const IconComp = (LucideIcons as any)[icon]}
-                      {#if IconComp}
-                        <IconComp size={20} />
-                      {:else}
-                        <span class="emoji-preview-compact">{icon}</span>
-                      {/if}
+                      <IconRenderer icon={icon} size={20} />
                     {:else}
                       <Plus size={20} />
                     {/if}
@@ -258,7 +254,7 @@
             <div class="section-body" data-testid="appearance-body">
               <!-- Color Picker -->
               <div class="form-group" data-testid="form-group-color">
-                <label>{t.cards.color}</label>
+                <span class="form-label">{t.cards.color}</span>
                 <div class="color-picker-grid-container" data-testid="color-picker-container">
                   <div class="color-grid" data-testid="color-picker-grid">
                     {#each colorPresets as preset}
@@ -295,7 +291,7 @@
 
               <!-- Border Picker -->
               <div class="form-group" data-testid="form-group-border">
-                <label>{t.cards.border}</label>
+                <span class="form-label">{t.cards.border}</span>
                 <div class="color-picker-grid-container" data-testid="border-picker-container">
                   <div class="color-grid" data-testid="border-picker-grid">
                     {#each borderPresets as preset}
@@ -409,15 +405,6 @@
   }
 
   /* Preview Section */
-  .preview-section {
-    background: var(--color-surface-1);
-    border: 1px solid var(--color-border);
-    border-radius: 16px;
-    padding: 16px;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-  }
 
   .preview-container {
     display: flex;
@@ -573,20 +560,6 @@
     transform: scale(1.1);
   }
 
-  .emoji-preview-compact {
-    font-size: 1.4rem;
-    line-height: 1;
-  }
-
-  .section-body.row {
-    flex-direction: row;
-    flex-wrap: wrap;
-  }
-
-  .picker-row {
-    gap: 16px;
-  }
-
   .form-group {
     display: flex;
     flex-direction: column;
@@ -594,11 +567,7 @@
     flex: 1;
   }
 
-  .picker-group {
-    min-width: 160px;
-  }
-
-  label {
+  label, .form-label {
     font-size: 0.85rem;
     font-weight: 700;
     color: var(--color-text-primary); /* Increased contrast */
@@ -647,18 +616,6 @@
     color: white;
     filter: drop-shadow(0 0 2px rgba(0,0,0,0.5));
     pointer-events: none;
-  }
-
-  .swatch-indicator {
-    width: 6px;
-    height: 6px;
-    background: white;
-    border-radius: 50%;
-    box-shadow: 0 0 4px rgba(0,0,0,0.5);
-  }
-
-  .active-border {
-    background: var(--color-accent-violet);
   }
 
   .custom-color-swatch-wrapper {

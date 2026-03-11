@@ -27,6 +27,7 @@
   import { t } from "../i18n";
   import { logService } from "../services/logService.svelte";
   import { isInputFocused, QWERTY_CODES } from "../utils/keyboardLayout";
+  import IconRenderer from "./ui/IconRenderer.svelte";
 
   const LUCIDE_ICONS: Record<string, any> = {
     rocket: Rocket,
@@ -316,15 +317,8 @@
                 <span class="key-label">{key.label}</span>
                 {#if assignment}
                   <div class="key-app-icon-container">
-                    {#if assignment.icon?.startsWith("lucide:")}
-                      {@const Icon = getLucideIcon(assignment.icon)}
-                      <Icon class="key-app-icon" size="100%" strokeWidth={2.5} />
-                    {:else if assignment.icon}
-                      <img
-                        src={getIconSrc(assignment.icon)}
-                        alt=""
-                        class="key-app-icon"
-                      />
+                    {#if assignment.icon}
+                      <IconRenderer icon={assignment.icon} class="key-app-icon" size="100%" />
                     {:else}
                       <Rocket class="key-app-icon-fallback" />
                     {/if}
@@ -481,7 +475,7 @@
     transition: all 0.2s ease;
   }
 
-  .key-app-icon {
+  :global(.key-app-icon) {
     width: 100%;
     height: 100%;
     object-fit: contain;

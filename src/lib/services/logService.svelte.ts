@@ -25,9 +25,9 @@ export const logConfig: Record<string, boolean> = {
     fsstate: false,
     hotkeystate: false,
     startmenu: false,
-    icons: false,
+    icons: true,
     dnd: false,
-    header: true,
+    header: false,
 };
 
 const levelStyles: Record<LogLevel, string> = {

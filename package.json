@@ -1,7 +1,7 @@
 {
   "name": "hotpaste",
   "private": true,
-  "version": "0.1.17",
+  "version": "0.1.18",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -33,6 +33,7 @@
     "@tauri-apps/api": "^2.10.1",
     "@tauri-apps/plugin-autostart": "^2.5.1",
     "@tauri-apps/plugin-clipboard-manager": "^2.3.2",
+    "@tauri-apps/plugin-dialog": "^2.6.0",
     "@tauri-apps/plugin-fs": "^2.4.5",
     "@tauri-apps/plugin-process": "^2.3.1",
     "@tauri-apps/plugin-shell": "^2.3.5",

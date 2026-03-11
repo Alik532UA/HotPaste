@@ -1,6 +1,6 @@
 [package]
 name = "app"
-version = "0.1.17"
+version = "0.1.18"
 description = "A Tauri App"
 authors = ["you"]
 license = ""
@@ -37,3 +37,4 @@ futures = "0.3"
 windows-sys = { version = "0.59", features = ["Win32_UI_WindowsAndMessaging", "Win32_Foundation", "Win32_UI_Input_KeyboardAndMouse", "Win32_Graphics_Dwm", "Win32_UI_Shell"] }
 tauri-plugin-process = "2"
 tauri-plugin-clipboard-manager = "2"
+tauri-plugin-dialog = "2"
