@@ -5,7 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "clean": "if (Test-Path dist) { Remove-Item -Recurse -Force dist }; if (Test-Path src-tauri/target) { Remove-Item -Recurse -Force src-tauri/target }",
     "build": "vite build",
+    "tauri:build": "npm run build && tauri build",
+    "build:full": "powershell -Command \"npm run clean; npm run build; tauri build\"",
     "preview": "vite preview",
     "tauri": "tauri",
     "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json"

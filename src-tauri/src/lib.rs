@@ -124,8 +124,6 @@ async fn launch_program_by_path(path: String) -> Result<(), String> {
     log::info!("[LAUNCH] Attempting to launch: {}", path);
     #[cfg(target_os = "windows")]
     {
-        use windows_sys::Win32::UI::Shell::ShellExecuteW;
-        use std::os::windows::ffi::OsStrExt;
         use std::path::Path;
 
         // 1. Detect URI protocol (e.g., ms-settings:, http:)
