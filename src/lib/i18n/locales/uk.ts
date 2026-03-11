@@ -15,7 +15,9 @@ export const uk = {
         disable: "Вимкнути",
         selected: "вибрано",
         move: "Перемістити",
-        retry: "Спробувати знову"
+        retry: "Спробувати знову",
+        preview: "Прев’ю",
+        custom: "Свій"
     },
     errors: {
         rendering: "Помилка відображення"
@@ -59,15 +61,20 @@ export const uk = {
     },
     cards: {
         settings: "Налаштувати картку",
+        general: "Основні дані",
+        identity: "Ідентичність",
+        appearance: "Зовнішній вигляд",
         hotkey: "Гаряча клавіша",
         icon: "Іконка",
         color: "Колір фону",
         border: "Колір обводки",
         displayName: "Відображувана назва",
         fileName: "Ім'я файлу на диску",
+        fileNameHint: "Увага: перейменовує фізичний файл на диску",
         hotkeyFixed: "Гаряча клавіша (закріплено)",
         hotkeyDisabled: "Гаряча клавіша (вимкнено)",
         hotkeyChange: "Змінити гарячу клавішу",
+        hotkeyHint: "Фізичний код клавіші (KeyboardEvent.code)",
         hint: "Ctrl+Enter — зберегти, Esc — скасувати"
     },
     modals: {

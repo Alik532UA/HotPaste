@@ -31,7 +31,7 @@ let activeTabIndex = $state(0);
 let activeContextMenu = $state<{ x: number, y: number, card: Card } | null>(null);
 let activeSettingsCard = $state<Card | null>(null);
 let activeSettingsTab = $state<Tab | null>(null);
-let activeHotkeyPickerCard = $state<Card | null>(null);
+let activeHotkeyPicker = $state<{ card: Card, onSelect?: (code: string) => void } | null>(null);
 let activeHotkeyConflict = $state<{ code: string, cards: Card[] } | null>(null);
 let activeProgramPicker = $state<{ key: string, tab: Tab } | null>(null);
 let activeIconPicker = $state<{ 
@@ -58,7 +58,7 @@ export const uiState = {
     get activeContextMenu() { return activeContextMenu; },
     get activeSettingsCard() { return activeSettingsCard; },
     get activeSettingsTab() { return activeSettingsTab; },
-    get activeHotkeyPickerCard() { return activeHotkeyPickerCard; },
+    get activeHotkeyPicker() { return activeHotkeyPicker; },
     get activeHotkeyConflict() { return activeHotkeyConflict; },
     get activeProgramPicker() { return activeProgramPicker; },
     get activeIconPicker() { return activeIconPicker; },
@@ -257,12 +257,12 @@ function closeTabSettings(): void {
     activeSettingsTab = null;
 }
 
-function openHotkeyPicker(card: Card): void {
-    activeHotkeyPickerCard = card;
+function openHotkeyPicker(card: Card, onSelect?: (code: string) => void): void {
+    activeHotkeyPicker = { card, onSelect };
 }
 
 function closeHotkeyPicker(): void {
-    activeHotkeyPickerCard = null;
+    activeHotkeyPicker = null;
 }
 
 function closeHotkeyConflict(): void {

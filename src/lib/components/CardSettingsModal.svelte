@@ -1,16 +1,18 @@
 <script lang="ts">
   import { getState, closeSettings, updateCardSettings, renamePhysicalFile, openIconPicker, openHotkeyPicker } from "../stores/appState.svelte";
-  import { Settings, Search } from "lucide-svelte";
+  import { Settings, Search, Keyboard, X as CloseIcon, Type, FileText, Palette, Eye, AlertCircle, ChevronRight, Check, Plus } from "lucide-svelte";
   import * as LucideIcons from "lucide-svelte";
   import BaseModal from "./ui/BaseModal.svelte";
   import Input from "./ui/Input.svelte";
-  import SearchInput from "./ui/SearchInput.svelte";
   import { t } from "../i18n";
+  import type { Card } from "../types";
+  import SnippetCard from "./SnippetCard.svelte";
 
   const appState = getState();
   const card = $derived(appState.activeSettingsCard);
 
   /** Local form state */
+  let currentCardId = $state<string | null>(null);
   let displayName = $state("");
   let fileName = $state("");
   let hotkey = $state("");
@@ -18,42 +20,37 @@
   let color = $state("");
   let borderColor = $state("");
 
-  /** Color presets */
+  /** Color presets from theme */
   const colorPresets = [
     { name: "Default", value: "" },
-    { name: "Slate", value: "#1e293b" },
-    { name: "Zinc", value: "#18181b" },
-    { name: "Stone", value: "#1c1917" },
-    { name: "Red", value: "#450a0a" },
-    { name: "Orange", value: "#431407" },
-    { name: "Amber", value: "#451a03" },
-    { name: "Yellow", value: "#422006" },
-    { name: "Green", value: "#052e16" },
-    { name: "Emerald", value: "#064e3b" },
-    { name: "Teal", value: "#134e4a" },
-    { name: "Cyan", value: "#164e63" },
-    { name: "Blue", value: "#1e3a8a" },
-    { name: "Indigo", value: "#312e81" },
-    { name: "Violet", value: "#4c1d95" },
-    { name: "Purple", value: "#581c87" },
-    { name: "Fuchsia", value: "#701a75" },
-    { name: "Pink", value: "#831843" },
-    { name: "Rose", value: "#881337" },
+    ...Array.from({ length: 22 }, (_, i) => ({
+      name: `Color ${i + 1}`,
+      value: `var(--palette-${i + 1})`
+    }))
   ];
 
   const borderPresets = [
     { name: "Default", value: "" },
-    { name: "Cyan", value: "var(--color-accent-cyan)" },
-    { name: "Violet", value: "var(--color-accent-violet)" },
-    { name: "Green", value: "var(--color-success)" },
-    { name: "Red", value: "var(--color-danger)" },
-    { name: "Orange", value: "var(--color-warning)" },
-    { name: "White", value: "color-mix(in srgb, white 20%, transparent)" },
-    { name: "Invisible", value: "transparent" },
+    ...Array.from({ length: 22 }, (_, i) => ({
+      name: `Border ${i + 1}`,
+      value: `var(--palette-${i + 1})`
+    }))
   ];
 
+  /** Preview Card state */
+  const previewCard = $derived(card ? {
+    ...card,
+    displayName: displayName || null,
+    name: displayName || card.fileName,
+    hotkey,
+    icon,
+    color: color || null,
+    borderColor: borderColor || null,
+  } as Card : null);
+
   $effect(() => {
-    if (card) {
+    if (card && card.id !== currentCardId) {
+      currentCardId = card.id;
       displayName = card.displayName || "";
       fileName = card.fileName || "";
       hotkey = card.hotkey || "";
@@ -63,32 +60,39 @@
     }
   });
 
-  // Keep local hotkey in sync with the card's hotkey in case it's changed by the picker
-  $effect(() => {
-    if (card && card.hotkey !== hotkey) {
-      hotkey = card.hotkey;
-    }
-  });
-
   async function handleSave() {
     if (card) {
-      if (fileName && fileName !== card.fileName) {
-        await renamePhysicalFile(card, fileName);
-      }
+      try {
+        if (fileName && fileName !== card.fileName) {
+          await renamePhysicalFile(card, fileName);
+        }
 
-      await updateCardSettings(card, {
-        displayName: displayName || null,
-        hotkey: hotkey || "",
-        icon: icon || null,
-        color: color || null,
-        borderColor: borderColor || null,
-      } as any);
-      closeSettings();
+        await updateCardSettings(card, {
+          displayName: displayName || null,
+          hotkey: hotkey || "",
+          icon: icon || null,
+          color: color || null,
+          borderColor: borderColor || null,
+        } as any);
+        closeSettings();
+      } catch (error) {
+        console.error("Failed to save card settings:", error);
+      }
     }
   }
 
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === "Enter" && e.ctrlKey) handleSave();
+  }
+
+  function handleClearHotkey(e: MouseEvent) {
+    e.stopPropagation();
+    hotkey = "";
+  }
+
+  function handleClearIcon(e: MouseEvent) {
+    e.stopPropagation();
+    icon = "";
   }
 </script>
 
@@ -96,134 +100,248 @@
   isOpen={!!card} 
   onClose={closeSettings}
   testId="card-settings-modal"
+  maxWidth="950px"
 >
   {#snippet header()}
     <div class="header-title-inner" data-testid="modal-header-inner">
-      <Settings size={20} class="header-icon" />
+      <div class="header-icon-bg">
+        <Settings size={20} class="header-icon" />
+      </div>
       <h2 class="modal-title-text" data-testid="modal-title">{t.cards.settings}</h2>
     </div>
   {/snippet}
 
   {#if card}
-    <!-- Display Name -->
-    <Input
-      label={t.cards.displayName}
-      bind:value={displayName}
-      onkeydown={(e) => { e.stopPropagation(); handleKeydown(e); }}
-      placeholder={card.fileName}
-      hint="{t.cards.displayName} ({t.common.edit})"
-      testId="input-display-name"
-    />
-
-    <!-- File Name (Physical) -->
-    <Input
-      label={t.cards.fileName}
-      bind:value={fileName}
-      onkeydown={(e) => { e.stopPropagation(); handleKeydown(e); }}
-      placeholder="example.txt"
-      hint="{t.cards.fileName} (Warning: renames physical file)"
-      testId="input-file-name"
-    />
-
-    <div class="form-row" data-testid="form-row-hotkey-icon">
-      <!-- Hotkey -->
-      <div class="form-group flex-1" data-testid="form-group-hotkey">
-        <label for="hotkey-cap" data-testid="label-hotkey">{t.cards.hotkey}</label>
-        <input
-          id="hotkey-cap"
-          type="text"
-          readonly
-          value={appState.getHotkeyLabel(hotkey)}
-          onclick={() => openHotkeyPicker(card)}
-          placeholder={t.modals.pickerTitle}
-          class="hotkey-input"
-          title={t.cards.hotkeyChange}
-          data-testid="input-card-hotkey"
-        />
-        <p class="field-hint" data-testid="hint-hotkey">{t.cards.hotkey} (Physical code)</p>
-      </div>
-
-      <!-- Icon -->
-      <div class="form-group flex-2" data-testid="form-group-icon">
-        <label for="icon-picker-btn" data-testid="label-icon">{t.cards.icon} (Lucide/Emoji)</label>
-        <button
-          id="icon-picker-btn"
-          class="icon-picker-btn"
-          onclick={() => openIconPicker(icon, (v) => (icon = v), t.cards.settings)}
-          data-testid="btn-card-icon-picker"
-        >
-          {#if icon}
-            {@const IconComp = (LucideIcons as any)[icon]}
-            <div class="selected-icon-preview">
-              {#if IconComp}
-                <IconComp size={20} />
-              {:else}
-                <span class="emoji-preview">{icon}</span>
+    <div class="modal-content-layout" data-testid="modal-content-container">
+      
+      <div class="modal-sections-grid" data-testid="settings-grid">
+        <!-- Column 1: Preview -->
+        <div class="grid-column" data-testid="column-preview">
+          <section class="form-section" data-testid="section-preview">
+            <div class="section-header" data-testid="preview-header">
+              <Eye size={14} />
+              <span>{t.common.preview}</span>
+            </div>
+            <div class="preview-container" data-testid="card-preview-container">
+              {#if previewCard}
+                <div class="preview-wrapper" data-testid="snippet-card-wrapper">
+                  <SnippetCard card={previewCard} />
+                </div>
               {/if}
-              <span class="selected-icon-name">{icon}</span>
             </div>
-          {:else}
-            <div class="icon-placeholder">
-              <Search size={18} />
-              <span>{t.common.select}...</span>
+          </section>
+        </div>
+
+        <!-- Column 2: General & Identity -->
+        <div class="grid-column" data-testid="column-content-identity">
+          <!-- Section 1: General Info -->
+          <section class="form-section" data-testid="section-content">
+            <div class="section-header" data-testid="content-header">
+              <Type size={14} />
+              <span>{t.cards.general}</span>
             </div>
-          {/if}
-        </button>
-      </div>
-    </div>
+            <div class="section-body" data-testid="content-body">
+              <div class="form-group">
+                <label for="display-name-input">{t.cards.displayName}</label>
+                <Input
+                  id="display-name-input"
+                  bind:value={displayName}
+                  onkeydown={(e) => { e.stopPropagation(); handleKeydown(e); }}
+                  placeholder={card.fileName}
+                  testId="input-display-name"
+                />
+              </div>
 
-    <!-- Color Picker -->
-    <div class="form-group" data-testid="form-group-color">
-      <label for="bg-color-custom" data-testid="label-color">{t.cards.color}</label>
-      <div class="color-grid" data-testid="color-grid">
-        {#each colorPresets as preset}
-          <button
-            class="color-swatch"
-            class:active={color === preset.value}
-            style="background-color: {preset.value || 'var(--color-surface-2)'}"
-            onclick={() => (color = preset.value)}
-            title={preset.name}
-            data-testid="color-preset-{preset.name.toLowerCase()}"
-          ></button>
-        {/each}
-        <input 
-          id="bg-color-custom" 
-          type="color" 
-          bind:value={color} 
-          class="custom-color-picker" 
-          data-testid="input-custom-color"
-        />
-      </div>
-    </div>
+              <div class="form-group" data-testid="file-name-group">
+                <label for="file-name-input">{t.cards.fileName}</label>
+                <Input
+                  id="file-name-input"
+                  bind:value={fileName}
+                  onkeydown={(e) => { e.stopPropagation(); handleKeydown(e); }}
+                  placeholder="example.txt"
+                  testId="input-file-name"
+                  hint={t.cards.fileNameHint}
+                />
+              </div>
+            </div>
+          </section>
 
-    <!-- Border Picker -->
-    <div class="form-group" data-testid="form-group-border">
-      <label for="border-color-custom" data-testid="label-border">{t.cards.border}</label>
-      <div class="color-grid" data-testid="border-grid">
-        {#each borderPresets as preset}
-          <button
-            class="color-swatch"
-            class:active={borderColor === preset.value}
-            style="background-color: {preset.value || 'var(--color-surface-2)'}; border: 1px solid {preset.value || 'var(--color-border)'}"
-            onclick={() => (borderColor = preset.value)}
-            title={preset.name}
-            data-testid="border-preset-{preset.name.toLowerCase()}"
-          ></button>
-        {/each}
-        <input 
-          id="border-color-custom" 
-          type="color" 
-          bind:value={borderColor} 
-          class="custom-color-picker" 
-          data-testid="input-custom-border"
-        />
+          <!-- Section 2: Identity (Icon & Hotkey) -->
+          <section class="form-section" data-testid="section-identity">
+            <div class="section-header" data-testid="identity-header">
+              <Keyboard size={14} />
+              <span>{t.cards.identity}</span>
+            </div>
+            <div class="section-body compact-identity" data-testid="identity-body">
+              <!-- Icon Row -->
+              <div class="identity-row" data-testid="identity-row-icon">
+                <span class="identity-label">{t.cards.icon}</span>
+                <div class="identity-controls">
+                  <button
+                    class="action-square-btn"
+                    class:active={!!icon}
+                    onclick={() => openIconPicker(icon, (v) => (icon = v), t.cards.settings)}
+                    data-testid="btn-card-icon-picker"
+                    title={t.cards.icon}
+                  >
+                    {#if icon}
+                      {@const IconComp = (LucideIcons as any)[icon]}
+                      {#if IconComp}
+                        <IconComp size={20} />
+                      {:else}
+                        <span class="emoji-preview-compact">{icon}</span>
+                      {/if}
+                    {:else}
+                      <Plus size={20} />
+                    {/if}
+                  </button>
+                  
+                  <div class="delete-slot">
+                    {#if icon}
+                      <button
+                        class="delete-action-btn"
+                        onclick={(e) => { e.stopPropagation(); handleClearIcon(e); }}
+                        title={t.common.delete}
+                        data-testid="btn-clear-icon"
+                      >
+                        <CloseIcon size={14} />
+                      </button>
+                    {/if}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Hotkey Row -->
+              <div class="identity-row" data-testid="identity-row-hotkey">
+                <span class="identity-label">{t.cards.hotkey}</span>
+                <div class="identity-controls">
+                  <button
+                    class="action-square-btn"
+                    class:active={!!hotkey}
+                    onclick={() => openHotkeyPicker(card, (code) => { hotkey = code; })}
+                    data-testid="btn-card-hotkey-picker"
+                    title={t.cards.hotkey}
+                  >
+                    {#if hotkey}
+                      <span class="hotkey-text-compact">{appState.getHotkeyLabel(hotkey)}</span>
+                    {:else}
+                      <Plus size={20} />
+                    {/if}
+                  </button>
+
+                  <div class="delete-slot">
+                    {#if hotkey}
+                      <button
+                        class="delete-action-btn"
+                        onclick={(e) => { e.stopPropagation(); handleClearHotkey(e); }}
+                        title={t.common.delete}
+                        data-testid="btn-clear-hotkey"
+                      >
+                        <CloseIcon size={14} />
+                      </button>
+                    {/if}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <!-- Column 3: Appearance -->
+        <div class="grid-column" data-testid="column-appearance">
+          <!-- Section 3: Appearance -->
+          <section class="form-section" data-testid="section-appearance">
+            <div class="section-header" data-testid="appearance-header">
+              <Palette size={14} />
+              <span>{t.cards.appearance}</span>
+            </div>
+            <div class="section-body" data-testid="appearance-body">
+              <!-- Color Picker -->
+              <div class="form-group" data-testid="form-group-color">
+                <label>{t.cards.color}</label>
+                <div class="color-picker-grid-container" data-testid="color-picker-container">
+                  <div class="color-grid" data-testid="color-picker-grid">
+                    {#each colorPresets as preset}
+                      <button
+                        class="color-swatch"
+                        class:active={color === preset.value}
+                        style="background-color: {preset.value || 'var(--color-surface-2)'}"
+                        onclick={() => (color = preset.value)}
+                        title={preset.name}
+                        data-testid="btn-color-{preset.name.toLowerCase()}"
+                      >
+                        {#if color === preset.value}
+                          <Check size={14} class="check-icon" data-testid="check-mark-color-{preset.name.toLowerCase()}" />
+                        {/if}
+                      </button>
+                    {/each}
+                    
+                    <!-- Integrated Custom Color -->
+                    <div class="custom-color-swatch-wrapper" title={t.common.custom}>
+                      <input 
+                        type="color" 
+                        bind:value={color} 
+                        class="custom-color-input-hidden" 
+                        id="custom-color-trigger"
+                        data-testid="input-custom-color"
+                      />
+                      <label for="custom-color-trigger" class="color-swatch custom-trigger" data-testid="btn-custom-color">
+                        <Palette size={14} />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Border Picker -->
+              <div class="form-group" data-testid="form-group-border">
+                <label>{t.cards.border}</label>
+                <div class="color-picker-grid-container" data-testid="border-picker-container">
+                  <div class="color-grid" data-testid="border-picker-grid">
+                    {#each borderPresets as preset}
+                      <button
+                        class="color-swatch border-swatch"
+                        class:active={borderColor === preset.value}
+                        style="border: 4px solid {preset.value || 'var(--color-border)'}"
+                        onclick={() => (borderColor = preset.value)}
+                        title={preset.name}
+                        data-testid="btn-border-{preset.name.toLowerCase()}"
+                      >
+                        <div class="inner-swatch" style="background-color: color-mix(in srgb, {preset.value || 'var(--color-border)'} 15%, transparent)" data-testid="inner-swatch-{preset.name.toLowerCase()}"></div>
+                        {#if borderColor === preset.value}
+                          <Check size={14} class="check-icon" data-testid="check-mark-border-{preset.name.toLowerCase()}" />
+                        {/if}
+                      </button>
+                    {/each}
+
+                    <!-- Integrated Custom Border -->
+                    <div class="custom-color-swatch-wrapper" title={t.common.custom}>
+                      <input 
+                        type="color" 
+                        bind:value={borderColor} 
+                        class="custom-color-input-hidden" 
+                        id="custom-border-trigger"
+                        data-testid="input-custom-border"
+                      />
+                      <label for="custom-border-trigger" class="color-swatch custom-trigger" data-testid="btn-custom-border">
+                        <Palette size={14} />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
       </div>
     </div>
   {/if}
 
   {#snippet footer()}
     <div class="footer-inner" data-testid="modal-footer-inner">
-      <span class="edit-hint" data-testid="edit-hint">Ctrl+Enter — {t.common.save}</span>
+      <div class="shortcuts-hint">
+        <kbd>Ctrl</kbd> + <kbd>Enter</kbd> — {t.common.save}
+      </div>
       <div class="footer-btns">
         <button 
           class="btn-primary" 
@@ -244,6 +362,16 @@
     gap: 12px;
   }
 
+  .header-icon-bg {
+    width: 32px;
+    height: 32px;
+    background: color-mix(in srgb, var(--color-accent-violet) 15%, transparent);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
   :global(.header-icon) {
     color: var(--color-accent-violet);
   }
@@ -255,146 +383,316 @@
     color: var(--color-text-primary);
   }
 
+  .modal-content-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    padding: 4px;
+  }
+
+  .modal-sections-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+
+  @media (min-width: 950px) {
+    .modal-sections-grid {
+      grid-template-columns: 1fr 1fr 1.2fr;
+    }
+  }
+
+  .grid-column {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  /* Preview Section */
+  .preview-section {
+    background: var(--color-surface-1);
+    border: 1px solid var(--color-border);
+    border-radius: 16px;
+    padding: 16px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .preview-container {
+    display: flex;
+    justify-content: center;
+    padding: 12px 16px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    flex: 1;
+    /* Custom Scrollbar */
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border) transparent;
+  }
+
+  .preview-container::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .preview-container::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .preview-container::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 10px;
+  }
+
+  .preview-wrapper {
+    width: 100%;
+    max-width: 300px;
+    pointer-events: none;
+    opacity: 0.95;
+  }
+
+  /* Form Sections */
+  .form-section {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--color-accent-violet);
+    opacity: 0.9;
+    padding-bottom: 6px;
+    border-bottom: 1px solid color-mix(in srgb, var(--color-border) 40%, transparent);
+  }
+
+  .section-body {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  /* Compact Identity */
+  .compact-identity {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding-top: 8px;
+  }
+
+  .identity-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 12px;
+    min-height: 40px;
+  }
+
+  .identity-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+  }
+
+  .identity-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .action-square-btn {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    border-radius: 10px;
+    border: 2px dashed var(--color-border);
+    background: transparent;
+    color: var(--color-text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    padding: 0;
+    position: relative;
+  }
+
+  .action-square-btn:hover {
+    border-color: var(--color-accent-violet);
+    color: var(--color-accent-violet);
+    background: color-mix(in srgb, var(--color-accent-violet) 5%, transparent);
+  }
+
+  .action-square-btn.active {
+    border-style: solid;
+    border-color: var(--color-accent-violet);
+    background: color-mix(in srgb, var(--color-accent-violet) 10%, transparent);
+    color: var(--color-accent-violet);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--color-accent-violet) 15%, transparent);
+  }
+
+  .hotkey-text-compact {
+    font-size: 0.95rem;
+    font-weight: 800;
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+  }
+
+  .delete-slot {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .delete-action-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    border: none;
+    background: color-mix(in srgb, var(--color-danger) 15%, transparent);
+    color: #ff5555; /* Higher contrast red */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .delete-action-btn:hover {
+    background: var(--color-danger);
+    color: white;
+    transform: scale(1.1);
+  }
+
+  .emoji-preview-compact {
+    font-size: 1.4rem;
+    line-height: 1;
+  }
+
+  .section-body.row {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .picker-row {
+    gap: 16px;
+  }
+
   .form-group {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    margin-bottom: 20px;
+    gap: 10px;
+    flex: 1;
   }
 
-  .form-group:last-child {
-    margin-bottom: 0;
-  }
-
-  .form-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 16px;
-    margin-bottom: 20px;
-  }
-
-  .flex-1 { 
-    flex: 1 1 150px; 
-    min-width: 0;
-  }
-  
-  .flex-2 { 
-    flex: 2 1 220px; 
-    min-width: 0;
+  .picker-group {
+    min-width: 160px;
   }
 
   label {
     font-size: 0.85rem;
-    font-weight: 600;
-    color: var(--color-text-secondary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-weight: 700;
+    color: var(--color-text-primary); /* Increased contrast */
+    opacity: 0.9;
   }
 
-  .icon-picker-btn {
-    width: 100%;
-    background: var(--color-surface-1);
-    border: 1px solid var(--color-border);
-    border-radius: 10px;
-    padding: 10px 16px;
-    color: var(--color-text-primary);
-    font-family: inherit;
-    font-size: 0.95rem;
-    transition: all 0.2s;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    min-height: 45px;
-  }
-
-  .icon-picker-btn:hover {
-    border-color: var(--color-accent-violet);
-    background: var(--color-bg-primary);
-  }
-
-  .icon-placeholder {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    color: var(--color-text-muted);
-  }
-
-  .selected-icon-preview {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    color: var(--color-accent-violet);
-    font-weight: 600;
-  }
-
-  .emoji-preview {
-    font-size: 1.2rem;
-  }
-
-  .selected-icon-name {
-    font-size: 0.9rem;
-    color: var(--color-text-primary);
-  }
-
-  .hotkey-input {
-    text-align: center;
-    font-family: var(--font-mono);
-    text-transform: uppercase;
-    font-weight: 800;
-    cursor: pointer;
-    caret-color: transparent;
-    color: var(--color-accent-violet) !important;
-  }
-
-  .field-hint {
-    font-size: 0.7rem;
-    color: var(--color-text-muted);
-    opacity: 0.8;
-  }
-
+  /* Color Pickers */
   .color-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(36px, 1fr));
-    gap: 10px;
-    align-items: center;
-    padding: 12px;
-    background: var(--color-surface-1);
-    border-radius: 14px;
-    border: 1px solid var(--color-border);
+    grid-template-columns: repeat(auto-fill, minmax(28px, 1fr));
+    gap: 8px;
+    padding: 8px 0;
+    background: transparent;
+    border: none;
   }
 
   .color-swatch {
-    width: 36px;
-    height: 36px;
+    position: relative;
+    width: 28px;
+    height: 28px;
     border-radius: 8px;
-    border: 1px solid color-mix(in srgb, white 10%, transparent);
+    border: 1px solid rgba(255,255,255,0.05);
+    background: transparent;
     cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.2s;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .color-swatch:hover {
-    transform: scale(1.15) rotate(5deg);
+    transform: scale(1.1);
     z-index: 2;
-    box-shadow: var(--shadow-md);
   }
 
   .color-swatch.active {
-    border-color: white;
-    transform: scale(1.1);
-    box-shadow: 0 0 0 3px var(--color-accent-violet);
+    z-index: 1;
   }
 
-  .custom-color-picker {
-    width: 36px;
-    height: 36px;
-    padding: 0;
-    border: 2px solid var(--color-border);
-    border-radius: 8px;
-    background: transparent;
-    cursor: pointer;
+  :global(.check-icon) {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    filter: drop-shadow(0 0 2px rgba(0,0,0,0.5));
+    pointer-events: none;
   }
 
+  .swatch-indicator {
+    width: 6px;
+    height: 6px;
+    background: white;
+    border-radius: 50%;
+    box-shadow: 0 0 4px rgba(0,0,0,0.5);
+  }
+
+  .active-border {
+    background: var(--color-accent-violet);
+  }
+
+  .custom-color-swatch-wrapper {
+    position: relative;
+  }
+
+  .custom-trigger {
+    background: var(--color-surface-2);
+    border: 1px dashed var(--color-border);
+    color: var(--color-text-muted);
+  }
+
+  .custom-trigger:hover {
+    border-style: solid;
+    border-color: var(--color-accent-violet);
+    color: var(--color-accent-violet);
+  }
+
+  .custom-color-input-hidden {
+    position: absolute;
+    width: 0;
+    height: 0;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .inner-swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    opacity: 0.6;
+  }
+
+  /* Footer */
   .footer-inner {
     display: flex;
     align-items: center;
@@ -402,34 +700,43 @@
     width: 100%;
   }
 
-  .edit-hint {
+  .shortcuts-hint {
+    display: flex;
+    align-items: center;
+    gap: 4px;
     font-size: 0.75rem;
     color: var(--color-text-muted);
     font-family: var(--font-mono);
   }
 
-  .footer-btns {
-    display: flex;
-    gap: 12px;
+  .shortcuts-hint kbd {
+    background: var(--color-surface-3);
+    border: 1px solid var(--color-border);
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: var(--color-text-secondary);
   }
 
   .btn-primary {
-    padding: 12px 24px;
-    border-radius: 14px;
-    font-size: 0.9rem;
+    padding: 10px 28px;
+    border-radius: 12px;
+    font-size: 0.95rem;
     font-weight: 700;
     cursor: pointer;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    font-family: inherit;
     background: var(--color-accent-violet);
     color: white;
     border: none;
-    box-shadow: 0 4px 12px color-mix(in srgb, var(--color-accent-violet) 30%, transparent);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--color-accent-violet) 25%, transparent);
   }
 
   .btn-primary:hover {
     transform: translateY(-2px);
     filter: brightness(1.1);
-    box-shadow: 0 8px 20px color-mix(in srgb, var(--color-accent-violet) 45%, transparent);
+    box-shadow: 0 8px 24px color-mix(in srgb, var(--color-accent-violet) 40%, transparent);
+  }
+
+  .btn-primary:active {
+    transform: translateY(0);
   }
 </style>

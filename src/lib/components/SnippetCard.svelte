@@ -1227,6 +1227,8 @@
     );
     pointer-events: none;
     z-index: 5;
+    border-bottom-left-radius: 13px;
+    border-bottom-right-radius: 13px;
   }
 
   .card-actions-overlay {

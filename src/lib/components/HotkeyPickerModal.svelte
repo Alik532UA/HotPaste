@@ -6,7 +6,8 @@
   import { t } from "../i18n";
 
   const appState = getState();
-  const card = $derived(appState.activeHotkeyPickerCard);
+  const pickerState = $derived(appState.activeHotkeyPicker);
+  const card = $derived(pickerState?.card);
 
   // Group keys into rows for the UI keyboard
   const rows = [
@@ -16,22 +17,34 @@
   ];
 
   function handleSelect(code: string) {
-    if (card) {
-      updateCardHotkey(card, code);
+    if (pickerState) {
+      if (pickerState.onSelect) {
+        pickerState.onSelect(code);
+      } else if (card) {
+        updateCardHotkey(card, code);
+      }
       handleClose();
     }
   }
 
   function handleClear() {
-    if (card) {
-      updateCardHotkey(card, "");
+    if (pickerState) {
+      if (pickerState.onSelect) {
+        pickerState.onSelect("");
+      } else if (card) {
+        updateCardHotkey(card, "");
+      }
       handleClose();
     }
   }
 
   function handleReset() {
-    if (card) {
-      resetCardHotkeyToDefault(card);
+    if (pickerState) {
+      if (pickerState.onSelect) {
+        pickerState.onSelect(""); // Fallback to clear for draft mode
+      } else if (card) {
+        resetCardHotkeyToDefault(card);
+      }
       handleClose();
     }
   }

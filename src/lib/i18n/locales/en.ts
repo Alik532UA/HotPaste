@@ -15,7 +15,9 @@ export const en = {
         disable: "Disable",
         selected: "selected",
         move: "Move",
-        retry: "Retry"
+        retry: "Retry",
+        preview: "Preview",
+        custom: "Custom"
     },
     errors: {
         rendering: "Rendering error"
@@ -59,15 +61,20 @@ export const en = {
     },
     cards: {
         settings: "Card settings",
+        general: "General",
+        identity: "Identity",
+        appearance: "Appearance",
         hotkey: "Hotkey",
         icon: "Icon",
         color: "Background color",
         border: "Border color",
         displayName: "Display name",
         fileName: "File name on disk",
-        hotkeyFixed: "Hotkey (pinned)",
+        fileNameHint: "Warning: renames physical file on disk",
+        hotkeyFixed: "Hotkey (fixed)",
         hotkeyDisabled: "Hotkey (disabled)",
         hotkeyChange: "Change hotkey",
+        hotkeyHint: "Physical key code (KeyboardEvent.code)",
         hint: "Ctrl+Enter — save, Esc — cancel"
     },
     modals: {

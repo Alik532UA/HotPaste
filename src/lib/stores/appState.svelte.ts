@@ -42,7 +42,7 @@ export function getState() {
         get activeContextMenu() { return uiState.activeContextMenu; },
         get activeSettingsCard() { return uiState.activeSettingsCard; },
         get activeSettingsTab() { return uiState.activeSettingsTab; },
-        get activeHotkeyPickerCard() { return uiState.activeHotkeyPickerCard; },
+        get activeHotkeyPicker() { return uiState.activeHotkeyPicker; },
         get activeHotkeyConflict() { return uiState.activeHotkeyConflict; },
         get activeIconPicker() { return uiState.activeIconPicker; },
         get isSelectionMode() { return uiState.isSelectionMode; },
@@ -243,7 +243,7 @@ export function handleGlobalKeydown(event: KeyboardEvent): void {
         uiState.editingCardPath ||
         uiState.activeSettingsCard ||
         uiState.activeSettingsTab ||
-        uiState.activeHotkeyPickerCard ||
+        uiState.activeHotkeyPicker ||
         uiState.activeHotkeyConflict ||
         uiState.activeIconPicker ||
         uiState.activeProgramPicker

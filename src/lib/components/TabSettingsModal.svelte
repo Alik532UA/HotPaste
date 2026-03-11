@@ -216,9 +216,10 @@
   }
 
   .icon-picker-btn {
-    width: 100%;
+    width: auto;
+    min-width: 120px;
     background: var(--color-surface-2);
-    border: 1px solid var(--color-border);
+    border: 2px solid var(--color-border);
     border-radius: 8px;
     padding: 8px 14px;
     color: var(--color-text-primary);

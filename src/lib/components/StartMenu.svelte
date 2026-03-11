@@ -164,7 +164,7 @@
         uiState.activeProgramPicker ||
         uiState.activeSettingsCard ||
         uiState.activeSettingsTab ||
-        uiState.activeHotkeyPickerCard
+        uiState.activeHotkeyPicker
       )
         return;
 

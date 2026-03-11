@@ -42,6 +42,11 @@
   --color-warning: #f59e0b;
   --color-info: #3b82f6;
 
+  /* Color Palette for Cards */
+  --palette-1: #1e293b; --palette-2: #334155; --palette-3: #18181b; --palette-4: #27272a; --palette-5: #1c1917; --palette-6: #292524; --palette-7: #450a0a;
+  --palette-8: #7f1d1d; --palette-9: #431407; --palette-10: #7c2d12; --palette-11: #451a03; --palette-12: #78350f; --palette-13: #064e3b; --palette-14: #065f46;
+  --palette-15: #134e4a; --palette-16: #115e59; --palette-17: #1e3a8a; --palette-18: #1e40af; --palette-19: #312e81; --palette-20: #3730a3; --palette-21: #4c1d95; --palette-22: #701a75;
+
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5);
@@ -86,6 +91,11 @@
   --color-success: #16a34a;
   --color-warning: #d97706;
   --color-info: #2563eb;
+
+  /* Color Palette for Cards */
+  --palette-1: #cbd5e1; --palette-2: #94a3b8; --palette-3: #d4d4d8; --palette-4: #a1a1aa; --palette-5: #d6d3d1; --palette-6: #a8a29e; --palette-7: #fee2e2;
+  --palette-8: #f87171; --palette-9: #ffedd5; --palette-10: #fb923c; --palette-11: #fef3c7; --palette-12: #fbbf24; --palette-13: #d1fae5; --palette-14: #34d399;
+  --palette-15: #ccfbf1; --palette-16: #2dd4bf; --palette-17: #dbeafe; --palette-18: #60a5fa; --palette-19: #e0e7ff; --palette-20: #818cf8; --palette-21: #f3e8ff; --palette-22: #fae8ff;
 
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.1);
   --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.15);
@@ -132,6 +142,11 @@
   --color-warning: #f1c40f;
   --color-info: #3498db;
 
+  /* Color Palette for Cards */
+  --palette-1: #4c1d95; --palette-2: #5b21b6; --palette-3: #7e22ce; --palette-4: #9333ea; --palette-5: #a21caf; --palette-6: #c026d3; --palette-7: #be185d;
+  --palette-8: #db2777; --palette-9: #e11d48; --palette-10: #f43f5e; --palette-11: #ea580c; --palette-12: #f97316; --palette-13: #d97706; --palette-14: #f59e0b;
+  --palette-15: #ca8a04; --palette-16: #eab308; --palette-17: #65a30d; --palette-18: #84cc16; --palette-19: #16a34a; --palette-20: #22c55e; --palette-21: #2dd4bf; --palette-22: #22d3ee;
+
   --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 8px 25px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 15px 40px rgba(0, 0, 0, 0.5);
@@ -175,6 +190,11 @@
   --color-success: #059669;
   --color-warning: #b45309;
   --color-info: #0891b2;
+
+  /* Color Palette for Cards */
+  --palette-1: #064e3b; --palette-2: #065f46; --palette-3: #047857; --palette-4: #059669; --palette-5: #10b981; --palette-6: #34d399; --palette-7: #6ee7b7;
+  --palette-8: #a7f3d0; --palette-9: #134e4a; --palette-10: #115e59; --palette-11: #0f766e; --palette-12: #0d9488; --palette-13: #14b8a6; --palette-14: #2dd4bf;
+  --palette-15: #5eead4; --palette-16: #99f6e4; --palette-17: #1e3a8a; --palette-18: #1e40af; --palette-19: #2563eb; --palette-20: #3b82f6; --palette-21: #60a5fa; --palette-22: #93c5fd; --palette-23: #bfdbfe;
 
   --shadow-sm: 0 2px 8px rgba(5, 150, 105, 0.15);
   --shadow-md: 0 8px 24px rgba(5, 150, 105, 0.2);
