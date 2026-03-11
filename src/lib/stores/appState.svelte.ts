@@ -133,6 +133,55 @@ export const toggleStrikethrough = fsState.toggleStrikethrough;
 export const saveCurrentTabConfig = fsState.saveCurrentTabConfig;
 export const saveTabOrder = fsState.saveTabOrder;
 export const startNewCardCreation = fsState.startNewCardCreation;
+
+/** Create a new card from clipboard content automatically */
+export async function quickPasteFromClipboard() {
+    try {
+        let text = '';
+        
+        // Determine if running in Tauri environment
+        // @ts-ignore
+        const isTauri = !!(typeof window !== "undefined" && (window.__TAURI_INTERNALS__ || window.__TAURI__));
+
+        if (isTauri) {
+            const { readText } = await import('@tauri-apps/plugin-clipboard-manager');
+            text = await readText();
+        } else {
+            text = await navigator.clipboard.readText();
+        }
+
+        if (!text || text.trim() === '') {
+            uiState.showToast('Буфер обміну порожній');
+            return;
+        }
+
+        // Create a mock card structure for saveCard
+        const tempId = `quick-new-${Date.now()}`;
+        const mockCard: Card = {
+            id: tempId, 
+            name: "New Snippet", 
+            fileName: "", 
+            filePath: tempId, 
+            content: text, 
+            extension: "txt",
+            displayName: null, 
+            hotkey: '', 
+            icon: null, 
+            color: null, 
+            borderColor: null, 
+            strikethrough: [],
+            size: 0, 
+            lastModified: 0, 
+            isNewMock: true
+        };
+
+        await fsState.saveCard(mockCard, text);
+    } catch (err) {
+        logService.log('error', 'Failed to quick paste', err);
+        uiState.showToast('Помилка доступу до буфера обміну');
+    }
+}
+
 export const removeOrphanedConfig = fsState.removeOrphanedConfig;
 export const linkFileManually = fsState.linkFileManually;
 export const updateCardHotkey = fsState.updateCardHotkey;
@@ -187,6 +236,13 @@ export function handleGlobalKeydown(event: KeyboardEvent): void {
     ) return;
 
     if (!fsState.isConnected) return;
+
+    // Quick paste from clipboard on Control key
+    if ((event.code === 'ControlLeft' || event.code === 'ControlRight') && !event.shiftKey && !event.altKey && !event.metaKey) {
+        event.preventDefault();
+        quickPasteFromClipboard();
+        return;
+    }
 
     if (event.ctrlKey && event.code === 'KeyN') {
         event.preventDefault();

@@ -1,7 +1,7 @@
 {
   "name": "hotpaste",
   "private": true,
-  "version": "0.1.6",
+  "version": "0.1.7",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -21,17 +21,18 @@
     "@tsconfig/svelte": "^5.0.6",
     "@types/dompurify": "^3.0.5",
     "@types/node": "^24.10.1",
+    "husky": "^8.0.0",
     "svelte": "^5.45.2",
     "svelte-check": "^4.3.4",
     "typescript": "~5.9.3",
     "vite": "^7.3.1",
     "vite-plugin-pwa": "^1.2.0",
-    "vitest": "^4.0.18",
-    "husky": "^8.0.0"
+    "vitest": "^4.0.18"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.10.1",
     "@tauri-apps/plugin-autostart": "^2.5.1",
+    "@tauri-apps/plugin-clipboard-manager": "^2.3.2",
     "@tauri-apps/plugin-fs": "^2.4.5",
     "@tauri-apps/plugin-process": "^2.3.1",
     "@tauri-apps/plugin-shell": "^2.3.5",

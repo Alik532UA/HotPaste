@@ -63,6 +63,7 @@
         }
       ]
     },
-    "process:default"
+    "process:default",
+    "clipboard-manager:default"
   ]
 }
