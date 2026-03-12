@@ -40,6 +40,7 @@
   import { t } from "./lib/i18n";
   import { logService } from "./lib/services/logService.svelte";
   import { uiState } from "./lib/stores/uiState.svelte";
+  import { configState } from "./lib/stores/configState.svelte";
   import { fsState } from "./lib/stores/fileSystemState.svelte";
   import { checkForUpdates } from "./lib/services/versionService";
   import UpdateModal from "./lib/components/ui/UpdateModal.svelte";
@@ -166,6 +167,19 @@
   onMount(() => {
     if (isTauri) {
       document.documentElement.classList.add("is-tauri");
+
+      // Sync trigger key on startup
+      if (configState.config.triggerKey !== "Win") {
+        configState.setTriggerKey(configState.config.triggerKey);
+      }
+
+      // Initial autostart sync
+      if (import.meta.env.DEV) {
+        // Force disable autostart in dev version as per requirements
+        configState.setAutostartEnabled(false);
+      } else {
+        configState.setAutostartEnabled(configState.config.autostartEnabled);
+      }
     }
 
     theme.init();

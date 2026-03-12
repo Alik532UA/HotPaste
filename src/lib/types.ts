@@ -131,6 +131,10 @@ export interface AppConfig {
   defaultModeKeyboard: 'full' | 'minimal';
   /** Mode toggle hotkey: [Space] and [F11], only [Space], or only [F11] */
   toggleModeHotkey: 'space_f11' | 'space' | 'f11';
+  /** Whether the app should start on Windows startup */
+  autostartEnabled: boolean;
+  /** Global hotkey to show/hide the app (e.g. "Win", "Alt+Space", "F1") */
+  triggerKey: string;
 }
 
 export const DEFAULT_CONFIG: AppConfig = {
@@ -138,7 +142,9 @@ export const DEFAULT_CONFIG: AppConfig = {
   cardSizes: {},
   defaultModeSnippets: 'full',
   defaultModeKeyboard: 'minimal',
-  toggleModeHotkey: 'space_f11',
+  toggleModeHotkey: 'space',
+  autostartEnabled: true,
+  triggerKey: 'Win',
 };
 
 /** Config filename used in each tab directory */

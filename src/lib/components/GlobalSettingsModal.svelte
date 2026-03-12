@@ -8,9 +8,12 @@
     Minimize2,
     Trash2,
     Palette,
+    Power,
+    Zap,
   } from "lucide-svelte";
   import { uiState } from "../stores/uiState.svelte";
   import { configState } from "../stores/configState.svelte";
+  import { openHotkeyPicker } from "../stores/appState.svelte";
   import { theme } from "../states/theme.svelte";
   import { dataService } from "../services/dataService";
   import { t } from "../i18n";
@@ -53,6 +56,14 @@
         isClearing = false;
       }
     }
+  }
+
+  function handleOpenHotkeyPicker() {
+    openHotkeyPicker(null as any, (code) => {
+      if (code) {
+        configState.setTriggerKey(code);
+      }
+    });
   }
 </script>
 
@@ -127,6 +138,63 @@
 
     <section class="settings-section">
       <h3 class="section-title">
+        <Power size={18} />
+        {t.settings.autostart}
+      </h3>
+      <p class="section-desc">{t.settings.autostartDesc}</p>
+
+      <div class="setting-row">
+        <SegmentedToggle
+          id="autostart-toggle"
+          options={[
+            { id: "true", label: t.common.default || "Увімкнено" },
+            { id: "false", label: t.common.disable || "Вимкнено" },
+          ]}
+          value={configState.config.autostartEnabled.toString()}
+          onSelect={(id) => configState.setAutostartEnabled(id === "true")}
+        />
+      </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <section class="settings-section">
+      <h3 class="section-title">
+        <Zap size={18} />
+        {t.settings.globalHotkey}
+      </h3>
+      <p class="section-desc">{t.settings.globalHotkeyDesc}</p>
+
+      <div class="setting-row hotkey-row">
+        <SegmentedToggle
+          id="global-hotkey-preset"
+          options={[
+            { id: "Win", label: t.settings.globalHotkeyWin },
+            { id: "Alt+Space", label: t.settings.globalHotkeyAltSpace },
+            { id: "custom", label: t.settings.globalHotkeyCustom },
+          ]}
+          value={["Win", "Alt+Space"].includes(configState.config.triggerKey) ? configState.config.triggerKey : "custom"}
+          onSelect={(id) => {
+            if (id !== "custom") {
+              configState.setTriggerKey(id);
+            } else {
+              handleOpenHotkeyPicker();
+            }
+          }}
+        />
+        
+        {#if !["Win", "Alt+Space"].includes(configState.config.triggerKey)}
+          <button class="custom-hotkey-btn" onclick={handleOpenHotkeyPicker}>
+            {configState.config.triggerKey}
+          </button>
+        {/if}
+      </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <section class="settings-section">
+      <h3 class="section-title">
         <Maximize2 size={18} />
         {t.settings.modeToggle}
       </h3>
@@ -136,8 +204,8 @@
         <SegmentedToggle
           id="mode-toggle-hotkey"
           options={[
-            { id: "space_f11", label: t.settings.modeToggleSpace },
             { id: "space", label: t.settings.modeToggleOnlySpace },
+            { id: "space_f11", label: t.settings.modeToggleSpace },
             { id: "f11", label: t.settings.modeToggleOnlyF11 },
           ]}
           value={configState.config.toggleModeHotkey}
@@ -282,5 +350,26 @@
     border-color: var(--color-danger);
     box-shadow: 0 4px 12px
       color-mix(in srgb, var(--color-danger) 30%, transparent);
+  }
+
+  .hotkey-row {
+    gap: var(--space-3);
+  }
+
+  .custom-hotkey-btn {
+    background: var(--color-bg-secondary);
+    color: var(--color-accent);
+    border: 1px solid var(--color-border);
+    padding: 8px 16px;
+    border-radius: 10px;
+    font-weight: 700;
+    font-family: var(--font-mono);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .custom-hotkey-btn:hover {
+    border-color: var(--color-accent);
+    background: color-mix(in srgb, var(--color-accent) 10%, transparent);
   }
 </style>

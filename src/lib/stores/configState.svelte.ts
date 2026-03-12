@@ -3,6 +3,8 @@
  */
 
 import { DEFAULT_CONFIG, type AppConfig } from '../types';
+import { getWinVK } from '../utils/keyboardLayout';
+import { invoke } from '@tauri-apps/api/core';
 
 let config = $state<AppConfig>(loadConfig());
 
@@ -27,6 +29,31 @@ export const configState = {
     setToggleModeHotkey(mode: 'space_f11' | 'space' | 'f11') {
         config.toggleModeHotkey = mode;
         saveConfig();
+    },
+
+    async setAutostartEnabled(enabled: boolean) {
+        config.autostartEnabled = enabled;
+        saveConfig();
+        try {
+            const { enable, disable, isEnabled } = await import('@tauri-apps/plugin-autostart');
+            if (enabled) {
+                if (!(await isEnabled())) await enable();
+            } else {
+                if (await isEnabled()) await disable();
+            }
+        } catch (e) {
+            console.error('Failed to set autostart', e);
+        }
+    },
+
+    setTriggerKey(key: string) {
+        config.triggerKey = key;
+        saveConfig();
+        
+        // Sync with Tauri hook worker
+        const { vk, alt } = getWinVK(key);
+        invoke('restart_hook_worker_tauri', { vkCode: vk, useAlt: alt })
+            .catch(e => console.error('Failed to restart hook worker', e));
     }
 };
 

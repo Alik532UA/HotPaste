@@ -119,12 +119,19 @@ export const uk = {
         clearCacheConfirm: "Ви впевнені, що хочете очистити всі дані? Це не видалить ваші файли сніпетів, але скине всі налаштування додатку, включаючи шлях до папки.",
         modeToggle: "Перемикання режимів",
         modeToggleDesc: "Виберіть клавішу для швидкого перемикання між Full та Minimal режимами",
-        modeToggleSpace: "[Space] та [F11]",
-        modeToggleOnlySpace: "Тільки [Space]",
-        modeToggleOnlyF11: "Тільки [F11]",
+        modeToggleSpace: "Space та F11",
+        modeToggleOnlySpace: "Тільки Space",
+        modeToggleOnlyF11: "Тільки F11",
         themeDarkGray: "Темно-сіра",
         themeLightGray: "Світло-сіра",
         themeOrange: "Помаранчева",
-        themeGreen: "Зелена"
+        themeGreen: "Зелена",
+        autostart: "Автозапуск",
+        autostartDesc: "Запускати програму автоматично при старті Windows",
+        globalHotkey: "Глобальна гаряча клавіша",
+        globalHotkeyDesc: "Клавіша для відкриття/закриття програми з будь-якого місця",
+        globalHotkeyWin: "Клавіша Windows",
+        globalHotkeyAltSpace: "Alt + Пробіл",
+        globalHotkeyCustom: "Своя клавіша"
     }
 };

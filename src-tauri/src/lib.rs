@@ -9,7 +9,7 @@ use windows_sys::Win32::UI::Input::KeyboardAndMouse::*;
 use windows_sys::Win32::UI::WindowsAndMessaging::*;
 
 use futures::future::join_all;
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Write};
 use std::process::{Command, Stdio};
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
@@ -22,6 +22,16 @@ const CREATE_NO_WINDOW: u32 = 0x08000000;
 
 static APP_HANDLE: OnceLock<AppHandle> = OnceLock::new();
 static IS_MINIMAL: AtomicBool = AtomicBool::new(false);
+static HOOK_CHILD: std::sync::Mutex<Option<std::process::Child>> = std::sync::Mutex::new(None);
+
+#[cfg(target_os = "windows")]
+fn kill_hook_worker() {
+    if let Ok(mut lock) = HOOK_CHILD.lock() {
+        if let Some(mut child) = lock.take() {
+            let _ = child.kill();
+        }
+    }
+}
 
 /// Force rounded corners and HIDE system border/shadow via DWM API (Windows 11+).
 #[cfg(target_os = "windows")]
@@ -101,7 +111,15 @@ extern "system" {
     ) -> *mut std::ffi::c_void;
 }
 
-pub fn run_hook_worker() {
+static WIN_PRESSED: AtomicBool = AtomicBool::new(false);
+static OTHER_KEY_PRESSED: AtomicBool = AtomicBool::new(false);
+static TARGET_VK: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0x5B);
+static TARGET_USE_ALT: AtomicBool = AtomicBool::new(false);
+
+pub fn run_hook_worker(vk_code: u32, use_alt: bool) {
+    TARGET_VK.store(vk_code, Ordering::SeqCst);
+    TARGET_USE_ALT.store(use_alt, Ordering::SeqCst);
+
     unsafe {
         let hook = SetWindowsHookExW(
             WH_KEYBOARD_LL,
@@ -118,9 +136,6 @@ pub fn run_hook_worker() {
     }
 }
 
-static WIN_PRESSED: AtomicBool = AtomicBool::new(false);
-static OTHER_KEY_PRESSED: AtomicBool = AtomicBool::new(false);
-
 unsafe extern "system" fn low_level_keyboard_proc_worker(
     n_code: i32,
     w_param: usize,
@@ -134,19 +149,34 @@ unsafe extern "system" fn low_level_keyboard_proc_worker(
             return CallNextHookEx(std::ptr::null_mut(), n_code, w_param, l_param);
         }
 
+        let target_vk = TARGET_VK.load(Ordering::SeqCst);
+        let use_alt = TARGET_USE_ALT.load(Ordering::SeqCst);
+
+        let is_target = vk_code == target_vk;
         let is_win = vk_code == VK_LWIN as u32 || vk_code == VK_RWIN as u32;
 
         match w_param as u32 {
             WM_KEYDOWN | WM_SYSKEYDOWN => {
-                if is_win {
+                if use_alt {
+                    let is_alt = (kb_data.flags & LLKHF_ALTDOWN as u32) != 0;
+                    if is_target && is_alt {
+                        println!("TOGGLE");
+                        let _ = std::io::stdout().flush();
+                        return 1;
+                    }
+                } else if is_win && target_vk == VK_LWIN as u32 {
                     WIN_PRESSED.store(true, Ordering::SeqCst);
                     OTHER_KEY_PRESSED.store(false, Ordering::SeqCst);
+                } else if is_target {
+                    println!("TOGGLE");
+                    let _ = std::io::stdout().flush();
+                    return 1;
                 } else if WIN_PRESSED.load(Ordering::SeqCst) {
                     OTHER_KEY_PRESSED.store(true, Ordering::SeqCst);
                 }
             }
             WM_KEYUP | WM_SYSKEYUP => {
-                if is_win {
+                if !use_alt && is_win && target_vk == VK_LWIN as u32 {
                     let was_pressed = WIN_PRESSED.swap(false, Ordering::SeqCst);
                     let other_pressed = OTHER_KEY_PRESSED.load(Ordering::SeqCst);
 
@@ -154,6 +184,7 @@ unsafe extern "system" fn low_level_keyboard_proc_worker(
                         keybd_event(0xFF, 0, 0, 0);
                         keybd_event(0xFF, 0, KEYEVENTF_KEYUP, 0);
                         println!("TOGGLE");
+                        let _ = std::io::stdout().flush();
                         keybd_event(vk_code as u8, 0, KEYEVENTF_KEYUP, 0);
                         return 1;
                     }
@@ -174,7 +205,6 @@ async fn launch_start_program(app: AppHandle, name: String) -> Result<(), String
 
 #[tauri::command]
 async fn launch_program_by_path(path: String) -> Result<(), String> {
-    log::info!("[LAUNCH] Attempting to launch: {}", path);
     #[cfg(target_os = "windows")]
     {
         use std::path::Path;
@@ -189,21 +219,15 @@ async fn launch_program_by_path(path: String) -> Result<(), String> {
         let path_exists = Path::new(&path).exists();
 
         if is_uri || path_exists {
-            log::info!("[LAUNCH] Launching as URI or Physical Path via ShellExecuteW");
             return launch_via_shell_execute(&path);
         }
 
         // 3. If it has spaces and doesn't exist, it's likely a command with arguments (e.g., shutdown /s)
         if path.contains(' ') {
-            log::info!("[LAUNCH] Detected as command with arguments, using cmd /C");
             let _ = Command::new("cmd")
                 .args(["/C", &path])
                 .creation_flags(CREATE_NO_WINDOW)
-                .spawn()
-                .map_err(|e| {
-                    log::error!("[LAUNCH] Command launch failed: {}", e);
-                    e.to_string()
-                })?;
+                .spawn();
             return Ok(());
         }
 
@@ -211,7 +235,6 @@ async fn launch_program_by_path(path: String) -> Result<(), String> {
         let final_path = if path.starts_with("shell:") {
             path
         } else {
-            log::info!("[LAUNCH] Treating as AppID via shell:AppsFolder");
             format!("shell:AppsFolder\\{}", path)
         };
 
@@ -325,7 +348,7 @@ async fn get_local_shortcuts(app: AppHandle) -> Result<Vec<ShortcutInfo>, String
         let start_path = docs.join("HotPaste").join("start");
 
         if !start_path.exists() {
-            std::fs::create_dir_all(&start_path).map_err(|e| e.to_string())?;
+            let _ = std::fs::create_dir_all(&start_path);
             return Ok(vec![]);
         }
 
@@ -403,7 +426,6 @@ async fn get_shortcut_icons_batch(
             return Ok(results);
         }
 
-        // Process missing icons PARALLEL, 1-by-1, with 3s timeout
         let futures = missing_paths.into_iter().map(|path| {
             let cache_dir_clone = cache_dir.clone();
             async move {
@@ -422,14 +444,7 @@ async fn get_shortcut_icons_batch(
                         }
                         Some((path, b64))
                     }
-                    Ok(Err(e)) => {
-                        println!("[ICONS_ERROR] Failed for {}: {}", path, e);
-                        None
-                    }
-                    Err(_) => {
-                        println!("[ICONS_TIMEOUT] 3s timeout reached for {}", path);
-                        None
-                    }
+                    _ => None,
                 }
             }
         });
@@ -676,7 +691,7 @@ if (![string]::IsNullOrEmpty($b64)) {{
             .to_string());
     }
 
-    Err("Icon not found in output".to_string())
+    Err("Icon not found".to_string())
 }
 
 #[tauri::command]
@@ -687,7 +702,7 @@ async fn get_shortcut_icon(app: AppHandle, path: String) -> Result<String, Strin
             return Ok(b64);
         }
     }
-    Err("Failed to get icon".to_string())
+    Err("Failed".to_string())
 }
 
 #[tauri::command]
@@ -696,7 +711,6 @@ async fn clear_icon_cache(app: AppHandle) -> Result<(), String> {
     let cache_dir = docs.join("HotPaste").join("start").join("icon-cache");
     if cache_dir.exists() {
         let _ = std::fs::remove_dir_all(&cache_dir);
-        let _ = std::fs::create_dir_all(&cache_dir);
     }
     Ok(())
 }
@@ -710,9 +724,7 @@ async fn get_system_apps() -> Result<Vec<ShortcutInfo>, String> {
                 "-NoProfile",
                 "-NonInteractive",
                 "-Command",
-                "$ErrorActionPreference = 'SilentlyContinue'; $WarningPreference = 'SilentlyContinue'; Get-StartApps | ForEach-Object {
-                    [PSCustomObject]@{ Name=$_.Name; Path=$_.AppID; Icon=$null }
-                } | ConvertTo-Json",
+                "$ErrorActionPreference = 'SilentlyContinue'; Get-StartApps | ForEach-Object { [PSCustomObject]@{ Name=$_.Name; Path=$_.AppID; Icon=$null } } | ConvertTo-Json",
             ])
             .creation_flags(CREATE_NO_WINDOW)
             .output()
@@ -728,30 +740,15 @@ async fn get_system_apps() -> Result<Vec<ShortcutInfo>, String> {
 
 fn parse_shortcuts_json(stdout: Vec<u8>) -> Result<Vec<ShortcutInfo>, String> {
     let json_str = String::from_utf8_lossy(&stdout);
-    if json_str.trim().is_empty() {
-        return Ok(vec![]);
-    }
-
+    if json_str.trim().is_empty() { return Ok(vec![]); }
     let v: serde_json::Value = serde_json::from_str(&json_str).map_err(|e| e.to_string())?;
     let mut shortcuts = Vec::new();
-
-    let items = if let Some(array) = v.as_array() {
-        array.clone()
-    } else {
-        vec![v]
-    };
-
+    let items = if let Some(array) = v.as_array() { array.clone() } else { vec![v] };
     for item in items {
         if let (Some(name), Some(path)) = (item["Name"].as_str(), item["Path"].as_str()) {
-            let icon = item["Icon"].as_str().map(|s| s.to_string());
-            shortcuts.push(ShortcutInfo {
-                name: name.to_string(),
-                path: path.to_string(),
-                icon,
-            });
+            shortcuts.push(ShortcutInfo { name: name.to_string(), path: path.to_string(), icon: None });
         }
     }
-
     Ok(shortcuts)
 }
 
@@ -762,23 +759,37 @@ async fn set_minimal_mode_tauri(window: tauri::WebviewWindow, minimal: bool) -> 
     {
         let _ = window.set_shadow(false);
         set_rounded_corners(&window);
-
-        if minimal {
-            resize_to_minimal(&window);
-            let _ = window.center();
-        } else {
-            resize_to_90_percent(&window);
-            let _ = window.center();
-        }
-        set_rounded_corners(&window);
+        if minimal { resize_to_minimal(&window); } else { resize_to_90_percent(&window); }
+        let _ = window.center();
     }
     Ok(())
 }
 
 #[tauri::command]
-async fn hide_window(window: tauri::WebviewWindow) {
-    let _ = window.hide();
+async fn restart_hook_worker_tauri(_app: AppHandle, vk_code: u32, use_alt: bool) -> Result<(), String> {
+    kill_hook_worker();
+    let current_exe = std::env::current_exe().map_err(|e| e.to_string())?;
+    let mut cmd = Command::new(current_exe);
+    cmd.arg("--hook-worker").arg(vk_code.to_string()).stdout(Stdio::piped()).creation_flags(CREATE_NO_WINDOW);
+    if use_alt { cmd.arg("--use-alt"); }
+    let mut child = cmd.spawn().map_err(|e| e.to_string())?;
+    let stdout = child.stdout.take().expect("failed");
+    if let Ok(mut lock) = HOOK_CHILD.lock() { *lock = Some(child); }
+    std::thread::spawn(move || {
+        let reader = BufReader::new(stdout);
+        for line in reader.lines() {
+            if let Ok(content) = line {
+                if content.trim() == "TOGGLE" {
+                    if let Some(handle) = APP_HANDLE.get() { toggle_window(handle); }
+                }
+            }
+        }
+    });
+    Ok(())
 }
+
+#[tauri::command]
+async fn hide_window(window: tauri::WebviewWindow) { let _ = window.hide(); }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -789,164 +800,74 @@ pub fn run() {
         .plugin(tauri_plugin_log::Builder::new().build())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_shell::init())
-        .plugin(tauri_plugin_autostart::init(
-            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
-            Some(vec!["--minimized"]),
-        ))
+        .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, Some(vec!["--minimized"])))
         .invoke_handler(tauri::generate_handler![
-            launch_start_program,
-            launch_program_by_path,
-            get_running_processes,
-            get_system_shortcuts,
-            get_local_shortcuts,
-            get_system_apps,
-            get_shortcut_icon,
-            get_shortcut_icons_batch,
-            clear_icon_cache,
-            set_minimal_mode_tauri,
-            hide_window
+            launch_start_program, launch_program_by_path, get_running_processes, get_system_shortcuts, 
+            get_local_shortcuts, get_system_apps, get_shortcut_icon, get_shortcut_icons_batch, 
+            clear_icon_cache, set_minimal_mode_tauri, hide_window, restart_hook_worker_tauri
         ])
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             if let Some(window) = app.get_webview_window("main") {
-                if IS_MINIMAL.load(Ordering::SeqCst) {
-                    resize_to_minimal(&window);
-                } else {
-                    resize_to_90_percent(&window);
-                }
-                let _ = window.show();
-                let _ = window.set_focus();
-                let _ = window.center();
+                let _ = window.show(); let _ = window.set_focus(); let _ = window.center();
             }
         }))
         .setup(|app| {
             let handle = app.handle().clone();
             let _ = APP_HANDLE.set(handle);
-
-            let show_item = MenuItemBuilder::with_id("show", "Show HotPaste")
-                .build(app)
-                .expect("failed to build menu item");
-            let quit_item = MenuItemBuilder::with_id("quit", "Quit")
-                .build(app)
-                .expect("failed to build menu item");
-            let menu = MenuBuilder::new(app)
-                .items(&[&show_item, &quit_item])
-                .build()
-                .expect("failed to build menu");
+            let show_item = MenuItemBuilder::with_id("show", "Show HotPaste").build(app).expect("f");
+            let quit_item = MenuItemBuilder::with_id("quit", "Quit").build(app).expect("f");
+            let menu = MenuBuilder::new(app).items(&[&show_item, &quit_item]).build().expect("f");
             let tray_menu = menu.clone();
-
-            let _tray = TrayIconBuilder::new()
-                .icon(app.default_window_icon().unwrap().clone())
+            let _tray = TrayIconBuilder::new().icon(app.default_window_icon().unwrap().clone())
                 .on_menu_event(|app, event| match event.id.as_ref() {
-                    "show" => {
-                        toggle_window(app);
-                    }
-                    "quit" => {
-                        std::process::exit(0);
-                    }
+                    "show" => { toggle_window(app); }
+                    "quit" => { kill_hook_worker(); app.exit(0); }
                     _ => {}
                 })
                 .on_tray_icon_event(move |tray, event| {
-                    if let TrayIconEvent::Click {
-                        button,
-                        button_state: tauri::tray::MouseButtonState::Up,
-                        ..
-                    } = event
-                    {
+                    if let TrayIconEvent::Click { button, button_state: tauri::tray::MouseButtonState::Up, .. } = event {
                         match button {
-                            tauri::tray::MouseButton::Left => {
-                                toggle_window(tray.app_handle());
-                            }
-                            tauri::tray::MouseButton::Right => {
-                                if let Some(window) = tray.app_handle().get_webview_window("main") {
-                                    let _ = window.popup_menu(&tray_menu);
-                                }
-                            }
+                            tauri::tray::MouseButton::Left => { toggle_window(tray.app_handle()); }
+                            tauri::tray::MouseButton::Right => { if let Some(window) = tray.app_handle().get_webview_window("main") { let _ = window.popup_menu(&tray_menu); } }
                             _ => {}
                         }
                     }
-                })
-                .build(app)
-                .expect("failed to build tray icon");
+                }).build(app).expect("f");
 
-            let window = app.get_webview_window("main").unwrap();
-
-            if IS_MINIMAL.load(Ordering::SeqCst) {
-                resize_to_minimal(&window);
-            } else {
-                resize_to_90_percent(&window);
-            }
-
-            let _ = window.show();
-            let _ = window.center();
-
-            #[cfg(target_os = "windows")]
-            {
-                let _ = window.set_shadow(false);
-                set_rounded_corners(&window);
-            }
-
-            let window_events = window.clone();
-            window.on_window_event(move |event| {
-                match event {
-                    WindowEvent::CloseRequested { api, .. } => {
-                        api.prevent_close();
-                        let _ = window_events.hide();
-                    }
-                    WindowEvent::Resized(_) => {
-                        #[cfg(target_os = "windows")]
-                        set_rounded_corners(&window_events);
-
-                        if IS_MINIMAL.load(Ordering::SeqCst) {
-                            // Let the window resize freely
-                        }
-                    }
+            if let Some(window) = app.get_webview_window("main") {
+                if IS_MINIMAL.load(Ordering::SeqCst) { resize_to_minimal(&window); } else { resize_to_90_percent(&window); }
+                let _ = window.show(); let _ = window.center();
+                #[cfg(target_os = "windows")] { let _ = window.set_shadow(false); set_rounded_corners(&window); }
+                let window_events = window.clone();
+                window.on_window_event(move |event| match event {
+                    WindowEvent::CloseRequested { api, .. } => { api.prevent_close(); let _ = window_events.hide(); }
+                    WindowEvent::Destroyed => { kill_hook_worker(); }
+                    WindowEvent::Resized(_) => { #[cfg(target_os = "windows")] set_rounded_corners(&window_events); }
                     _ => {}
-                }
-            });
+                });
+            }
 
             let current_exe = std::env::current_exe().unwrap();
             std::thread::spawn(move || {
-                let mut child = Command::new(current_exe)
-                    .arg("--hook-worker")
-                    .stdout(Stdio::piped())
-                    .creation_flags(CREATE_NO_WINDOW)
-                    .spawn()
-                    .expect("failed to spawn hook worker");
-
-                let stdout = child.stdout.take().expect("failed to open stdout");
+                let mut cmd = Command::new(current_exe);
+                cmd.arg("--hook-worker").stdout(Stdio::piped()).creation_flags(CREATE_NO_WINDOW);
+                let mut child = cmd.spawn().expect("f");
+                let stdout = child.stdout.take().expect("f");
+                if let Ok(mut lock) = HOOK_CHILD.lock() { *lock = Some(child); }
                 let reader = BufReader::new(stdout);
-
-                for line in reader.lines() {
-                    if let Ok(content) = line {
-                        if content.trim() == "TOGGLE" {
-                            if let Some(handle) = APP_HANDLE.get() {
-                                toggle_window(handle);
-                            }
-                        }
-                    }
-                }
+                for line in reader.lines() { if let Ok(content) = line { if content.trim() == "TOGGLE" { if let Some(handle) = APP_HANDLE.get() { toggle_window(handle); } } } }
             });
-
             Ok(())
         })
         .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .expect("e");
 }
 
 fn toggle_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
-        let is_visible = window.is_visible().unwrap_or(false);
-        if is_visible {
-            let _ = window.hide();
-        } else {
-            if IS_MINIMAL.load(Ordering::SeqCst) {
-                resize_to_minimal(&window);
-            } else {
-                resize_to_90_percent(&window);
-            }
-            let _ = window.show();
-            let _ = window.set_focus();
-            let _ = window.center();
+        if window.is_visible().unwrap_or(false) { let _ = window.hide(); } else {
+            if IS_MINIMAL.load(Ordering::SeqCst) { resize_to_minimal(&window); } else { resize_to_90_percent(&window); }
+            let _ = window.show(); let _ = window.set_focus(); let _ = window.center();
         }
     }
 }
@@ -954,18 +875,9 @@ fn toggle_window(app: &AppHandle) {
 fn resize_to_minimal(window: &tauri::WebviewWindow) {
     if let Ok(Some(monitor)) = window.primary_monitor() {
         let m_size = monitor.size();
-
-        // Keyboard-like proportions: wide but short
-        let window_w_phys = m_size.width as f64 * 0.85; // 85% width
-        let window_h_phys = m_size.height as f64 * 0.45; // 45% height (significantly shorter)
-
-        let phys_w = window_w_phys as u32;
-        let phys_h = (window_h_phys as u32) + 105;
-
-        let _ = window.set_size(tauri::Size::Physical(tauri::PhysicalSize {
-            width: phys_w,
-            height: phys_h,
-        }));
+        let phys_w = (m_size.width as f64 * 0.85) as u32;
+        let phys_h = (m_size.height as f64 * 0.45) as u32 + 105;
+        let _ = window.set_size(tauri::Size::Physical(tauri::PhysicalSize { width: phys_w, height: phys_h }));
     }
 }
 
@@ -974,9 +886,6 @@ fn resize_to_90_percent(window: &tauri::WebviewWindow) {
         let size = monitor.size();
         let new_width = (size.width as f64 * 0.9) as u32;
         let new_height = (size.height as f64 * 0.9) as u32;
-        let _ = window.set_size(tauri::Size::Physical(tauri::PhysicalSize {
-            width: new_width,
-            height: new_height,
-        }));
+        let _ = window.set_size(tauri::Size::Physical(tauri::PhysicalSize { width: new_width, height: new_height }));
     }
 }

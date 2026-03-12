@@ -35,6 +35,48 @@ export function isInputFocused(): boolean {
     return isContentEditable;
 }
 
+/**
+ * Map KeyboardEvent.code or special strings to Windows VK Codes.
+ * Used for the low-level keyboard hook.
+ */
+export function getWinVK(hotkey: string): { vk: number; alt: boolean } {
+    if (hotkey === 'Win') return { vk: 0x5B, alt: false }; // VK_LWIN
+    if (hotkey === 'Alt+Space') return { vk: 0x20, alt: true }; // Space with Alt
+    
+    let vk = 0;
+    let alt = hotkey.includes('Alt+');
+    const cleanKey = hotkey.replace('Alt+', '').replace('Ctrl+', '').replace('Shift+', '');
+
+    // Common keys
+    const map: Record<string, number> = {
+        'Space': 0x20,
+        'Enter': 0x0D,
+        'Escape': 0x1B,
+        'Tab': 0x09,
+        'CapsLock': 0x14,
+        'F1': 0x70, 'F2': 0x71, 'F3': 0x72, 'F4': 0x73, 'F5': 0x74, 'F6': 0x75,
+        'F7': 0x76, 'F8': 0x77, 'F9': 0x78, 'F10': 0x79, 'F11': 0x7A, 'F12': 0x7B,
+        'Insert': 0x2D, 'Delete': 0x2E, 'Home': 0x24, 'End': 0x23, 
+        'PageUp': 0x21, 'PageDown': 0x22,
+        'Backquote': 0xC0, // `
+        'Minus': 0xBD, 'Equal': 0xBB,
+        'BracketLeft': 0xDB, 'BracketRight': 0xDD, 'Backslash': 0xDC,
+        'Semicolon': 0xBA, 'Quote': 0xDE,
+        'Comma': 0xBC, 'Period': 0xBE, 'Slash': 0xBF,
+    };
+
+    // Letters KeyA -> 0x41
+    if (cleanKey.startsWith('Key')) {
+        vk = cleanKey.charCodeAt(3);
+    } else if (cleanKey.startsWith('Digit')) {
+        vk = cleanKey.charCodeAt(5);
+    } else {
+        vk = map[cleanKey] || 0;
+    }
+
+    return { vk, alt };
+}
+
 export const QWERTY_CODES = [...ROW_1, ...ROW_2, ...ROW_3];
 export const CARD_CODES = QWERTY_CODES; // Alias for picker modal
 
