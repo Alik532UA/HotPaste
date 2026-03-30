@@ -224,6 +224,20 @@
     navigation_pane: false
   });
 
+  // Dynamically calculate aspect ratio so keys stay perfectly square/proportional
+  // Original base aspect was 2.8 for 15 columns and 6 rows. (15/6 * 1.12 = 2.8)
+  const dynamicAspect = $derived.by(() => {
+    let cols = 15; // base width for QWERTY
+    let rows = 5;  // 5 QWERTY main rows
+
+    if (layout.f1_f12) rows += 1;
+    if (layout.f13_f24) rows += 1;
+    if (layout.num_lock) cols += 4.5; // Numpad is ~4.5 width units
+    if (layout.navigation_pane) rows += 0.8; // Nav pane is slightly shorter than a full row
+
+    return (cols / rows) * 1.12;
+  });
+
   onMount(() => {
     startMenuState.refreshShortcuts();
 
@@ -509,18 +523,24 @@
   }
 
   .keyboard-body {
-    width: auto;
-    max-width: 98%;
+    --kb-aspect: 2.8;
+    aspect-ratio: var(--kb-aspect) / 1;
+    width: min(95%, calc(92cqh * var(--kb-aspect)));
+    height: auto;
     background: var(--color-bg-primary);
     backdrop-filter: var(--backdrop-filter);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-xl);
-    padding: 1.5cqmin;
+    padding: 2cqmin;
     box-shadow: var(--shadow-lg);
     pointer-events: auto;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition:
+      transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+      opacity 0.3s ease;
+    container-type: size;
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    justify-content: center;
   }
 
   .keyboard-body.modal-open {
@@ -533,46 +553,51 @@
   .keyboard-layout-wrapper {
     display: flex;
     flex-direction: column;
-    gap: 0.5cqmin;
+    gap: 0.4cqmin;
+    width: 100%;
+    height: 100%;
+    justify-content: space-between;
   }
 
   .main-area {
     display: flex;
-    gap: 1.5cqmin;
+    gap: 3.8cqmin;
+    flex: 5; /* 5 main rows */
   }
 
   .main-keyboard-block {
     display: flex;
     flex-direction: column;
-    gap: 0.5cqmin;
+    gap: 0.4cqmin;
     flex: 1;
+    justify-content: space-between;
   }
 
   .numpad-block {
     display: flex;
     flex-direction: column;
-    gap: 0.5cqmin;
-    border-left: 1px solid var(--color-border);
-    padding-left: 1.5cqmin;
+    gap: 0.4cqmin;
+    width: 25%;
+    justify-content: space-between;
   }
 
   .keyboard-row {
     display: flex;
-    gap: 0.4cqmin;
-    height: 6cqmin;
+    gap: 3.8cqmin; /* Original gap that keeps keys square */
+    width: 100%;
+    flex: 1; /* Automatically adjust height based on available space */
   }
 
   .f-row {
-    height: 4.5cqmin;
-    margin-bottom: 0.5cqmin;
+    flex: 1;
   }
 
   .navigation-pane-row {
     display: flex;
     gap: 0.3cqmin;
-    height: 3cqmin;
-    margin-top: 1cqmin;
-    padding-top: 1cqmin;
+    flex: 0.8; /* Slightly shorter than main rows */
+    margin-top: 0.5cqmin;
+    padding-top: 0.5cqmin;
     border-top: 1px solid var(--color-border);
   }
 
@@ -590,7 +615,6 @@
     justify-content: center;
     padding: 0;
     overflow: hidden;
-    min-width: 4cqmin;
   }
 
   .key.is-small {
@@ -598,28 +622,31 @@
   }
 
   .key.is-small .key-label {
-    font-size: 2.5cqmin;
+    font-size: 2.8cqmin;
   }
 
   .key:hover {
     background: var(--color-surface-2);
     border-color: var(--color-accent-cyan);
-    box-shadow: 0 0 8px color-mix(in srgb, var(--color-accent-cyan) 20%, transparent);
+    box-shadow: 0 0 10px
+      color-mix(in srgb, var(--color-accent-cyan) 20%, transparent);
   }
 
   .key:active,
   .key.selected {
-    transform: translateY(0.1cqmin);
+    transform: translateY(0.2cqmin);
+    box-shadow: var(--shadow-sm);
     background: var(--color-bg-secondary);
   }
 
   .key.assigned {
     background: var(--color-surface-3);
-    border: 1px solid color-mix(in srgb, var(--color-accent-cyan) 30%, var(--color-border));
+    border: 1px solid
+      color-mix(in srgb, var(--color-accent-cyan) 30%, var(--color-border));
   }
 
   .key.disabled {
-    opacity: 0.3;
+    opacity: 0.4;
     background: transparent;
     cursor: default;
     pointer-events: none;
@@ -627,12 +654,18 @@
 
   .key-label {
     position: absolute;
-    top: 8%;
+    top: 10%;
     left: 10%;
-    font-size: 3cqmin;
+    font-size: 4cqmin;
     font-weight: 700;
     color: var(--color-text-muted);
+    letter-spacing: -0.01em;
     z-index: 2;
+  }
+
+  .key.disabled .key-label {
+    font-size: 3.2cqmin;
+    font-weight: 500;
   }
 
   .key-app-icon-container {
