@@ -4,6 +4,7 @@
   import SnippetCard from "./SnippetCard.svelte";
   import CardErrorFallback from "./ui/CardErrorFallback.svelte";
   import { uiState } from "../stores/uiState.svelte";
+  import type { Card } from "../types";
   import { draggable, dropzone } from "../utils/dnd";
   import { t } from "../i18n";
   import { flip } from "svelte/animate";

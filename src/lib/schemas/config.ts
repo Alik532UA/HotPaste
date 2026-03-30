@@ -39,6 +39,13 @@ export const ShortcutInfoSchema = z.object({
     icon: z.string().nullable().optional()
 });
 
+export const KeyboardLayoutSchema = z.object({
+    f1_f12: z.boolean().optional().default(true),
+    f13_f24: z.boolean().optional().default(false),
+    num_lock: z.boolean().optional().default(false),
+    navigation_pane: z.boolean().optional().default(false),
+});
+
 /**
  * Zod schema for Tab metadata (stored in _hotpaste.json inside tab folder)
  */
@@ -48,6 +55,7 @@ export const TabConfigSchema = z.object({
     color: z.string().nullable().optional(),
     type: z.enum(['snippets', 'keyboard']).optional().default('snippets'),
     assignments: z.record(z.string(), ShortcutInfoSchema).optional(),
+    keyboardLayout: KeyboardLayoutSchema.optional(),
     order: z.array(z.string()).optional().default([]), // Card order inside tab
     tabOrder: z.array(z.string()).optional().default([]), // Tab order inside root
 });

@@ -5,7 +5,7 @@
 import { logService } from '../services/logService.svelte';
 import { configState } from './configState.svelte';
 import { getHotkeyLabel, TAB_CODES, isTabHotkey } from '../utils/keyboardLayout';
-import type { Card, Tab } from '../types';
+import type { Card, ShortcutInfo, Tab } from '../types';
 
 // --- State ---
 
@@ -41,6 +41,15 @@ let activeIconPicker = $state<{
     title?: string 
 } | null>(null);
 
+let activeActionConfirmation = $state<{
+    card?: Card,
+    assignment?: ShortcutInfo,
+    key?: string,
+    total: number,
+    remaining: number,
+    onConfirm: () => void
+} | null>(null);
+
 // --- Getters ---
 
 export const uiState = {
@@ -64,6 +73,7 @@ export const uiState = {
     get activeHotkeyConflict() { return activeHotkeyConflict; },
     get activeProgramPicker() { return activeProgramPicker; },
     get activeIconPicker() { return activeIconPicker; },
+    get activeActionConfirmation() { return activeActionConfirmation; },
     
     // Actions
     showToast,
@@ -99,11 +109,35 @@ export const uiState = {
     closeProgramPicker,
     openIconPicker,
     closeIconPicker,
+    openActionConfirmation,
+    confirmActionStep,
+    closeActionConfirmation,
     startEditingCard,
     stopEditingCard,
 };
 
 // --- Action Implementations ---
+
+function openActionConfirmation(params: { card?: Card, assignment?: ShortcutInfo, key?: string, total: number, onConfirm: () => void }): void {
+    activeActionConfirmation = {
+        ...params,
+        remaining: params.total - 1 // First press already happened
+    };
+}
+
+function confirmActionStep(): void {
+    if (activeActionConfirmation) {
+        activeActionConfirmation.remaining--;
+        if (activeActionConfirmation.remaining <= 0) {
+            activeActionConfirmation.onConfirm();
+            activeActionConfirmation = null;
+        }
+    }
+}
+
+function closeActionConfirmation(): void {
+    activeActionConfirmation = null;
+}
 
 function setActiveSubfolderFilter(filter: string | 'all' | 'root'): void {
     activeSubfolderFilter = filter;

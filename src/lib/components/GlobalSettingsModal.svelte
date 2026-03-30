@@ -188,21 +188,21 @@
 
           <!-- Font Preview Box -->
           <div class="font-preview-box">
-            <div class="preview-ui">
+            <div class="preview-ui" style="font-family: {configState.config.fontFamily}">
               <span class="preview-label">UI</span>
               <div class="preview-content">HotPaste — швидкий доступ до сніпетів</div>
             </div>
-            
+
             <div class="preview-grid">
-              <div class="preview-item md">
+              <div class="preview-item md" style="font-family: {configState.config.fontMd}">
                 <span class="preview-label">MD</span>
                 <div class="preview-content">
                   <h4>Заголовок</h4>
                   <p>Опис промта...</p>
                 </div>
               </div>
-              
-              <div class="preview-item txt">
+
+              <div class="preview-item txt" style="font-family: {configState.config.fontTxt}">
                 <span class="preview-label">TXT</span>
                 <div class="preview-content">
                   <code>git commit -m "feat: fonts"</code>
@@ -213,12 +213,11 @@
             <div class="preview-footer">
               <div class="preview-hotkey">
                 <span class="preview-label">Key</span>
-                <div class="hotkey-example">A</div>
+                <div class="hotkey-example" style="font-family: {configState.config.fontHotkey}">A</div>
               </div>
               <p class="preview-hint">Так виглядатиме ваш інтерфейс</p>
             </div>
-          </div>
-          
+          </div>          
           <div class="font-settings-stack">
             <!-- Interface Font -->
             <div class="font-setting-block">

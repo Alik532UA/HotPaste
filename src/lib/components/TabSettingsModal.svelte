@@ -17,6 +17,12 @@
   let icon = $state("");
   let color = $state("");
   let type = $state<"snippets" | "keyboard">("snippets");
+  let keyboardLayout = $state({
+    f1_f12: true,
+    f13_f24: false,
+    num_lock: false,
+    navigation_pane: false,
+  });
 
   /** Color presets */
   const colorPresets = [
@@ -37,6 +43,12 @@
       icon = tab.icon || "";
       color = tab.color || "";
       type = tab.type || "snippets";
+      keyboardLayout = {
+        f1_f12: tab.keyboardLayout?.f1_f12 ?? true,
+        f13_f24: tab.keyboardLayout?.f13_f24 ?? false,
+        num_lock: tab.keyboardLayout?.num_lock ?? false,
+        navigation_pane: tab.keyboardLayout?.navigation_pane ?? false,
+      };
     }
   });
 
@@ -53,6 +65,7 @@
         icon: icon || null,
         color: color || null,
         type: type,
+        keyboardLayout: type === 'keyboard' ? keyboardLayout : undefined,
       });
       closeTabSettings();
     }
@@ -89,6 +102,31 @@
         onSelect={(v) => (type = v)}
       />
     </div>
+
+    <!-- Keyboard Layout (Only for Keyboard type) -->
+    {#if type === "keyboard"}
+      <div class="form-group" data-testid="form-group-keyboard-layout">
+        <span class="label-text" data-testid="label-keyboard-modules">Клавіатурні модулі</span>
+        <div class="checkbox-grid">
+          <label class="checkbox-item">
+            <input type="checkbox" bind:checked={keyboardLayout.f1_f12} />
+            <span>F1-F12</span>
+          </label>
+          <label class="checkbox-item">
+            <input type="checkbox" bind:checked={keyboardLayout.f13_f24} />
+            <span>F13-F24</span>
+          </label>
+          <label class="checkbox-item">
+            <input type="checkbox" bind:checked={keyboardLayout.num_lock} />
+            <span>Num Pad</span>
+          </label>
+          <label class="checkbox-item">
+            <input type="checkbox" bind:checked={keyboardLayout.navigation_pane} />
+            <span>Navigation Pane</span>
+          </label>
+        </div>
+      </div>
+    {/if}
 
     <!-- Display Name -->
     <Input
@@ -267,6 +305,32 @@
     grid-template-columns: repeat(auto-fill, minmax(32px, 1fr));
     gap: 8px;
     align-items: center;
+  }
+
+  .checkbox-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    background: var(--color-surface-2);
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+  }
+
+  .checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: var(--color-text-primary);
+  }
+
+  .checkbox-item input {
+    cursor: pointer;
+    width: 16px;
+    height: 16px;
+    accent-color: var(--color-accent-violet);
   }
 
   .color-swatch {

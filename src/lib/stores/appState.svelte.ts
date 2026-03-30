@@ -195,6 +195,7 @@ export async function quickPasteFromClipboard() {
             color: null, 
             borderColor: null, 
             strikethrough: [],
+            subfolder: null,
             size: 0, 
             lastModified: 0, 
             isNewMock: true
@@ -230,9 +231,46 @@ export const moveSelectedCardsToTab = async (target: string) => {
     uiState.clearSelection();
 };
 
-/** Copy a card's content by hotkey (physical code) */
+/** Trigger a card or assignment action by hotkey, with confirmation support */
 export async function copyCardByHotkey(code: string): Promise<boolean> {
-    const cards = fsState.activeCards.filter(c => c.hotkey === code);
+    const activeTab = fsState.tabs[uiState.activeTabIndex];
+    if (!activeTab) return false;
+
+    // Handle Keyboard Tab
+    if (activeTab.type === 'keyboard') {
+        const assignment = activeTab.assignments?.[code];
+        if (assignment) {
+            const confirmCount = assignment.confirmCount || 1;
+            const executeAction = () => {
+                logService.info('app', `Triggering assignment: ${assignment.name} (${assignment.path})`);
+                if (assignment.type === 'url' || assignment.path.startsWith('http')) {
+                    invoke('open_url', { url: assignment.path }).catch(err => 
+                        logService.error('app', `Failed to open URL: ${assignment.path}`, err)
+                    );
+                } else {
+                    invoke('open_shortcut', { path: assignment.path }).catch(err => 
+                        logService.error('app', `Failed to open shortcut: ${assignment.path}`, err)
+                    );
+                }
+            };
+
+            if (confirmCount > 1) {
+                uiState.openActionConfirmation({
+                    assignment,
+                    key: code,
+                    total: confirmCount,
+                    onConfirm: executeAction
+                });
+            } else {
+                executeAction();
+            }
+            return true;
+        }
+        return false;
+    }
+
+    // Handle Snippets Tab
+    const cards = activeTab.cards.filter(c => c.hotkey === code);
     if (cards.length === 0) return false;
 
     if (cards.length > 1) {
@@ -241,7 +279,20 @@ export async function copyCardByHotkey(code: string): Promise<boolean> {
         return true;
     }
 
-    await fsState.copyCard(cards[0]);
+    const card = cards[0];
+    const confirmCount = card.confirmCount || 1;
+    const executeAction = () => fsState.copyCard(card);
+
+    if (confirmCount > 1) {
+        uiState.openActionConfirmation({
+            card,
+            key: code,
+            total: confirmCount,
+            onConfirm: executeAction
+        });
+    } else {
+        await executeAction();
+    }
     return true;
 }
 
@@ -310,6 +361,19 @@ export function handleGlobalKeydown(event: KeyboardEvent): void {
     }
 
     const code = event.code;
+
+    // 3. Tab Navigation (1-9 or Arrows)
+    if (code === 'ArrowLeft' || code === 'ArrowRight') {
+        const tabCount = fsState.tabs.length;
+        if (tabCount > 1) {
+            event.preventDefault();
+            const direction = code === 'ArrowLeft' ? -1 : 1;
+            const nextIndex = (uiState.activeTabIndex + direction + tabCount) % tabCount;
+            selectTab(nextIndex);
+        }
+        return;
+    }
+
     if (selectTabByHotkey(code)) {
         event.preventDefault();
         return;

@@ -15,38 +15,50 @@
   const rawIconName = $derived(isLucideStr ? icon?.substring(7) : icon);
 
   function toPascalCase(str: string) {
+    if (!str) return '';
     return str.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('');
   }
 
-  const LucideIcon = $derived(
-    (rawIconName && rawIconName.length > 2 && rawIconName.length <= 100 && !rawIconName.includes('/') && !rawIconName.includes(':'))
-      ? ((icons[toPascalCase(rawIconName) as keyof typeof icons] || icons[rawIconName as keyof typeof icons]) as ComponentType | undefined) || null
-      : null
-  );
+  const LucideIcon = $derived.by(() => {
+    if (!rawIconName || rawIconName.includes('/') || rawIconName.includes(':') || rawIconName.length > 100) return null;
+    const name = toPascalCase(rawIconName);
+    return (icons[name as keyof typeof icons] || icons[rawIconName as keyof typeof icons]) as ComponentType | undefined;
+  });
 
   let localUrl = $state<string | null>(null);
 
   $effect(() => {
-    if (icon) {
-        if (icon.startsWith('.assets/')) {
+    if (!icon) {
+        localUrl = null;
+        return;
+    }
+
+    if (icon.startsWith('data:')) {
+        localUrl = icon;
+        return;
+    }
+
+    if (icon.startsWith('.assets/icons/')) {
+        // Check cache first (synchronously if possible, though getLocalIconUrl is async)
+        if (iconService.iconCache[icon]) {
+            localUrl = iconService.iconCache[icon];
+        } else {
             iconService.getLocalIconUrl(icon).then(url => {
                 localUrl = url;
             });
-        } else if (icon.startsWith('data:')) {
-            localUrl = icon;
-        } else if (icon.length > 100 && !icon.includes(' ') && !icon.includes(':')) {
-            // Assume pure base64
-            localUrl = `data:image/png;base64,${icon}`;
-        } else {
-            localUrl = null;
         }
-    } else {
-        localUrl = null;
+        return;
     }
+
+    if (icon.length > 100 && !icon.includes(' ') && !icon.includes(':') && !icon.includes('/')) {
+        localUrl = `data:image/png;base64,${icon}`;
+        return;
+    }
+
+    localUrl = null;
   });
 
   const isEmoji = $derived(icon && !LucideIcon && !localUrl && icon.length <= 4);
-
   const cssSize = $derived(typeof size === 'number' ? `${size}px` : size);
 </script>
 

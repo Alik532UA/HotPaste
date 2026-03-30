@@ -179,6 +179,7 @@ async function reconcileTabMetadata(tab: Tab): Promise<void> {
                             color: orphanConfig.color || null,
                             borderColor: orphanConfig.borderColor || '#ff4b4b',
                             strikethrough: orphanConfig.strikethrough || [],
+                            subfolder: null,
                             size: 0,
                             lastModified: 0,
                             isMissing: true
@@ -578,6 +579,7 @@ function startNewCardCreation(): void {
     const mockCard: Card = {
         id: tempId, name: "New Snippet", fileName: "", filePath: tempId, content: "", extension: "txt",
         displayName: null, hotkey: '', icon: null, color: null, borderColor: null, strikethrough: [],
+        subfolder: null,
         size: 0, lastModified: 0, isNewMock: true
     };
     tab.cards = [mockCard, ...tab.cards];

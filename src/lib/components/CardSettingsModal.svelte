@@ -1,6 +1,6 @@
 <script lang="ts">
   import { getState, closeSettings, updateCardSettings, renamePhysicalFile, openIconPicker, openHotkeyPicker } from "../stores/appState.svelte";
-  import { Settings, Search, Keyboard, X as CloseIcon, Type, FileText, Palette, Eye, AlertCircle, ChevronRight, Check, Plus } from "lucide-svelte";
+  import { Settings, Search, Keyboard, X as CloseIcon, Type, FileText, Palette, Eye, AlertCircle, ChevronRight, Check, Plus, MousePointer2 } from "lucide-svelte";
   import * as LucideIcons from "lucide-svelte";
   import BaseModal from "./ui/BaseModal.svelte";
   import Input from "./ui/Input.svelte";
@@ -8,6 +8,8 @@
   import { t } from "../i18n";
   import type { Card } from "../types";
   import SnippetCard from "./SnippetCard.svelte";
+  import { untrack } from "svelte";
+  import { uiState } from "../stores/uiState.svelte";
 
   const appState = getState();
   const card = $derived(appState.activeSettingsCard);
@@ -20,6 +22,7 @@
   let icon = $state("");
   let color = $state("");
   let borderColor = $state("");
+  let confirmCount = $state(1);
 
   /** Color presets from theme */
   const colorPresets = [
@@ -47,17 +50,21 @@
     icon,
     color: color || null,
     borderColor: borderColor || null,
+    confirmCount,
   } as Card : null);
 
   $effect(() => {
     if (card && card.id !== currentCardId) {
-      currentCardId = card.id;
-      displayName = card.displayName || "";
-      fileName = card.fileName || "";
-      hotkey = card.hotkey || "";
-      icon = card.icon || "";
-      color = card.color || "";
-      borderColor = card.borderColor || "";
+      untrack(() => {
+        currentCardId = card.id;
+        displayName = card.displayName || "";
+        fileName = card.fileName || "";
+        hotkey = card.hotkey || "";
+        icon = card.icon || "";
+        color = card.color || "";
+        borderColor = card.borderColor || "";
+        confirmCount = card.confirmCount || 1;
+      });
     }
   });
 
@@ -74,6 +81,7 @@
           icon: icon || null,
           color: color || null,
           borderColor: borderColor || null,
+          confirmCount: confirmCount || 1,
         } as any);
         closeSettings();
       } catch (error) {
@@ -237,6 +245,21 @@
                       </button>
                     {/if}
                   </div>
+                </div>
+              </div>
+
+              <!-- Confirmation Row -->
+              <div class="identity-row">
+                <span class="identity-label">Кількість натискань</span>
+                <div class="identity-controls">
+                    <input 
+                        type="number" 
+                        min="1" 
+                        max="10" 
+                        bind:value={confirmCount} 
+                        class="confirm-input"
+                    />
+                    <span class="hint">1 = миттєво</span>
                 </div>
               </div>
             </div>
@@ -404,8 +427,6 @@
     gap: 0;
   }
 
-  /* Preview Section */
-
   .preview-container {
     display: flex;
     justify-content: center;
@@ -413,23 +434,13 @@
     overflow-y: auto;
     overflow-x: hidden;
     flex: 1;
-    /* Custom Scrollbar */
     scrollbar-width: thin;
     scrollbar-color: var(--color-border) transparent;
   }
 
-  .preview-container::-webkit-scrollbar {
-    width: 4px;
-  }
-
-  .preview-container::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  .preview-container::-webkit-scrollbar-thumb {
-    background: var(--color-border);
-    border-radius: 10px;
-  }
+  .preview-container::-webkit-scrollbar { width: 4px; }
+  .preview-container::-webkit-scrollbar-track { background: transparent; }
+  .preview-container::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 10px; }
 
   .preview-wrapper {
     width: 100%;
@@ -438,7 +449,6 @@
     opacity: 0.95;
   }
 
-  /* Form Sections */
   .form-section {
     display: flex;
     flex-direction: column;
@@ -466,7 +476,6 @@
     gap: 20px;
   }
 
-  /* Compact Identity */
   .compact-identity {
     display: flex;
     flex-direction: column;
@@ -546,7 +555,7 @@
     border-radius: 8px;
     border: none;
     background: color-mix(in srgb, var(--color-danger) 15%, transparent);
-    color: #ff5555; /* Higher contrast red */
+    color: #ff5555;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -570,18 +579,15 @@
   label, .form-label {
     font-size: 0.85rem;
     font-weight: 700;
-    color: var(--color-text-primary); /* Increased contrast */
+    color: var(--color-text-primary);
     opacity: 0.9;
   }
 
-  /* Color Pickers */
   .color-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(28px, 1fr));
     gap: 8px;
     padding: 8px 0;
-    background: transparent;
-    border: none;
   }
 
   .color-swatch {
@@ -593,86 +599,23 @@
     background: transparent;
     cursor: pointer;
     transition: all 0.2s;
-    padding: 0;
     display: flex;
     align-items: center;
     justify-content: center;
   }
 
-  .color-swatch:hover {
-    transform: scale(1.1);
-    z-index: 2;
-  }
+  .color-swatch:hover { transform: scale(1.1); z-index: 2; }
+  :global(.check-icon) { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; filter: drop-shadow(0 0 2px rgba(0,0,0,0.5)); pointer-events: none; }
 
-  .color-swatch.active {
-    z-index: 1;
-  }
+  .custom-color-swatch-wrapper { position: relative; }
+  .custom-trigger { background: var(--color-surface-2); border: 1px dashed var(--color-border); color: var(--color-text-muted); }
+  .custom-color-input-hidden { position: absolute; width: 0; height: 0; opacity: 0; pointer-events: none; }
 
-  :global(.check-icon) {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    color: white;
-    filter: drop-shadow(0 0 2px rgba(0,0,0,0.5));
-    pointer-events: none;
-  }
+  .inner-swatch { width: 14px; height: 14px; border-radius: 3px; opacity: 0.6; }
 
-  .custom-color-swatch-wrapper {
-    position: relative;
-  }
-
-  .custom-trigger {
-    background: var(--color-surface-2);
-    border: 1px dashed var(--color-border);
-    color: var(--color-text-muted);
-  }
-
-  .custom-trigger:hover {
-    border-style: solid;
-    border-color: var(--color-accent-violet);
-    color: var(--color-accent-violet);
-  }
-
-  .custom-color-input-hidden {
-    position: absolute;
-    width: 0;
-    height: 0;
-    opacity: 0;
-    pointer-events: none;
-  }
-
-  .inner-swatch {
-    width: 14px;
-    height: 14px;
-    border-radius: 3px;
-    opacity: 0.6;
-  }
-
-  /* Footer */
-  .footer-inner {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-  }
-
-  .shortcuts-hint {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 0.75rem;
-    color: var(--color-text-muted);
-    font-family: var(--font-mono);
-  }
-
-  .shortcuts-hint kbd {
-    background: var(--color-surface-3);
-    border: 1px solid var(--color-border);
-    padding: 2px 6px;
-    border-radius: 4px;
-    color: var(--color-text-secondary);
-  }
+  .footer-inner { display: flex; align-items: center; justify-content: space-between; width: 100%; }
+  .shortcuts-hint { display: flex; align-items: center; gap: 4px; font-size: 0.75rem; color: var(--color-text-muted); font-family: var(--font-mono); }
+  .shortcuts-hint kbd { background: var(--color-surface-3); border: 1px solid var(--color-border); padding: 2px 6px; border-radius: 4px; color: var(--color-text-secondary); }
 
   .btn-primary {
     padding: 10px 28px;
@@ -687,13 +630,16 @@
     box-shadow: 0 4px 12px color-mix(in srgb, var(--color-accent-violet) 25%, transparent);
   }
 
-  .btn-primary:hover {
-    transform: translateY(-2px);
-    filter: brightness(1.1);
-    box-shadow: 0 8px 24px color-mix(in srgb, var(--color-accent-violet) 40%, transparent);
-  }
+  .btn-primary:hover { transform: translateY(-2px); filter: brightness(1.1); }
 
-  .btn-primary:active {
-    transform: translateY(0);
+  .confirm-input {
+    width: 60px;
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface-2);
+    color: var(--color-text-primary);
+    font-weight: 700;
   }
+  .hint { font-size: 0.75rem; color: var(--color-text-muted); }
 </style>

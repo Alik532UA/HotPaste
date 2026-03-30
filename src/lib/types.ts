@@ -43,6 +43,8 @@ export interface Card {
   isMissing?: boolean;
   /** Internal flag for newly created unsaved cards */
   isNewMock?: boolean;
+  /** Number of presses required to confirm action (1 = instant) */
+  confirmCount?: number;
 }
 
 export type TabType = 'snippets' | 'keyboard';
@@ -52,6 +54,17 @@ export interface ShortcutInfo {
   path: string;
   type?: 'local' | 'running' | 'system' | 'url' | 'start' | 'commands';
   icon?: string | null;
+  displayMode?: 'icon' | 'text' | 'both' | 'none';
+  customLabel?: string;
+  /** Number of presses required to confirm action (1 = instant) */
+  confirmCount?: number;
+}
+
+export interface KeyboardLayoutSettings {
+  f1_f12?: boolean;
+  f13_f24?: boolean;
+  num_lock?: boolean;
+  navigation_pane?: boolean;
 }
 
 export interface Tab {
@@ -75,6 +88,8 @@ export interface Tab {
   type: TabType;
   /** Virtual keyboard assignments (if type is keyboard) */
   assignments?: Record<string, ShortcutInfo>;
+  /** Keyboard modular layout settings */
+  keyboardLayout?: KeyboardLayoutSettings;
 }
 
 // ============================================
@@ -105,6 +120,8 @@ export interface TabConfigEntry {
   order?: string[];
   /** Array of subdirectory names in custom order (only relevant for root config) */
   tabOrder?: string[];
+  /** Keyboard modular layout settings */
+  keyboardLayout?: KeyboardLayoutSettings;
 }
 
 export interface HotPasteConfig {
@@ -157,7 +174,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   toggleModeHotkey: 'space',
   autostartEnabled: true,
   triggerKey: 'Win',
-  fontFamily: 'Inter',
+  fontFamily: 'e-Ukraine',
   fontMd: 'Arsenal',
   fontTxt: 'IBM Plex Mono',
   fontHotkey: 'Fira Code',

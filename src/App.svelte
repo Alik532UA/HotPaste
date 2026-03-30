@@ -44,6 +44,7 @@
   import { fsState } from "./lib/stores/fileSystemState.svelte";
   import { checkForUpdates } from "./lib/services/versionService";
   import UpdateModal from "./lib/components/ui/UpdateModal.svelte";
+  import ActionConfirmationModal from "./lib/components/ui/ActionConfirmationModal.svelte";
   import {
     Sparkles,
     Waves,
@@ -423,6 +424,7 @@
 <HotkeyPickerModal />
 <ProgramPickerModal />
 <IconPickerModal />
+<ActionConfirmationModal />
 <GlobalSettingsModal bind:this={globalSettingsModal} />
 <DebugListener />
 <UpdateModal />

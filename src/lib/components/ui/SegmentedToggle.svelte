@@ -88,7 +88,12 @@
                     </span>
                 {/if}
                 {#if opt.originIcon}
-                    <span class="origin-tag">{@html opt.originIcon}</span>
+                    <span class="origin-tag">
+                        {@html opt.originIcon
+                            .replace('<svg', '<svg preserveAspectRatio="xMidYMid slice"')
+                            .replace(/width="(\d+)"\s+height="(\d+)"/, (match, w, h) => `viewBox="0 0 ${w} ${h}"`)
+                        }
+                    </span>
                 {/if}
             </button>
         {/each}
@@ -316,10 +321,10 @@
         justify-content: center;
         margin-left: 8px;
         opacity: 0.9;
-        /* Square with 8px radius */
+        /* Square with 4px radius */
         width: 22px;
         height: 22px;
-        border-radius: 8px;
+        border-radius: 4px;
         overflow: hidden;
         flex-shrink: 0;
         background: var(--color-surface-2); /* Fallback background */
