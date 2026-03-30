@@ -135,6 +135,10 @@ export interface AppConfig {
   autostartEnabled: boolean;
   /** Global hotkey to show/hide the app (e.g. "Win", "Alt+Space", "F1") */
   triggerKey: string;
+  /** Primary font family for the interface */
+  fontFamily: string;
+  /** Primary font family for snippets and code */
+  fontMono: string;
 }
 
 export const DEFAULT_CONFIG: AppConfig = {
@@ -145,6 +149,8 @@ export const DEFAULT_CONFIG: AppConfig = {
   toggleModeHotkey: 'space',
   autostartEnabled: true,
   triggerKey: 'Win',
+  fontFamily: 'Inter',
+  fontMono: 'IBM Plex Mono',
 };
 
 /** Config filename used in each tab directory */

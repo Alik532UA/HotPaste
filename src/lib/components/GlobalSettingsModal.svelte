@@ -10,6 +10,7 @@
     Palette,
     Power,
     Zap,
+    Type,
   } from "lucide-svelte";
   import { uiState } from "../stores/uiState.svelte";
   import { configState } from "../stores/configState.svelte";
@@ -41,6 +42,20 @@
     { id: "light-gray", label: t.settings.themeLightGray },
     { id: "orange", label: t.settings.themeOrange },
     { id: "green", label: t.settings.themeGreen },
+  ];
+
+  const fontOptions = [
+    { id: "Inter", label: "Inter" },
+    { id: "e-Ukraine", label: "e-Ukraine" },
+    { id: "KyivType Sans Local", label: "KyivType" },
+    { id: "Arsenal", label: "Arsenal" },
+    { id: "Namu Pro", label: "Namu" },
+  ];
+
+  const fontMonoOptions = [
+    { id: "IBM Plex Mono", label: "IBM Plex (Global)" },
+    { id: "Fira Code", label: "Fira Code (UA)" },
+    { id: "Cascadia Mono", label: "Cascadia (MS)" },
   ];
 
   async function handleClearAllData() {
@@ -89,6 +104,42 @@
           value={theme.current}
           onSelect={(id) => theme.set(id as any)}
         />
+      </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- Typography -->
+    <section class="settings-section">
+      <h3 class="section-title">
+        <Type size={18} />
+        {t.settings?.typography || "Типографія"}
+      </h3>
+      
+      <div class="font-settings-stack">
+        <div class="font-setting-block">
+          <p class="section-desc">Шрифт інтерфейсу</p>
+          <div class="setting-row full-width">
+            <SegmentedToggle
+              id="font-family"
+              options={fontOptions}
+              value={configState.config.fontFamily}
+              onSelect={(id) => configState.setFontFamily(id)}
+            />
+          </div>
+        </div>
+
+        <div class="font-setting-block">
+          <p class="section-desc">Шрифт сніпетів (Mono)</p>
+          <div class="setting-row full-width">
+            <SegmentedToggle
+              id="font-mono"
+              options={fontMonoOptions}
+              value={configState.config.fontMono}
+              onSelect={(id) => configState.setFontMono(id)}
+            />
+          </div>
+        </div>
       </div>
     </section>
 
@@ -371,5 +422,31 @@
   .custom-hotkey-btn:hover {
     border-color: var(--color-accent);
     background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+  }
+
+  .font-settings-stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    padding-top: var(--space-2);
+  }
+
+  .font-setting-block {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .setting-row.full-width {
+    width: 100%;
+  }
+
+  .setting-row.full-width :global(.segmented-toggle) {
+    width: 100%;
+    display: flex;
+  }
+
+  .setting-row.full-width :global(.segmented-toggle button) {
+    flex: 1;
   }
 </style>

@@ -1,0 +1,54 @@
+/**
+ * HotPaste — Local Ukrainian Fonts (Offline Mode)
+ */
+
+/* e-Ukraine */
+@font-face {
+  font-family: 'e-Ukraine';
+  src: url('/fonts/e-Ukraine-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'e-Ukraine';
+  src: url('/fonts/e-Ukraine-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* KyivType Sans Local */
+@font-face {
+  font-family: 'KyivType Sans Local';
+  src: url('/fonts/KyivTypeSans-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'KyivType Sans Local';
+  src: url('/fonts/KyivTypeSans-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Namu Pro */
+@font-face {
+  font-family: 'Namu Pro';
+  src: url('/fonts/NamuPro-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Namu Pro';
+  src: url('/fonts/NamuPro-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}

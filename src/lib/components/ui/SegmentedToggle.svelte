@@ -196,6 +196,7 @@
         border: none;
         background: transparent;
         color: var(--color-text-muted);
+        font-family: inherit;
         font-size: 0.75rem;
         font-weight: 600;
         cursor: pointer;
@@ -204,6 +205,10 @@
         white-space: nowrap;
         min-width: 32px; /* Ensure small buttons are square-ish */
         box-sizing: border-box;
+    }
+
+    .label {
+        font-family: inherit;
     }
 
     /* Remove gap for icon-only buttons to ensure perfect centering */

@@ -54,6 +54,16 @@ export const configState = {
         const { vk, alt } = getWinVK(key);
         invoke('restart_hook_worker_tauri', { vkCode: vk, useAlt: alt })
             .catch(e => console.error('Failed to restart hook worker', e));
+    },
+
+    setFontFamily(font: string) {
+        config.fontFamily = font;
+        saveConfig();
+    },
+
+    setFontMono(font: string) {
+        config.fontMono = font;
+        saveConfig();
     }
 };
 

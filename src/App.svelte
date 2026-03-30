@@ -139,6 +139,23 @@
 
   // Effect to handle minimal mode transitions
   $effect(() => {
+    // Dynamically update fonts from config
+    const currentFF = configState.config.fontFamily;
+    const currentFM = configState.config.fontMono;
+
+    // Build font stacks: [Selected Font, Fallbacks...]
+    const ffStack = [currentFF, 'Inter', 'system-ui', 'sans-serif']
+      .filter((v, i, a) => a.indexOf(v) === i); // Remove duplicates
+    
+    const fmStack = [currentFM, 'Cascadia Mono', 'Source Code Pro', 'monospace']
+      .filter((v, i, a) => a.indexOf(v) === i); // Remove duplicates
+
+    const ffString = ffStack.map(f => `'${f}'`).join(', ');
+    const fmString = fmStack.map(f => `'${f}'`).join(', ');
+
+    document.documentElement.style.setProperty('--font-family', ffString);
+    document.documentElement.style.setProperty('--font-mono', fmString);
+
     if (uiState.isMinimalMode) {
       document.documentElement.classList.add("is-minimal");
     } else {
