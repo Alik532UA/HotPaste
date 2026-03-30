@@ -70,11 +70,30 @@ export function getState() {
 
 function getFilteredCards() {
     const query = uiState.searchQuery.trim();
-    const cards = fsState.activeCards;
-    if (!query) return cards;
+    const filter = uiState.activeSubfolderFilter;
+    let cards = fsState.activeCards;
+    
+    // Initial filtering by subfolder if no search query
+    if (!query) {
+        if (filter === 'root') {
+            return cards.filter(c => c.subfolder === null);
+        } else if (filter !== 'all') {
+            return cards.filter(c => c.subfolder === filter);
+        }
+        return cards;
+    }
     
     // Use fuzzy search
-    return fuse.search(query).map(result => result.item);
+    const results = fuse.search(query).map(result => result.item);
+    
+    // Filter search results by subfolder
+    if (filter === 'root') {
+        return results.filter(c => c.subfolder === null);
+    } else if (filter !== 'all') {
+        return results.filter(c => c.subfolder === filter);
+    }
+    
+    return results;
 }
 
 // --- Proxy Actions (for backward compatibility) ---
@@ -139,6 +158,7 @@ export const toggleStrikethrough = fsState.toggleStrikethrough;
 export const saveCurrentTabConfig = fsState.saveCurrentTabConfig;
 export const saveTabOrder = fsState.saveTabOrder;
 export const startNewCardCreation = fsState.startNewCardCreation;
+export const openTabInExplorer = fsState.openTabInExplorer;
 
 /** Create a new card from clipboard content automatically */
 export async function quickPasteFromClipboard() {

@@ -9,6 +9,7 @@ import { CONFIG_FILENAME } from '../types';
 import { HotPasteConfigSchema } from '../schemas/config';
 import * as fs from '@tauri-apps/plugin-fs';
 import * as path from '@tauri-apps/api/path';
+import { open as openShell, Command } from '@tauri-apps/plugin-shell';
 
 export class TauriFileSystemService implements IFileSystemService {
     private customRoot: string | null = null;
@@ -77,6 +78,32 @@ export class TauriFileSystemService implements IFileSystemService {
         return 'Documents/HotPaste';
     }
 
+    async openExplorer(pathStr: string): Promise<void> {
+        try {
+            const fullPath = await this.resolvePath(pathStr);
+            // Use 'explorer' command which is allowed in shell:allow-execute
+            // This is more reliable on Windows than openShell with file:///
+            await Command.create('explorer', [fullPath]).execute();
+        } catch (err) {
+            console.error('Failed to open explorer via command:', err);
+            // Fallback to openShell if explorer command fails
+            try {
+                const fullPath = await this.resolvePath(pathStr);
+                let fileUrl = fullPath;
+                if (!fullPath.startsWith('file://')) {
+                    if (fullPath.includes(':')) {
+                        fileUrl = `file:///${fullPath.replace(/\\/g, '/')}`;
+                    } else {
+                        fileUrl = `file://${fullPath}`;
+                    }
+                }
+                await openShell(fileUrl);
+            } catch (openErr) {
+                console.error('Fallback openShell also failed:', openErr);
+            }
+        }
+    }
+
     async readDirectory(): Promise<Tab[]> {
         const { fs } = await this.getApi();
         const rootPath = await this.resolvePath('__root__');
@@ -91,7 +118,8 @@ export class TauriFileSystemService implements IFileSystemService {
             if (entry.isDirectory) {
                 const config = await this.readConfig(name);
                 const rootTabMeta = rootConfig.tabs?.[name] || {};
-                const cards = await this.readCardsFromDirectory(name, config);
+                const subfolders: string[] = [];
+                const cards = await this.readCardsFromDirectoryRecursive(name, '', config, subfolders);
 
                 if (cards.length > 0 || (config.tab && Object.keys(config.tab).length > 0) || rootTabMeta) {
                     tabs.push({
@@ -99,6 +127,7 @@ export class TauriFileSystemService implements IFileSystemService {
                         displayName: rootTabMeta.displayName || config.tab?.displayName || null,
                         hotkey: '',
                         cards,
+                        subfolders: [...new Set(subfolders)].sort(),
                         path: name,
                         icon: rootTabMeta.icon || config.tab?.icon || null,
                         color: rootTabMeta.color || config.tab?.color || null,
@@ -122,6 +151,7 @@ export class TauriFileSystemService implements IFileSystemService {
                         filePath: `__root__/${name}`,
                         fileName: name,
                         extension: ext,
+                        subfolder: null,
                         icon: cardConfig.icon || null,
                         color: cardConfig.color || null,
                         borderColor: cardConfig.borderColor || null,
@@ -147,6 +177,7 @@ export class TauriFileSystemService implements IFileSystemService {
                 displayName: rootConfig.tab?.displayName || null,
                 hotkey: '',
                 cards: rootFiles,
+                subfolders: [],
                 path: '__root__',
                 icon: rootConfig.tab?.icon || null,
                 color: rootConfig.tab?.color || null,
@@ -156,6 +187,61 @@ export class TauriFileSystemService implements IFileSystemService {
         }
 
         return tabs;
+    }
+
+    private async readCardsFromDirectoryRecursive(
+        tabDir: string, 
+        currentSubDir: string, 
+        config: HotPasteConfig,
+        subfolders: string[]
+    ): Promise<Card[]> {
+        const { fs } = await this.getApi();
+        const relativePath = currentSubDir ? `${tabDir}/${currentSubDir}` : tabDir;
+        const fullDirPath = await this.resolvePath(relativePath);
+        const entries = await fs.readDir(fullDirPath);
+        const cards: Card[] = [];
+
+        for (const entry of (entries as any[])) {
+            const entryName = entry.name || '';
+            if (entry.isFile) {
+                const ext = this.getExtension(entryName);
+                const SUPPORTED_EXTENSIONS = ['.txt', '.md'];
+                if (SUPPORTED_EXTENSIONS.includes(ext) && entryName !== CONFIG_FILENAME) {
+                    const relativeFilePath = currentSubDir ? `${currentSubDir}/${entryName}` : entryName;
+                    const fullRelativePath = `${tabDir}/${relativeFilePath}`;
+                    
+                    const content = await this.readFileInternal(fullRelativePath);
+                    const cardConfig = config.cards?.[relativeFilePath] || {};
+                    const absolutePath = await this.resolvePath(fullRelativePath);
+                    const stat = await fs.stat(absolutePath);
+
+                    cards.push({
+                        id: fullRelativePath,
+                        name: cardConfig.displayName || this.cleanName(entryName),
+                        displayName: cardConfig.displayName || null,
+                        content,
+                        hotkey: cardConfig.hotkey || '',
+                        isCustomHotkey: cardConfig.hotkey !== undefined,
+                        filePath: fullRelativePath,
+                        fileName: entryName,
+                        extension: ext,
+                        subfolder: currentSubDir || null,
+                        icon: cardConfig.icon || null,
+                        color: cardConfig.color || null,
+                        borderColor: cardConfig.borderColor || null,
+                        strikethrough: cardConfig.strikethrough || [],
+                        size: stat.size,
+                        lastModified: stat.mtime instanceof Date ? stat.mtime.getTime() : (stat.mtime || Date.now()),
+                    });
+                }
+            } else if (entry.isDirectory) {
+                const subDir = currentSubDir ? `${currentSubDir}/${entryName}` : entryName;
+                subfolders.push(subDir);
+                const subCards = await this.readCardsFromDirectoryRecursive(tabDir, subDir, config, subfolders);
+                cards.push(...subCards);
+            }
+        }
+        return cards;
     }
 
     async readFile(path: string): Promise<string> {
@@ -260,45 +346,6 @@ export class TauriFileSystemService implements IFileSystemService {
         const bytes = await fs.readFile(fullPath);
         const decoder = new TextDecoder();
         return decoder.decode(bytes);
-    }
-
-    private async readCardsFromDirectory(dirName: string, config: HotPasteConfig): Promise<Card[]> {
-        const { fs } = await this.getApi();
-        const dirPath = await this.resolvePath(dirName);
-        const entries = await fs.readDir(dirPath);
-        const cards: Card[] = [];
-
-        for (const entry of (entries as any[])) {
-            if (entry.isFile) {
-                const ext = this.getExtension(entry.name);
-                const SUPPORTED_EXTENSIONS = ['.txt', '.md'];
-                if (SUPPORTED_EXTENSIONS.includes(ext) && entry.name !== CONFIG_FILENAME) {
-                    const content = await this.readFileInternal(`${dirName}/${entry.name}`);
-                    const cardConfig = config.cards?.[entry.name] || {};
-                    const fullPath = await this.resolvePath(`${dirName}/${entry.name}`);
-                    const stat = await fs.stat(fullPath);
-
-                    cards.push({
-                        id: `${dirName}/${entry.name}`,
-                        name: cardConfig.displayName || this.cleanName(entry.name),
-                        displayName: cardConfig.displayName || null,
-                        content,
-                        hotkey: cardConfig.hotkey || '',
-                        isCustomHotkey: cardConfig.hotkey !== undefined,
-                        filePath: `${dirName}/${entry.name}`,
-                        fileName: entry.name,
-                        extension: ext,
-                        icon: cardConfig.icon || null,
-                        color: cardConfig.color || null,
-                        borderColor: cardConfig.borderColor || null,
-                        strikethrough: cardConfig.strikethrough || [],
-                        size: stat.size,
-                        lastModified: stat.mtime instanceof Date ? stat.mtime.getTime() : (stat.mtime || Date.now()),
-                    });
-                }
-            }
-        }
-        return cards;
     }
 
     private getExtension(f: string): string { const i = f.lastIndexOf('.'); return i >= 0 ? f.slice(i).toLowerCase() : ''; }

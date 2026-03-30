@@ -18,11 +18,26 @@
   import { theme } from "../states/theme.svelte";
   import { dataService } from "../services/dataService";
   import { t } from "../i18n";
+  import { fade } from "svelte/transition";
   import BaseModal from "./ui/BaseModal.svelte";
   import SegmentedToggle from "./ui/SegmentedToggle.svelte";
+  
+  // Import SVG icons as raw strings
+  import uaIcon from "../../assets/icons/origin/ua.svg?raw";
+  import msIcon from "../../assets/icons/origin/ms.svg?raw";
+  import sweIcon from "../../assets/icons/origin/swe.svg?raw";
+  import usaIcon from "../../assets/icons/origin/usa.svg?raw";
+
+  const ICONS = {
+    UA: uaIcon,
+    MS: msIcon,
+    SWE: sweIcon,
+    USA: usaIcon,
+  };
 
   let isOpen = $state(false);
   let isClearing = $state(false);
+  let activeTab = $state("appearance");
 
   export function open() {
     isOpen = true;
@@ -31,6 +46,12 @@
   export function close() {
     isOpen = false;
   }
+
+  const settingsTabs = [
+    { id: "appearance", label: "Вигляд", icon: Layout },
+    { id: "typography", label: "Шрифти", icon: Type },
+    { id: "system", label: "Система", icon: Settings },
+  ];
 
   const modeOptions = [
     { id: "full", label: t.app.viewFull, icon: Maximize2 },
@@ -44,18 +65,16 @@
     { id: "green", label: t.settings.themeGreen },
   ];
 
-  const fontOptions = [
-    { id: "Inter", label: "Inter" },
-    { id: "e-Ukraine", label: "e-Ukraine" },
-    { id: "KyivType Sans Local", label: "KyivType" },
-    { id: "Arsenal", label: "Arsenal" },
-    { id: "Namu Pro", label: "Namu" },
-  ];
-
-  const fontMonoOptions = [
-    { id: "IBM Plex Mono", label: "IBM Plex (Global)" },
-    { id: "Fira Code", label: "Fira Code (UA)" },
-    { id: "Cascadia Mono", label: "Cascadia (MS)" },
+  const allFontOptions = [
+    { id: "Inter", label: "Inter", fontFamily: "Inter", originIcon: ICONS.SWE },
+    { id: "e-Ukraine", label: "e-Ukraine", fontFamily: "e-Ukraine", originIcon: ICONS.UA },
+    { id: "KyivType Sans Local", label: "KyivType", fontFamily: "KyivType Sans Local", originIcon: ICONS.UA },
+    { id: "Arsenal", label: "Arsenal", fontFamily: "Arsenal", originIcon: ICONS.UA },
+    { id: "Namu Pro", label: "Namu", fontFamily: "Namu Pro", originIcon: ICONS.UA },
+    { id: "IBM Plex Mono", label: "IBM Plex", fontFamily: "IBM Plex Mono", originIcon: ICONS.USA },
+    { id: "Fira Code", label: "Fira Code", fontFamily: "Fira Code", originIcon: ICONS.UA },
+    { id: "Cascadia Mono", label: "Cascadia", fontFamily: "Cascadia Mono", originIcon: ICONS.MS },
+    { id: "Source Code Pro", label: "Source Code", fontFamily: "Source Code Pro", originIcon: ICONS.USA },
   ];
 
   async function handleClearAllData() {
@@ -84,207 +103,279 @@
 
 <BaseModal {isOpen} onClose={close} title={t.common.settings}>
   <div class="settings-content">
-    <!-- Theme Selection -->
-    <section class="settings-section">
-      <h3 class="section-title">
-        <Palette size={18} />
-        {t.common.settings} — {t.tabs.color || "Тема"}
-      </h3>
-      <p class="section-desc">
-        {t.settings.modeToggleDesc.replace(
-          /.*/,
-          "Виберіть колірну схему інтерфейсу",
-        )}
-      </p>
+    <!-- Tab Navigation -->
+    <div class="settings-tabs">
+      <SegmentedToggle
+        id="settings-tabs"
+        options={settingsTabs}
+        value={activeTab}
+        onSelect={(id) => (activeTab = id)}
+      />
+    </div>
 
-      <div class="setting-row">
-        <SegmentedToggle
-          id="theme-selection"
-          options={themeSelectionOptions}
-          value={theme.current}
-          onSelect={(id) => theme.set(id as any)}
-        />
-      </div>
-    </section>
+    {#if activeTab === "appearance"}
+      <div class="tab-pane" in:fade={{ duration: 200 }}>
+        <!-- Theme Selection -->
+        <section class="settings-section">
+          <h3 class="section-title">
+            <Palette size={18} />
+            {t.common.settings} — {t.tabs.color || "Тема"}
+          </h3>
+          <p class="section-desc">
+            Виберіть колірну схему інтерфейсу
+          </p>
 
-    <div class="divider"></div>
-
-    <!-- Typography -->
-    <section class="settings-section">
-      <h3 class="section-title">
-        <Type size={18} />
-        {t.settings?.typography || "Типографія"}
-      </h3>
-      
-      <div class="font-settings-stack">
-        <div class="font-setting-block">
-          <p class="section-desc">Шрифт інтерфейсу</p>
-          <div class="setting-row full-width">
+          <div class="setting-row">
             <SegmentedToggle
-              id="font-family"
-              options={fontOptions}
-              value={configState.config.fontFamily}
-              onSelect={(id) => configState.setFontFamily(id)}
+              id="theme-selection"
+              options={themeSelectionOptions}
+              value={theme.current}
+              onSelect={(id) => theme.set(id as any)}
             />
           </div>
-        </div>
+        </section>
 
-        <div class="font-setting-block">
-          <p class="section-desc">Шрифт сніпетів (Mono)</p>
-          <div class="setting-row full-width">
+        <div class="divider"></div>
+
+        <section class="settings-section">
+          <h3 class="section-title">
+            <Layout size={18} />
+            {t.tabs.typeSnippets}
+          </h3>
+          <p class="section-desc">
+            Режим відображення за замовчуванням при відкритті вкладок з нотатками
+          </p>
+
+          <div class="setting-row">
             <SegmentedToggle
-              id="font-mono"
-              options={fontMonoOptions}
-              value={configState.config.fontMono}
-              onSelect={(id) => configState.setFontMono(id)}
+              id="default-mode-snippets"
+              options={modeOptions}
+              value={configState.config.defaultModeSnippets}
+              onSelect={(id) => configState.setDefaultModeSnippets(id as any)}
             />
           </div>
-        </div>
+        </section>
+
+        <div class="divider"></div>
+
+        <section class="settings-section">
+          <h3 class="section-title">
+            <Keyboard size={18} />
+            {t.tabs.typeKeyboard}
+          </h3>
+          <p class="section-desc">
+            Режим відображення за замовчуванням при відкритті вкладок з клавіатурою
+          </p>
+
+          <div class="setting-row">
+            <SegmentedToggle
+              id="default-mode-keyboard"
+              options={modeOptions}
+              value={configState.config.defaultModeKeyboard}
+              onSelect={(id) => configState.setDefaultModeKeyboard(id as any)}
+            />
+          </div>
+        </section>
       </div>
-    </section>
+    {:else if activeTab === "typography"}
+      <div class="tab-pane" in:fade={{ duration: 200 }}>
+        <!-- Typography -->
+        <section class="settings-section">
+          <h3 class="section-title">
+            <Type size={18} />
+            {t.settings?.typography || "Типографія"}
+          </h3>
 
-    <div class="divider"></div>
+          <!-- Font Preview Box -->
+          <div class="font-preview-box">
+            <div class="preview-ui">
+              <span class="preview-label">UI</span>
+              <div class="preview-content">HotPaste — швидкий доступ до сніпетів</div>
+            </div>
+            
+            <div class="preview-grid">
+              <div class="preview-item md">
+                <span class="preview-label">MD</span>
+                <div class="preview-content">
+                  <h4>Заголовок</h4>
+                  <p>Опис промта...</p>
+                </div>
+              </div>
+              
+              <div class="preview-item txt">
+                <span class="preview-label">TXT</span>
+                <div class="preview-content">
+                  <code>git commit -m "feat: fonts"</code>
+                </div>
+              </div>
+            </div>
 
-    <section class="settings-section">
-      <h3 class="section-title">
-        <Layout size={18} />
-        {t.tabs.typeSnippets}
-      </h3>
-      <p class="section-desc">
-        Режим відображення за замовчуванням при відкритті вкладок з нотатками
-      </p>
+            <div class="preview-footer">
+              <div class="preview-hotkey">
+                <span class="preview-label">Key</span>
+                <div class="hotkey-example">A</div>
+              </div>
+              <p class="preview-hint">Так виглядатиме ваш інтерфейс</p>
+            </div>
+          </div>
+          
+          <div class="font-settings-stack">
+            <!-- Interface Font -->
+            <div class="font-setting-block">
+              <p class="section-desc">Шрифт інтерфейсу</p>
+              <div class="setting-row full-width">
+                <SegmentedToggle
+                  id="font-family"
+                  options={allFontOptions}
+                  value={configState.config.fontFamily}
+                  onSelect={(id) => configState.setFontFamily(id)}
+                />
+              </div>
+            </div>
 
-      <div class="setting-row">
-        <SegmentedToggle
-          id="default-mode-snippets"
-          options={modeOptions}
-          value={configState.config.defaultModeSnippets}
-          onSelect={(id) => configState.setDefaultModeSnippets(id as any)}
-        />
+            <!-- MD Font -->
+            <div class="font-setting-block">
+              <p class="section-desc">Шрифт сніпетів .md</p>
+              <div class="setting-row full-width">
+                <SegmentedToggle
+                  id="font-md"
+                  options={allFontOptions}
+                  value={configState.config.fontMd}
+                  onSelect={(id) => configState.setFontMd(id)}
+                />
+              </div>
+            </div>
+
+            <!-- TXT Font -->
+            <div class="font-setting-block">
+              <p class="section-desc">Шрифт сніпетів .txt</p>
+              <div class="setting-row full-width">
+                <SegmentedToggle
+                  id="font-txt"
+                  options={allFontOptions}
+                  value={configState.config.fontTxt}
+                  onSelect={(id) => configState.setFontTxt(id)}
+                />
+              </div>
+            </div>
+
+            <!-- Hotkey Font -->
+            <div class="font-setting-block">
+              <p class="section-desc">Шрифт кнопок та клавіш</p>
+              <div class="setting-row full-width">
+                <SegmentedToggle
+                  id="font-hotkey"
+                  options={allFontOptions}
+                  value={configState.config.fontHotkey}
+                  onSelect={(id) => configState.setFontHotkey(id)}
+                />
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
-    </section>
+    {:else if activeTab === "system"}
+      <div class="tab-pane" in:fade={{ duration: 200 }}>
+        <section class="settings-section">
+          <h3 class="section-title">
+            <Power size={18} />
+            {t.settings.autostart}
+          </h3>
+          <p class="section-desc">{t.settings.autostartDesc}</p>
 
-    <div class="divider"></div>
+          <div class="setting-row">
+            <SegmentedToggle
+              id="autostart-toggle"
+              options={[
+                { id: "true", label: t.common.default || "Увімкнено" },
+                { id: "false", label: t.common.disable || "Вимкнено" },
+              ]}
+              value={configState.config.autostartEnabled.toString()}
+              onSelect={(id) => configState.setAutostartEnabled(id === "true")}
+            />
+          </div>
+        </section>
 
-    <section class="settings-section">
-      <h3 class="section-title">
-        <Keyboard size={18} />
-        {t.tabs.typeKeyboard}
-      </h3>
-      <p class="section-desc">
-        Режим відображення за замовчуванням при відкритті вкладок з клавіатурою
-      </p>
+        <div class="divider"></div>
 
-      <div class="setting-row">
-        <SegmentedToggle
-          id="default-mode-keyboard"
-          options={modeOptions}
-          value={configState.config.defaultModeKeyboard}
-          onSelect={(id) => configState.setDefaultModeKeyboard(id as any)}
-        />
+        <section class="settings-section">
+          <h3 class="section-title">
+            <Zap size={18} />
+            {t.settings.globalHotkey}
+          </h3>
+          <p class="section-desc">{t.settings.globalHotkeyDesc}</p>
+
+          <div class="setting-row hotkey-row">
+            <SegmentedToggle
+              id="global-hotkey-preset"
+              options={[
+                { id: "Win", label: t.settings.globalHotkeyWin },
+                { id: "Alt+Space", label: t.settings.globalHotkeyAltSpace },
+                { id: "custom", label: t.settings.globalHotkeyCustom },
+              ]}
+              value={["Win", "Alt+Space"].includes(configState.config.triggerKey) ? configState.config.triggerKey : "custom"}
+              onSelect={(id) => {
+                if (id !== "custom") {
+                  configState.setTriggerKey(id);
+                } else {
+                  handleOpenHotkeyPicker();
+                }
+              }}
+            />
+            
+            {#if !["Win", "Alt+Space"].includes(configState.config.triggerKey)}
+              <button class="custom-hotkey-btn" onclick={handleOpenHotkeyPicker}>
+                {configState.config.triggerKey}
+              </button>
+            {/if}
+          </div>
+        </section>
+
+        <div class="divider"></div>
+
+        <section class="settings-section">
+          <h3 class="section-title">
+            <Maximize2 size={18} />
+            {t.settings.modeToggle}
+          </h3>
+          <p class="section-desc">{t.settings.modeToggleDesc}</p>
+
+          <div class="setting-row">
+            <SegmentedToggle
+              id="mode-toggle-hotkey"
+              options={[
+                { id: "space", label: t.settings.modeToggleOnlySpace },
+                { id: "space_f11", label: t.settings.modeToggleSpace },
+                { id: "f11", label: t.settings.modeToggleOnlyF11 },
+              ]}
+              value={configState.config.toggleModeHotkey}
+              onSelect={(id) => configState.setToggleModeHotkey(id as any)}
+            />
+          </div>
+        </section>
+
+        <div class="divider"></div>
+
+        <section class="settings-section">
+          <h3 class="section-title danger">
+            <Trash2 size={18} />
+            {t.settings.clearCache}
+          </h3>
+          <p class="section-desc">{t.settings.clearCacheDesc}</p>
+
+          <div class="setting-row">
+            <button
+              class="danger-btn"
+              onclick={handleClearAllData}
+              disabled={isClearing}
+              data-testid="btn-clear-cache"
+            >
+              {isClearing ? t.common.loading : t.settings.clearCacheBtn}
+            </button>
+          </div>
+        </section>
       </div>
-    </section>
-
-    <div class="divider"></div>
-
-    <section class="settings-section">
-      <h3 class="section-title">
-        <Power size={18} />
-        {t.settings.autostart}
-      </h3>
-      <p class="section-desc">{t.settings.autostartDesc}</p>
-
-      <div class="setting-row">
-        <SegmentedToggle
-          id="autostart-toggle"
-          options={[
-            { id: "true", label: t.common.default || "Увімкнено" },
-            { id: "false", label: t.common.disable || "Вимкнено" },
-          ]}
-          value={configState.config.autostartEnabled.toString()}
-          onSelect={(id) => configState.setAutostartEnabled(id === "true")}
-        />
-      </div>
-    </section>
-
-    <div class="divider"></div>
-
-    <section class="settings-section">
-      <h3 class="section-title">
-        <Zap size={18} />
-        {t.settings.globalHotkey}
-      </h3>
-      <p class="section-desc">{t.settings.globalHotkeyDesc}</p>
-
-      <div class="setting-row hotkey-row">
-        <SegmentedToggle
-          id="global-hotkey-preset"
-          options={[
-            { id: "Win", label: t.settings.globalHotkeyWin },
-            { id: "Alt+Space", label: t.settings.globalHotkeyAltSpace },
-            { id: "custom", label: t.settings.globalHotkeyCustom },
-          ]}
-          value={["Win", "Alt+Space"].includes(configState.config.triggerKey) ? configState.config.triggerKey : "custom"}
-          onSelect={(id) => {
-            if (id !== "custom") {
-              configState.setTriggerKey(id);
-            } else {
-              handleOpenHotkeyPicker();
-            }
-          }}
-        />
-        
-        {#if !["Win", "Alt+Space"].includes(configState.config.triggerKey)}
-          <button class="custom-hotkey-btn" onclick={handleOpenHotkeyPicker}>
-            {configState.config.triggerKey}
-          </button>
-        {/if}
-      </div>
-    </section>
-
-    <div class="divider"></div>
-
-    <section class="settings-section">
-      <h3 class="section-title">
-        <Maximize2 size={18} />
-        {t.settings.modeToggle}
-      </h3>
-      <p class="section-desc">{t.settings.modeToggleDesc}</p>
-
-      <div class="setting-row">
-        <SegmentedToggle
-          id="mode-toggle-hotkey"
-          options={[
-            { id: "space", label: t.settings.modeToggleOnlySpace },
-            { id: "space_f11", label: t.settings.modeToggleSpace },
-            { id: "f11", label: t.settings.modeToggleOnlyF11 },
-          ]}
-          value={configState.config.toggleModeHotkey}
-          onSelect={(id) => configState.setToggleModeHotkey(id as any)}
-        />
-      </div>
-    </section>
-
-    <div class="divider"></div>
-
-    <section class="settings-section">
-      <h3 class="section-title danger">
-        <Trash2 size={18} />
-        {t.settings.clearCache}
-      </h3>
-      <p class="section-desc">{t.settings.clearCacheDesc}</p>
-
-      <div class="setting-row">
-        <button
-          class="danger-btn"
-          onclick={handleClearAllData}
-          disabled={isClearing}
-          data-testid="btn-clear-cache"
-        >
-          {isClearing ? t.common.loading : t.settings.clearCacheBtn}
-        </button>
-      </div>
-    </section>
+    {/if}
   </div>
 
   {#snippet footer()}
@@ -323,6 +414,37 @@
     flex-direction: column;
     gap: var(--space-6);
     padding: var(--space-2) 0;
+  }
+
+  .settings-tabs {
+    margin-bottom: var(--space-2);
+  }
+
+  .settings-tabs :global(.segmented-wrapper) {
+    width: 100%;
+  }
+
+  .settings-tabs :global(.segmented-control) {
+    width: 100%;
+    display: flex;
+  }
+
+  .settings-tabs :global(.segmented-control button) {
+    flex: 1;
+    font-size: 0.85rem;
+    height: 40px;
+  }
+
+  .tab-pane {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+    animation: fadeIn 0.2s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 
   .settings-section {
@@ -441,6 +563,10 @@
     width: 100%;
   }
 
+  .setting-row.full-width :global(.segmented-wrapper) {
+    width: 100%;
+  }
+
   .setting-row.full-width :global(.segmented-toggle) {
     width: 100%;
     display: flex;
@@ -448,5 +574,96 @@
 
   .setting-row.full-width :global(.segmented-toggle button) {
     flex: 1;
+  }
+
+  /* Font Preview Styles */
+  .font-preview-box {
+    margin-top: var(--space-4);
+    padding: var(--space-4);
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  .preview-label {
+    font-size: 0.6rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: var(--color-accent-cyan);
+    margin-bottom: 2px;
+    display: block;
+    opacity: 0.7;
+  }
+
+  .preview-ui {
+    padding-bottom: var(--space-2);
+    border-bottom: 1px solid var(--color-border);
+    font-family: var(--font-family);
+  }
+
+  .preview-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-4);
+  }
+
+  .preview-item.md {
+    font-family: var(--font-md);
+  }
+
+  .preview-item.md h4 {
+    margin: 0;
+    font-size: 0.9rem;
+  }
+
+  .preview-item.md p {
+    margin: 0;
+    font-size: 0.75rem;
+    opacity: 0.8;
+  }
+
+  .preview-item.txt {
+    font-family: var(--font-txt);
+  }
+
+  .preview-item.txt code {
+    font-size: 0.7rem;
+    background: var(--color-surface-3);
+    padding: 2px 4px;
+    border-radius: 4px;
+  }
+
+  .preview-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: var(--space-2);
+    padding-top: var(--space-2);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .hotkey-example {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    font-family: var(--font-hotkey);
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--color-accent-cyan);
+  }
+
+  .preview-hint {
+    font-size: 0.7rem;
+    color: var(--color-text-muted);
+    font-style: italic;
+    margin: 0;
   }
 </style>

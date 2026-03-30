@@ -139,22 +139,22 @@
 
   // Effect to handle minimal mode transitions
   $effect(() => {
+    // Helper to build font stack string
+    const buildStack = (primary: string, fallbacks: string[]) => {
+      const stack = [primary, ...fallbacks].filter((v, i, a) => a.indexOf(v) === i);
+      return stack.map(f => `'${f}'`).join(', ');
+    };
+
     // Dynamically update fonts from config
-    const currentFF = configState.config.fontFamily;
-    const currentFM = configState.config.fontMono;
+    const ff = buildStack(configState.config.fontFamily, ['Inter', 'system-ui', 'sans-serif']);
+    const fm_md = buildStack(configState.config.fontMd, ['Arsenal', 'Inter', 'system-ui', 'sans-serif']);
+    const fm_txt = buildStack(configState.config.fontTxt, ['IBM Plex Mono', 'Cascadia Mono', 'Source Code Pro', 'monospace']);
+    const fm_hk = buildStack(configState.config.fontHotkey, ['Fira Code', 'Cascadia Mono', 'Source Code Pro', 'monospace']);
 
-    // Build font stacks: [Selected Font, Fallbacks...]
-    const ffStack = [currentFF, 'Inter', 'system-ui', 'sans-serif']
-      .filter((v, i, a) => a.indexOf(v) === i); // Remove duplicates
-    
-    const fmStack = [currentFM, 'Cascadia Mono', 'Source Code Pro', 'monospace']
-      .filter((v, i, a) => a.indexOf(v) === i); // Remove duplicates
-
-    const ffString = ffStack.map(f => `'${f}'`).join(', ');
-    const fmString = fmStack.map(f => `'${f}'`).join(', ');
-
-    document.documentElement.style.setProperty('--font-family', ffString);
-    document.documentElement.style.setProperty('--font-mono', fmString);
+    document.documentElement.style.setProperty('--font-family', ff);
+    document.documentElement.style.setProperty('--font-md', fm_md);
+    document.documentElement.style.setProperty('--font-txt', fm_txt);
+    document.documentElement.style.setProperty('--font-hotkey', fm_hk);
 
     if (uiState.isMinimalMode) {
       document.documentElement.classList.add("is-minimal");

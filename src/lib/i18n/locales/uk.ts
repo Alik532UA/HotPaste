@@ -108,10 +108,11 @@ export const uk = {
         nudgeLeft: "Ліворуч/Назад",
         nudgeRight: "Праворуч/Вперед",
         delete: "Видалити",
-        tabSettings: "Налаштувати вкладку",
+        tabSettings: "Налаштування вкладки",
         tabDuplicate: "Дублювати вкладку",
-        tabDelete: "Видалити вкладку"
-    },
+        tabDelete: "Видалити вкладку",
+        openFolder: "Відкрити папку"
+        },
     settings: {
         clearCache: "Очищення даних",
         clearCacheDesc: "Скидання всіх локальних налаштувань, кешу та сесій. Ваші текстові файли не постраждають.",
@@ -126,6 +127,7 @@ export const uk = {
         themeLightGray: "Світло-сіра",
         themeOrange: "Помаранчева",
         themeGreen: "Зелена",
+        typography: "Типографія",
         autostart: "Автозапуск",
         autostartDesc: "Запускати програму автоматично при старті Windows",
         globalHotkey: "Глобальна гаряча клавіша",

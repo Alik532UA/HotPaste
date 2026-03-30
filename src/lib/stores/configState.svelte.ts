@@ -61,8 +61,18 @@ export const configState = {
         saveConfig();
     },
 
-    setFontMono(font: string) {
-        config.fontMono = font;
+    setFontMd(font: string) {
+        config.fontMd = font;
+        saveConfig();
+    },
+
+    setFontTxt(font: string) {
+        config.fontTxt = font;
+        saveConfig();
+    },
+
+    setFontHotkey(font: string) {
+        config.fontHotkey = font;
         saveConfig();
     }
 };

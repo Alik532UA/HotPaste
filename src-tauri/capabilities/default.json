@@ -22,11 +22,18 @@
             "https",
             "http",
             "mailto",
-            "tel"
+            "tel",
+            "file"
           ]
         },
         {
-          "regex": "^ms-settings:[\\w\\-:]+$"
+          "regex": "^(https?|file|mailto|tel|ms-settings):.+"
+        },
+        {
+          "regex": "^[a-zA-Z]:\\\\.+"
+        },
+        {
+          "regex": "^/.+"
         }
       ]
     },
@@ -65,6 +72,21 @@
     },
     "process:default",
     "clipboard-manager:default",
-    "dialog:default"
+    "clipboard-manager:allow-read-text",
+    "dialog:default",
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        {
+          "name": "explorer",
+          "cmd": "explorer",
+          "args": [
+            {
+              "validator": ".+"
+            }
+          ]
+        }
+      ]
+    }
   ]
 }

@@ -63,6 +63,7 @@ export const fsState = {
     resolveHotkeyConflict,
     updateCardSettings,
     copyCard,
+    openTabInExplorer: (tab: Tab) => getFSService().openExplorer(tab.path),
 };
 
 // --- Implementations ---

@@ -26,6 +26,7 @@ export interface IFileSystemService {
     readConfig(tabPath: string): Promise<HotPasteConfig>;
     writeConfig(tabPath: string, config: HotPasteConfig): Promise<void>;
     setProjectRoot(path: string | null): Promise<boolean>;
+    openExplorer(path: string): Promise<void>;
 }
 
 const SUPPORTED_EXTENSIONS = ['.txt', '.md'];
@@ -39,6 +40,10 @@ class LocalFileSystemService implements IFileSystemService {
     async setProjectRoot(_path: string | null): Promise<boolean> {
         // Browser cannot set specific path without user interaction
         return false;
+    }
+
+    async openExplorer(_path: string): Promise<void> {
+        console.warn('Open explorer not supported in browser');
     }
 
     async requestAccess(): Promise<boolean> {
@@ -73,7 +78,8 @@ class LocalFileSystemService implements IFileSystemService {
             if (entry.kind === 'directory') {
                 const config = await this.readConfig(name);
                 const rootTabMeta = rootConfig.tabs?.[name] || {};
-                const cards = await this.readCardsFromDirectory(entry, config);
+                const subfolders: string[] = [];
+                const cards = await this.readCardsFromDirectoryRecursive(entry, name, '', config, subfolders);
 
                 if (cards.length > 0 || (config.tab && Object.keys(config.tab).length > 0) || rootTabMeta) {
                     tabs.push({
@@ -81,6 +87,7 @@ class LocalFileSystemService implements IFileSystemService {
                         displayName: rootTabMeta.displayName || config.tab?.displayName || null,
                         hotkey: '',
                         cards,
+                        subfolders: [...new Set(subfolders)].sort(),
                         path: name,
                         icon: rootTabMeta.icon || config.tab?.icon || null,
                         color: rootTabMeta.color || config.tab?.color || null,
@@ -93,6 +100,7 @@ class LocalFileSystemService implements IFileSystemService {
                 if (SUPPORTED_EXTENSIONS.includes(ext) && name !== CONFIG_FILENAME) {
                     const content = await this.readFileInternal(entry);
                     const cardConfig = rootConfig.cards?.[name] || {};
+                    const file = await entry.getFile();
                     rootFiles.push({
                         id: `__root__/${name}`,
                         name: cardConfig.displayName || this.cleanName(name),
@@ -103,12 +111,13 @@ class LocalFileSystemService implements IFileSystemService {
                         filePath: `__root__/${name}`,
                         fileName: name,
                         extension: ext,
+                        subfolder: null,
                         icon: cardConfig.icon || null,
                         color: cardConfig.color || null,
                         borderColor: cardConfig.borderColor || null,
                         strikethrough: cardConfig.strikethrough || [],
-                        size: 0,
-                        lastModified: Date.now(),
+                        size: file.size,
+                        lastModified: file.lastModified,
                     });
                 }
             }
@@ -128,6 +137,7 @@ class LocalFileSystemService implements IFileSystemService {
                 displayName: rootConfig.tab?.displayName || null,
                 hotkey: '',
                 cards: rootFiles,
+                subfolders: [],
                 path: '__root__',
                 icon: rootConfig.tab?.icon || null,
                 color: rootConfig.tab?.color || null,
@@ -222,28 +232,35 @@ class LocalFileSystemService implements IFileSystemService {
         await this.writeFile(configPath, JSON.stringify(config, null, 2));
     }
 
-    private async readCardsFromDirectory(dirHandle: FileSystemDirectoryHandle, config: HotPasteConfig): Promise<Card[]> {
+    private async readCardsFromDirectoryRecursive(
+        dirHandle: FileSystemDirectoryHandle,
+        tabDir: string,
+        currentSubDir: string,
+        config: HotPasteConfig,
+        subfolders: string[]
+    ): Promise<Card[]> {
         const cards: Card[] = [];
-        const dirName = dirHandle.name;
 
         for await (const entry of (dirHandle as any).values()) {
             if (entry.kind === 'file') {
                 const ext = this.getExtension(entry.name);
                 if (SUPPORTED_EXTENSIONS.includes(ext) && entry.name !== CONFIG_FILENAME) {
                     const content = await this.readFileInternal(entry);
-                    const cardConfig = config.cards?.[entry.name] || {};
+                    const relativeFilePath = currentSubDir ? `${currentSubDir}/${entry.name}` : entry.name;
+                    const cardConfig = config.cards?.[relativeFilePath] || {};
                     const file = await entry.getFile();
 
                     cards.push({
-                        id: `${dirName}/${entry.name}`,
+                        id: `${tabDir}/${relativeFilePath}`,
                         name: cardConfig.displayName || this.cleanName(entry.name),
                         displayName: cardConfig.displayName || null,
                         content,
                         hotkey: cardConfig.hotkey || '',
                         isCustomHotkey: cardConfig.hotkey !== undefined,
-                        filePath: `${dirName}/${entry.name}`,
+                        filePath: `${tabDir}/${relativeFilePath}`,
                         fileName: entry.name,
                         extension: ext,
+                        subfolder: currentSubDir || null,
                         icon: cardConfig.icon || null,
                         color: cardConfig.color || null,
                         borderColor: cardConfig.borderColor || null,
@@ -252,6 +269,11 @@ class LocalFileSystemService implements IFileSystemService {
                         lastModified: file.lastModified,
                     });
                 }
+            } else if (entry.kind === 'directory') {
+                const subDir = currentSubDir ? `${currentSubDir}/${entry.name}` : entry.name;
+                subfolders.push(subDir);
+                const subCards = await this.readCardsFromDirectoryRecursive(entry, tabDir, subDir, config, subfolders);
+                cards.push(...subCards);
             }
         }
         return cards;

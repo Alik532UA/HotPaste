@@ -7,7 +7,9 @@
         id: string;
         label: string;
         icon?: ComponentType<any>;
-        iconClass?: string; 
+        iconClass?: string;
+        fontFamily?: string;
+        originIcon?: string;
     }
 
     let { id, options, value, onSelect, isCompact = false, testId }: { 
@@ -81,7 +83,12 @@
                     <opt.icon size={14} class={opt.iconClass} /> 
                 {/if}
                 {#if opt.label}
-                    <span class="label">{opt.label}</span>
+                    <span class="label" style={opt.fontFamily ? `font-family: ${opt.fontFamily}` : ''}>
+                        {opt.label}
+                    </span>
+                {/if}
+                {#if opt.originIcon}
+                    <span class="origin-tag">{@html opt.originIcon}</span>
                 {/if}
             </button>
         {/each}
@@ -177,22 +184,26 @@
     /* Standard Segmented Control */
     .segmented-control {
         display: flex;
+        flex-wrap: wrap; /* Allow buttons to wrap to new lines */
         background: var(--color-surface-1);
         padding: 2px;
         border-radius: 10px;
         border: 1px solid var(--color-border);
         gap: 2px;
-        height: 36px; /* Fixed height */
+        min-height: 36px; /* Change height to min-height to allow growth */
         box-sizing: border-box;
+        width: 100%; /* Take full width of parent */
     }
 
     button {
         display: flex;
+        flex: 1 1 auto; /* Allow buttons to grow and shrink */
+        min-width: fit-content; /* Don't squash text */
         align-items: center;
-        justify-content: center; /* Center content horizontally */
+        justify-content: center;
         gap: 6px;
-        padding: 0 12px; /* Removed vertical padding, using height instead */
-        height: 100%;    /* Take full container height */
+        padding: 0 12px;
+        height: 32px; /* Fixed height for buttons within the grid */
         border: none;
         background: transparent;
         color: var(--color-text-muted);
@@ -203,7 +214,6 @@
         border-radius: 8px;
         transition: all 0.2s ease;
         white-space: nowrap;
-        min-width: 32px; /* Ensure small buttons are square-ish */
         box-sizing: border-box;
     }
 
@@ -298,6 +308,28 @@
 
     :global(.segmented-check-icon) {
         color: var(--color-accent-cyan);
+    }
+
+    .origin-tag {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-left: 8px;
+        opacity: 0.9;
+        /* Square with 8px radius */
+        width: 22px;
+        height: 22px;
+        border-radius: 8px;
+        overflow: hidden;
+        flex-shrink: 0;
+        background: var(--color-surface-2); /* Fallback background */
+    }
+
+    .origin-tag :global(svg) {
+        display: block;
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: cover;
     }
 
     /* Logic: Switch between views */

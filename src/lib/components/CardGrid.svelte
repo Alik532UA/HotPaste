@@ -3,11 +3,49 @@
   import { getState, moveCard, saveCurrentTabConfig } from "../stores/appState.svelte";
   import SnippetCard from "./SnippetCard.svelte";
   import CardErrorFallback from "./ui/CardErrorFallback.svelte";
+  import { uiState } from "../stores/uiState.svelte";
   import { draggable, dropzone } from "../utils/dnd";
   import { t } from "../i18n";
   import { flip } from "svelte/animate";
 
   const appState = getState();
+
+  // Group cards by subfolder for the "All" view
+  let groupedCards = $derived.by(() => {
+    const cards = appState.filteredCards;
+    const filter = uiState.activeSubfolderFilter;
+
+    // If a specific filter is active (not 'all'), we don't need group headers
+    if (filter !== 'all') {
+      return [{ name: null, cards }];
+    }
+
+    const groups: Record<string, Card[]> = {};
+    const rootCards: Card[] = [];
+
+    cards.forEach(card => {
+      if (card.subfolder) {
+        if (!groups[card.subfolder]) groups[card.subfolder] = [];
+        groups[card.subfolder].push(card);
+      } else {
+        rootCards.push(card);
+      }
+    });
+
+    const result: { name: string | null, cards: Card[] }[] = [];
+    
+    // Add root cards first if they exist
+    if (rootCards.length > 0) {
+      result.push({ name: 'Root', cards: rootCards });
+    }
+
+    // Add subfolder groups sorted by name
+    Object.keys(groups).sort().forEach(folder => {
+      result.push({ name: folder, cards: groups[folder] });
+    });
+
+    return result;
+  });
 
   function handleMove(fromIndex: number, toIndex: number) {
     moveCard(fromIndex, toIndex);
@@ -100,24 +138,34 @@
     data-testid="card-grid"
     onkeydown={handleGridKeydown}
   >
-    {#each appState.filteredCards as card, index (card.id)}
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div
-        class="card-wrapper"
-        use:draggable={{ index, type: 'card' }}
-        use:dropzone={{ index, type: 'card', onMove: handleMove, onDrop: handleDrop }}
-        animate:flip={{ duration: 300 }}
-        data-testid="card-wrapper"
-        data-index={index}
-      >
-        <svelte:boundary>
-          <SnippetCard {card} />
-          
-          {#snippet failed(error, reset)}
-            <CardErrorFallback {card} {error} {reset} />
-          {/snippet}
-        </svelte:boundary>
-      </div>
+    {#each groupedCards as group}
+      {#if group.name && groupedCards.length > 1}
+        <div class="folder-header">
+          <FolderOpen size={16} />
+          <span>{group.name}</span>
+          <div class="header-line"></div>
+        </div>
+      {/if}
+
+      {#each group.cards as card, index (card.id)}
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div
+          class="card-wrapper"
+          use:draggable={{ index, type: 'card' }}
+          use:dropzone={{ index, type: 'card', onMove: handleMove, onDrop: handleDrop }}
+          animate:flip={{ duration: 300 }}
+          data-testid="card-wrapper"
+          data-index={index}
+        >
+          <svelte:boundary>
+            <SnippetCard {card} />
+            
+            {#snippet failed(error, reset)}
+              <CardErrorFallback {card} {error} {reset} />
+            {/snippet}
+          </svelte:boundary>
+        </div>
+      {/each}
     {/each}
   </div>
 {:else if appState.isConnected}
@@ -143,6 +191,34 @@
     max-width: 100%;
     margin: 0 auto;
     transition: all 0.1s ease-out;
+  }
+
+  .folder-header {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-4) 0 var(--space-2) 0;
+    color: var(--color-text-muted);
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    user-select: none;
+    opacity: 0.8;
+    margin-top: var(--space-4);
+  }
+
+  .folder-header:first-child {
+    margin-top: 0;
+    padding-top: 0;
+  }
+
+  .header-line {
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(to right, var(--color-border), transparent);
+    margin-left: var(--space-2);
   }
 
   .card-wrapper {

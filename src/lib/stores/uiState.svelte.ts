@@ -23,6 +23,7 @@ let flashingCardPath = $state('');
 let selectedCardIds = $state<Set<string>>(new Set());
 let isSelectionMode = $state(false);
 let isMinimalMode = $state(false);
+let activeSubfolderFilter = $state<string | 'all' | 'root'>('all');
 
 let cardView = $state<'short' | 'full'>((localStorage.getItem('hp_card_view') as any) || 'short');
 let cardDensity = $state<'expanded' | 'normal' | 'compact'>((localStorage.getItem('hp_card_density') as any) || 'normal');
@@ -52,6 +53,7 @@ export const uiState = {
     get selectedCardIds() { return selectedCardIds; },
     get isSelectionMode() { return isSelectionMode; },
     get isMinimalMode() { return isMinimalMode; },
+    get activeSubfolderFilter() { return activeSubfolderFilter; },
     get cardView() { return cardView; },
     get cardDensity() { return cardDensity; },
     get activeTabIndex() { return activeTabIndex; },
@@ -77,6 +79,7 @@ export const uiState = {
     toggleSelectionMode,
     toggleMinimalMode,
     setMinimalMode,
+    setActiveSubfolderFilter,
     selectTab,
     selectTabByHotkey,
     toggleCardSelection,
@@ -101,6 +104,10 @@ export const uiState = {
 };
 
 // --- Action Implementations ---
+
+function setActiveSubfolderFilter(filter: string | 'all' | 'root'): void {
+    activeSubfolderFilter = filter;
+}
 
 function openIconPicker(current: string, onSelect: (icon: string) => void, title?: string): void {
     activeIconPicker = { current, onSelect, title };
@@ -182,6 +189,7 @@ function selectTab(index: number, max: number, tabType?: 'snippets' | 'keyboard'
     if (index >= 0 && index < max) {
         if (index !== activeTabIndex) {
             activeTabIndex = index;
+            activeSubfolderFilter = 'all';
             // Use defaults from config
             if (tabType === 'keyboard') {
                 isMinimalMode = configState.config.defaultModeKeyboard === 'minimal';

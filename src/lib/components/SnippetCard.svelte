@@ -879,7 +879,7 @@
     background: var(--color-surface-2);
     color: var(--color-text-primary);
     border: 1px solid var(--color-border);
-    font-family: var(--font-mono);
+    font-family: var(--font-hotkey);
     font-size: 0.75rem;
     font-weight: 700;
     text-transform: uppercase;
@@ -1043,7 +1043,7 @@
     color: var(--color-text-muted);
     background: var(--color-surface-3);
     border-radius: 8px;
-    font-family: var(--font-mono);
+    font-family: var(--font-hotkey);
     flex-shrink: 0;
     border: 1px solid var(--color-border);
   }
@@ -1104,7 +1104,7 @@
   }
 
   .line {
-    font-family: var(--font-mono);
+    font-family: var(--font-txt);
     font-size: 0.75rem;
     line-height: 1.6;
     color: var(--color-text-secondary);
@@ -1172,7 +1172,7 @@
   }
 
   .markdown-body :global(code) {
-    font-family: var(--font-mono);
+    font-family: var(--font-hotkey);
     font-size: 0.8rem;
     background: var(--color-surface-3);
     padding: 2px 6px;
@@ -1375,7 +1375,7 @@
     border-radius: 8px;
     background: var(--color-bg-primary);
     color: var(--color-text-primary);
-    font-family: var(--font-mono);
+    font-family: var(--font-hotkey);
     font-size: 0.8rem;
     line-height: 1.6;
     resize: vertical;
@@ -1402,7 +1402,7 @@
   .edit-hint {
     font-size: 0.7rem;
     color: var(--color-text-muted);
-    font-family: var(--font-mono);
+    font-family: var(--font-hotkey);
   }
 
   .edit-buttons {

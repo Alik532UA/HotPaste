@@ -108,10 +108,11 @@ export const en = {
         nudgeLeft: "Left/Backward",
         nudgeRight: "Right/Forward",
         delete: "Delete",
-        tabSettings: "Tab settings",
-        tabDuplicate: "Duplicate tab",
-        tabDelete: "Delete tab"
-    },
+        tabSettings: "Tab Settings",
+        tabDuplicate: "Duplicate Tab",
+        tabDelete: "Delete Tab",
+        openFolder: "Open Folder"
+        },
     settings: {
         clearCache: "Data Cleanup",
         clearCacheDesc: "Reset all local settings, cache, and sessions. Your text files will not be affected.",
@@ -125,6 +126,14 @@ export const en = {
         themeDarkGray: "Dark Gray",
         themeLightGray: "Light Gray",
         themeOrange: "Orange",
-        themeGreen: "Green"
+        themeGreen: "Green",
+        typography: "Typography",
+        autostart: "Autostart",
+        autostartDesc: "Launch the app automatically when Windows starts",
+        globalHotkey: "Global Hotkey",
+        globalHotkeyDesc: "Key to open/close the app from anywhere",
+        globalHotkeyWin: "Windows Key",
+        globalHotkeyAltSpace: "Alt + Space",
+        globalHotkeyCustom: "Custom Key"
     }
 };

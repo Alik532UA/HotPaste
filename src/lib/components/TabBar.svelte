@@ -73,6 +73,24 @@
     openContextMenu(e.clientX, e.clientY, tab as any); 
   }
 
+  function handleTabClick(index: number, tab: Tab) {
+    if (appState.activeTabIndex === index && tab.subfolders.length > 0) {
+      const rect = document.getElementById(`tab-${index}`)?.getBoundingClientRect();
+      if (rect) {
+        openContextMenu(rect.left, rect.bottom, {
+          type: 'subfolder-filter-menu',
+          subfolders: tab.subfolders,
+          activeFilter: uiState.activeSubfolderFilter,
+          onSelect: (filter: string | 'all' | 'root') => {
+            uiState.setActiveSubfolderFilter(filter);
+          }
+        } as any);
+      }
+    } else {
+      selectTab(index);
+    }
+  }
+
   function handleAddTab(e: MouseEvent) {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     openContextMenu(rect.left, rect.bottom, {
@@ -103,7 +121,7 @@
           aria-selected={appState.activeTabIndex === i}
           aria-controls="app-main"
           id="tab-{i}"
-          onclick={() => selectTab(i)}
+          onclick={() => handleTabClick(i, tab)}
           oncontextmenu={(e) => handleContextMenu(e, tab)}
           style={getTabStyle(tab)}
           use:draggable={{ index: i, type: 'tab' }}
@@ -121,6 +139,9 @@
           </span>
 
           <span class="tab-name" data-testid={`tab-name-${tab.path}`}>{tab.name}</span>
+          {#if tab.subfolders.length > 0}
+            <icons.ChevronDown size={14} class="tab-chevron" />
+          {/if}
           <span class="tab-count" data-testid={`tab-count-${tab.path}`}>{tab.cards.length}</span>
         </button>
       {/each}
@@ -293,6 +314,22 @@
 
   .tab.active .tab-count {
     opacity: 0.8;
+  }
+
+  :global(.tab-chevron) {
+    margin-left: -4px;
+    opacity: 0.4;
+    transition: all 0.2s;
+  }
+
+  .tab:hover :global(.tab-chevron) {
+    opacity: 0.7;
+    transform: translateY(1px);
+  }
+
+  .tab.active :global(.tab-chevron) {
+    opacity: 0.8;
+    color: var(--tab-color, var(--color-accent-violet));
   }
 
   .add-tab-btn {

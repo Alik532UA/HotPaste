@@ -12,6 +12,7 @@
     duplicateTab,
     startEditingCard,
     moveCardRelative,
+    openTabInExplorer,
   } from "../stores/appState.svelte";
   import * as icons from "lucide-svelte";
   import { onMount } from "svelte";
@@ -25,11 +26,13 @@
   const isCard = $derived(contextMenu && contextMenu.card && "filePath" in (contextMenu.card as any));
   const isTab = $derived(contextMenu && contextMenu.card && "path" in (contextMenu.card as any));
   const isAddTabMenu = $derived(contextMenu && (contextMenu.card as any)?.type === 'add-tab-menu');
+  const isSubfolderMenu = $derived(contextMenu && (contextMenu.card as any)?.type === 'subfolder-filter-menu');
   
   // Casting for convenience
   const card = $derived(isCard ? (contextMenu?.card as unknown as Card) : null);
   const tab = $derived(isTab ? (contextMenu?.card as unknown as Tab) : null);
   const addTabMenu = $derived(isAddTabMenu ? (contextMenu?.card as any) : null);
+  const subfolderMenu = $derived(isSubfolderMenu ? (contextMenu?.card as any) : null);
 
   let menuElement = $state<HTMLElement | null>(null);
 
@@ -87,11 +90,49 @@
   >
     <div class="menu-header">
       <span class="card-name" data-testid="menu-title">
-        {#if isCard}{card?.name}{:else if isTab}{tab?.name}{:else if isAddTabMenu}{t.tabs.add}{:else}Menu{/if}
+        {#if isCard}{card?.name}{:else if isTab}{tab?.name}{:else if isAddTabMenu}{t.tabs.add}{:else if isSubfolderMenu}Фільтр{:else}Menu{/if}
       </span>
     </div>
 
-    {#if isAddTabMenu && addTabMenu}
+    {#if isSubfolderMenu && subfolderMenu}
+      <button 
+        class="menu-item" 
+        class:active={subfolderMenu.activeFilter === 'all'}
+        onclick={() => handleAction(() => subfolderMenu.onSelect('all'))} 
+        role="menuitem"
+      >
+        <icons.LayoutGrid size={14} />
+        <span>All - всі</span>
+        {#if subfolderMenu.activeFilter === 'all'}<icons.Check size={14} class="shortcut" />{/if}
+      </button>
+      
+      <button 
+        class="menu-item" 
+        class:active={subfolderMenu.activeFilter === 'root'}
+        onclick={() => handleAction(() => subfolderMenu.onSelect('root'))} 
+        role="menuitem"
+      >
+        <icons.Folder size={14} />
+        <span>only root - тільки корнева</span>
+        {#if subfolderMenu.activeFilter === 'root'}<icons.Check size={14} class="shortcut" />{/if}
+      </button>
+      
+      <div class="divider" role="separator"></div>
+      
+      {#each subfolderMenu.subfolders as folder}
+        <button 
+          class="menu-item" 
+          class:active={subfolderMenu.activeFilter === folder}
+          onclick={() => handleAction(() => subfolderMenu.onSelect(folder))} 
+          role="menuitem"
+        >
+          <icons.FolderOpen size={14} />
+          <span>{folder}</span>
+          {#if subfolderMenu.activeFilter === folder}<icons.Check size={14} class="shortcut" />{/if}
+        </button>
+      {/each}
+
+    {:else if isAddTabMenu && addTabMenu}
       <button class="menu-item" onclick={() => handleAction(addTabMenu.onAddSnippets)} role="menuitem" data-testid="menu-item-add-snippets">
         <icons.Type size={14} />
         <span>{t.tabs.typeSnippets || "Нотатки"}</span>
@@ -180,6 +221,11 @@
 
     {:else if isTab && tab}
       <!-- Tab Menu Items -->
+      <button class="menu-item" onclick={() => handleAction(() => openTabInExplorer(tab))} role="menuitem" data-testid="menu-item-tab-open-folder">
+        <icons.FolderOpen size={14} />
+        <span>{t.menu.openFolder}</span>
+      </button>
+
       <button class="menu-item" onclick={() => handleAction(() => openTabSettings(tab))} role="menuitem" data-testid="menu-item-tab-settings">
         <icons.Settings size={14} />
         <span>{t.menu.tabSettings}</span>

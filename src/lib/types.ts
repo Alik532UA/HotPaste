@@ -21,6 +21,8 @@ export interface Card {
   fileName: string;
   /** File extension (.txt, .md, etc.) */
   extension: string;
+  /** Relative path of the subfolder this card belongs to (null if in root of tab) */
+  subfolder: string | null;
   /** Icon (emoji or lucide icon name) */
   icon: string | null;
   /** Card background color (CSS color or null = default) */
@@ -61,6 +63,8 @@ export interface Tab {
   hotkey: string;
   /** Cards (snippets) within this tab */
   cards: Card[];
+  /** List of relative subfolder paths found in this tab */
+  subfolders: string[];
   /** Original directory/file handle path */
   path: string;
   /** Tab icon (emoji or null) */
@@ -137,8 +141,12 @@ export interface AppConfig {
   triggerKey: string;
   /** Primary font family for the interface */
   fontFamily: string;
-  /** Primary font family for snippets and code */
-  fontMono: string;
+  /** Font family for Markdown snippets */
+  fontMd: string;
+  /** Font family for Plain Text snippets */
+  fontTxt: string;
+  /** Font family for hotkey badges and buttons */
+  fontHotkey: string;
 }
 
 export const DEFAULT_CONFIG: AppConfig = {
@@ -150,7 +158,9 @@ export const DEFAULT_CONFIG: AppConfig = {
   autostartEnabled: true,
   triggerKey: 'Win',
   fontFamily: 'Inter',
-  fontMono: 'IBM Plex Mono',
+  fontMd: 'Arsenal',
+  fontTxt: 'IBM Plex Mono',
+  fontHotkey: 'Fira Code',
 };
 
 /** Config filename used in each tab directory */
