@@ -435,12 +435,13 @@
   data-testid="start-menu-container"
   data-tauri-drag-region
 >
-  <div
+    <div
     class="keyboard-body"
     class:modal-open={!!uiState.activeProgramPicker}
     in:fly={{ y: 20, delay: 100 }}
     data-tauri-drag-region={!uiState.activeProgramPicker ? "" : undefined}
     data-testid="keyboard-body"
+    style="--kb-aspect: {dynamicAspect}"
   >
     <div
       class="keyboard-layout-wrapper"
@@ -615,11 +616,13 @@
     gap: 1.9cqmin; /* Original gap that keeps keys square */
     width: 100%;
     flex: 1; /* Automatically adjust height based on available space */
+    min-height: 0; /* Prevent content from stretching the row */
   }
 
   .f-row {
     flex: 1;
     gap: 1.9cqmin;
+    min-height: 0;
   }
 
   .navigation-pane-row {
@@ -629,6 +632,7 @@
     margin-top: 0.8cqmin;
     padding-top: 0.8cqmin;
     border-top: 1px solid var(--color-border);
+    min-height: 0;
   }
 
   .key {
@@ -646,6 +650,8 @@
     justify-content: center;
     padding: 0;
     overflow: hidden;
+    min-width: 0;
+    min-height: 0;
   }
 
   .key.is-small {
@@ -654,13 +660,9 @@
     border-radius: 4px;
   }
 
-  /* Keys with custom flex width should not be forced to square */
-  .key[style*="flex"] {
+  /* Only allow keys with flex width other than 1 to be non-square */
+  .key[style*="flex"]:not([style="flex: 1"]) {
     aspect-ratio: auto;
-  }
-
-  .key.is-small {
-    border-radius: 4px;
   }
 
   .key.is-small .key-label {
@@ -726,36 +728,38 @@
   }
 
   .key-assignment-content {
+    position: absolute;
+    inset: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    width: 90%;
-    height: 90%;
-    margin-top: 10%;
+    padding: 5%;
   }
 
   .mode-icon .key-app-icon-container {
     width: 75%;
     height: 75%;
-    margin-top: 15%;
+    margin-top: 10%;
   }
 
   .mode-text .key-assignment-label {
     font-size: 2.8cqmin;
     font-weight: 700;
     text-align: center;
+    margin-top: 10%;
   }
 
   .mode-both .key-app-icon-container {
     width: 40%;
     height: 40%;
-    margin-top: 0;
+    margin-top: 5%;
   }
 
   .mode-both .key-assignment-label {
     font-size: 2cqmin;
     max-width: 95%;
+    margin-top: 2%;
   }
 
   .key-assignment-label {
