@@ -119,6 +119,7 @@ export const uiState = {
 // --- Action Implementations ---
 
 function openActionConfirmation(params: { card?: Card, assignment?: ShortcutInfo, key?: string, total: number, onConfirm: () => void }): void {
+    logService.info('ui', `Opening action confirmation for key: ${params.key}, total steps: ${params.total}`);
     activeActionConfirmation = {
         ...params,
         remaining: params.total - 1 // First press already happened
@@ -128,10 +129,20 @@ function openActionConfirmation(params: { card?: Card, assignment?: ShortcutInfo
 function confirmActionStep(): void {
     if (activeActionConfirmation) {
         activeActionConfirmation.remaining--;
+        logService.info('ui', `Confirmation step confirmed. Remaining: ${activeActionConfirmation.remaining}`);
+        
         if (activeActionConfirmation.remaining <= 0) {
+            logService.info('ui', 'Confirmation complete. Executing final action.');
             activeActionConfirmation.onConfirm();
-            activeActionConfirmation = null;
+            
+            // Delay clearing the state slightly so that the current keydown event 
+            // finishes propagation while the "blocker" is still active.
+            setTimeout(() => {
+                activeActionConfirmation = null;
+            }, 100);
         }
+    } else {
+        logService.warn('ui', 'confirmActionStep called but no activeActionConfirmation found');
     }
 }
 

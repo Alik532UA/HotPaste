@@ -36,7 +36,10 @@ export const ShortcutInfoSchema = z.object({
     name: z.string(),
     path: z.string(),
     type: z.enum(['local', 'running', 'system', 'start', 'url', 'commands']).optional(),
-    icon: z.string().nullable().optional()
+    icon: z.string().nullable().optional(),
+    displayMode: z.enum(['icon', 'text', 'both', 'none']).optional().default('icon'),
+    customLabel: z.string().optional(),
+    confirmCount: z.number().optional().default(1)
 });
 
 export const KeyboardLayoutSchema = z.object({

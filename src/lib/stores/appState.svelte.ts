@@ -236,35 +236,39 @@ export async function copyCardByHotkey(code: string): Promise<boolean> {
     const activeTab = fsState.tabs[uiState.activeTabIndex];
     if (!activeTab) return false;
 
+    logService.debug('app', `copyCardByHotkey: code=${code}, tabType=${activeTab.type}`);
+
     // Handle Keyboard Tab
     if (activeTab.type === 'keyboard') {
         const assignment = activeTab.assignments?.[code];
         if (assignment) {
             const confirmCount = assignment.confirmCount || 1;
+            logService.info('app', `Assignment found for ${code}: ${assignment.name}, confirmCount=${confirmCount}`);
+
             const executeAction = () => {
-                logService.info('app', `Triggering assignment: ${assignment.name} (${assignment.path})`);
-                if (assignment.type === 'url' || assignment.path.startsWith('http')) {
-                    invoke('open_url', { url: assignment.path }).catch(err => 
-                        logService.error('app', `Failed to open URL: ${assignment.path}`, err)
-                    );
-                } else {
-                    invoke('open_shortcut', { path: assignment.path }).catch(err => 
-                        logService.error('app', `Failed to open shortcut: ${assignment.path}`, err)
-                    );
-                }
+                logService.info('app', `Executing assignment action: ${assignment.name} (${assignment.path})`);
+                invoke('launch_program_by_path', { path: assignment.path }).catch(err => 
+                    logService.error('app', `Failed to launch: ${assignment.path}`, err)
+                );
+                // Hide window after successful launch (like Start Menu)
+                invoke('hide_window').catch(() => {
+                    getCurrentWindow().hide();
+                });
             };
 
             if (confirmCount > 1) {
+                logService.info('app', `Opening confirmation modal for assignment (total presses needed: ${confirmCount})`);
                 uiState.openActionConfirmation({
                     assignment,
                     key: code,
                     total: confirmCount,
                     onConfirm: executeAction
                 });
+                return true; // Modal is open, wait for further presses
             } else {
                 executeAction();
+                return true;
             }
-            return true;
         }
         return false;
     }
@@ -274,26 +278,33 @@ export async function copyCardByHotkey(code: string): Promise<boolean> {
     if (cards.length === 0) return false;
 
     if (cards.length > 1) {
-        logService.log('appState', `Hotkey conflict detected for ${code}. Opening resolution modal.`);
+        logService.warn('app', `Hotkey conflict detected for ${code}. Opening resolution modal.`);
         uiState.setHotkeyConflict(code, cards);
         return true;
     }
 
     const card = cards[0];
     const confirmCount = card.confirmCount || 1;
-    const executeAction = () => fsState.copyCard(card);
+    logService.info('app', `Card found for ${code}: ${card.name}, confirmCount=${confirmCount}`);
+
+    const executeAction = () => {
+        logService.info('app', `Executing card copy action: ${card.name}`);
+        fsState.copyCard(card);
+    };
 
     if (confirmCount > 1) {
+        logService.info('app', `Opening confirmation modal for card (total presses needed: ${confirmCount})`);
         uiState.openActionConfirmation({
             card,
             key: code,
             total: confirmCount,
             onConfirm: executeAction
         });
+        return true; // Modal is open, wait for further presses
     } else {
         await executeAction();
+        return true;
     }
-    return true;
 }
 
 // --- Keyboard handler ---
@@ -317,7 +328,8 @@ export function handleGlobalKeydown(event: KeyboardEvent): void {
         uiState.activeHotkeyPicker ||
         uiState.activeHotkeyConflict ||
         uiState.activeIconPicker ||
-        uiState.activeProgramPicker
+        uiState.activeProgramPicker ||
+        uiState.activeActionConfirmation
     ) return;
     if (!fsState.isConnected) return;
 

@@ -196,6 +196,7 @@ class StartMenuState {
 
     setAssignments(newAssignments: Record<string, ShortcutInfo>) {
         this.assignments = { ...newAssignments };
+        this.loadAssignmentIcons();
     }
 
     async launchKey(keyCode: string) {

@@ -186,6 +186,15 @@
     if (isTauri) {
       document.documentElement.classList.add("is-tauri");
 
+      // Clear any pending confirmation when window is hidden
+      import("@tauri-apps/api/window").then(({ getCurrentWindow }) => {
+        getCurrentWindow().listen("tauri://window-visibility-changed", (event: any) => {
+          if (event.payload?.visible === false) {
+            uiState.closeActionConfirmation();
+          }
+        });
+      });
+
       // Sync trigger key on startup
       if (configState.config.triggerKey !== "Win") {
         configState.setTriggerKey(configState.config.triggerKey);

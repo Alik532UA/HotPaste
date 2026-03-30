@@ -246,7 +246,8 @@
         uiState.activeProgramPicker ||
         uiState.activeSettingsCard ||
         uiState.activeSettingsTab ||
-        uiState.activeHotkeyPicker
+        uiState.activeHotkeyPicker ||
+        uiState.activeActionConfirmation
       )
         return;
 
@@ -255,7 +256,8 @@
       const assignment = assignments[e.code];
       if (assignment && isKeyClickable(e.code)) {
         e.preventDefault();
-        await handleLaunch(e.code);
+        // Use the global hotkey handler which includes confirmation and window hiding logic
+        await copyCardByHotkey(e.code);
       }
     };
 
@@ -263,10 +265,18 @@
     return () => window.removeEventListener("keydown", handleKeyDown);
   });
 
+  import { untrack } from "svelte";
+
+  // ... (rest of imports)
+
   // Sync assignments from the active keyboard tab to the startMenuState
   $effect(() => {
-    if (fsState.activeTab?.type === 'keyboard' && fsState.activeTab.assignments) {
-      startMenuState.setAssignments(fsState.activeTab.assignments);
+    const activeTab = fsState.activeTab;
+    if (activeTab?.type === 'keyboard' && activeTab.assignments) {
+      const assignments = activeTab.assignments;
+      untrack(() => {
+        startMenuState.setAssignments(assignments);
+      });
     }
   });
 
@@ -434,10 +444,10 @@
       data-testid="keyboard-layout-wrapper"
       data-tauri-drag-region
     >
-      <!-- F1-F12 Row -->
-      {#if layout.f1_f12}
+      <!-- F13-F24 Row -->
+      {#if layout.f13_f24}
         <div class="keyboard-row f-row">
-          {#each f1_f12_row as key}
+          {#each f13_f24_row as key}
             {#if key.isSpacer}
               <div class="key-spacer" style="flex: {key.width || 1}"></div>
             {:else}
@@ -447,10 +457,10 @@
         </div>
       {/if}
 
-      <!-- F13-F24 Row -->
-      {#if layout.f13_f24}
+      <!-- F1-F12 Row -->
+      {#if layout.f1_f12}
         <div class="keyboard-row f-row">
-          {#each f13_f24_row as key}
+          {#each f1_f12_row as key}
             {#if key.isSpacer}
               <div class="key-spacer" style="flex: {key.width || 1}"></div>
             {:else}

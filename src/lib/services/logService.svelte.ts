@@ -17,15 +17,15 @@ let logs = $state<LogEntry[]>([]);
 
 /** Log visibility config */
 export const logConfig: Record<string, boolean> = {
-    app: false,
-    appstate: false,
+    app: true,
+    appstate: true,
     filesystem: false,
-    ui: false,
+    ui: true,
     hotkeys: false,
     fsstate: false,
     hotkeystate: false,
-    startmenu: false,
-    icons: true,
+    startmenu: true,
+    icons: false,
     dnd: false,
     header: false,
 };

@@ -46,27 +46,27 @@
     >
       <div class="confirm-header">
         <div class="icon-pulse">
-            {#if confirmation.card}
-                <IconRenderer icon={confirmation.card.icon} size={48} />
-            {:else if confirmation.assignment}
-                <IconRenderer icon={confirmation.assignment.icon} size={48} />
+            {#if confirmation?.card}
+                <IconRenderer icon={confirmation?.card?.icon} size={48} />
+            {:else if confirmation?.assignment}
+                <IconRenderer icon={confirmation?.assignment?.icon} size={48} />
             {/if}
         </div>
         <h2>Підтвердження дії</h2>
         <p class="target-name">
-            {confirmation.card?.name || confirmation.assignment?.name || "Дія"}
+            {confirmation?.card?.name || confirmation?.assignment?.name || "Дія"}
         </p>
       </div>
 
       <div class="confirm-body">
         <div class="counter-display">
-            <span class="remaining">{confirmation.remaining}</span>
+            <span class="remaining">{confirmation?.remaining}</span>
             <span class="label">натискань залишилось</span>
         </div>
         
         <div class="instruction">
             <Keyboard size={16} />
-            <span>Натисніть повторно клавішу <strong>{confirmation.key || confirmation.card?.hotkey || '?'}</strong></span>
+            <span>Натисніть повторно клавішу <strong>{confirmation?.key || confirmation?.card?.hotkey || '?'}</strong></span>
         </div>
       </div>
 
