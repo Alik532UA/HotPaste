@@ -9,9 +9,6 @@ import type { Card, ShortcutInfo, Tab } from '../types';
 
 // --- State ---
 
-// Better environment check for Tauri v2
-const isTauri = typeof window !== 'undefined' && (!!(window as any).__TAURI_INTERNALS__ || !!(window as any).__TAURI__);
-
 let toastMessage = $state('');
 let toastVisible = $state(false);
 let toastTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -29,26 +26,28 @@ let cardView = $state<'short' | 'full'>((localStorage.getItem('hp_card_view') as
 let cardDensity = $state<'expanded' | 'normal' | 'compact'>((localStorage.getItem('hp_card_density') as any) || 'normal');
 
 let activeTabIndex = $state(0);
-let activeContextMenu = $state<{ x: number, y: number, card: Card } | null>(null);
-let activeSettingsCard = $state<Card | null>(null);
-let activeSettingsTab = $state<Tab | null>(null);
-let activeHotkeyPicker = $state<{ card: Card, onSelect?: (code: string) => void } | null>(null);
-let activeHotkeyConflict = $state<{ code: string, cards: Card[] } | null>(null);
-let activeProgramPicker = $state<{ key: string, tab: Tab } | null>(null);
-let activeIconPicker = $state<{ 
-    current: string, 
-    onSelect: (icon: string) => void,
-    title?: string 
-} | null>(null);
 
-let activeActionConfirmation = $state<{
-    card?: Card,
-    assignment?: ShortcutInfo,
-    key?: string,
-    total: number,
-    remaining: number,
-    onConfirm: () => void
-} | null>(null);
+/** 
+ * Centralized modal state container.
+ * Each property is null when the modal is closed.
+ */
+let modals = $state({
+    contextMenu: null as { x: number, y: number, card: Card } | null,
+    settingsCard: null as Card | null,
+    settingsTab: null as Tab | null,
+    hotkeyPicker: null as { card: Card, onSelect?: (code: string) => void } | null,
+    hotkeyConflict: null as { code: string, cards: Card[] } | null,
+    programPicker: null as { key: string, tab: Tab } | null,
+    iconPicker: null as { current: string, onSelect: (icon: string) => void, title?: string } | null,
+    actionConfirmation: null as {
+        card?: Card,
+        assignment?: ShortcutInfo,
+        key?: string,
+        total: number,
+        remaining: number,
+        onConfirm: () => void
+    } | null,
+});
 
 // --- Getters ---
 
@@ -66,14 +65,16 @@ export const uiState = {
     get cardView() { return cardView; },
     get cardDensity() { return cardDensity; },
     get activeTabIndex() { return activeTabIndex; },
-    get activeContextMenu() { return activeContextMenu; },
-    get activeSettingsCard() { return activeSettingsCard; },
-    get activeSettingsTab() { return activeSettingsTab; },
-    get activeHotkeyPicker() { return activeHotkeyPicker; },
-    get activeHotkeyConflict() { return activeHotkeyConflict; },
-    get activeProgramPicker() { return activeProgramPicker; },
-    get activeIconPicker() { return activeIconPicker; },
-    get activeActionConfirmation() { return activeActionConfirmation; },
+    
+    // Modals getters
+    get activeContextMenu() { return modals.contextMenu; },
+    get activeSettingsCard() { return modals.settingsCard; },
+    get activeSettingsTab() { return modals.settingsTab; },
+    get activeHotkeyPicker() { return modals.hotkeyPicker; },
+    get activeHotkeyConflict() { return modals.hotkeyConflict; },
+    get activeProgramPicker() { return modals.programPicker; },
+    get activeIconPicker() { return modals.iconPicker; },
+    get activeActionConfirmation() { return modals.actionConfirmation; },
     
     // Actions
     showToast,
@@ -120,25 +121,25 @@ export const uiState = {
 
 function openActionConfirmation(params: { card?: Card, assignment?: ShortcutInfo, key?: string, total: number, onConfirm: () => void }): void {
     logService.info('ui', `Opening action confirmation for key: ${params.key}, total steps: ${params.total}`);
-    activeActionConfirmation = {
+    modals.actionConfirmation = {
         ...params,
         remaining: params.total - 1 // First press already happened
     };
 }
 
 function confirmActionStep(): void {
-    if (activeActionConfirmation) {
-        activeActionConfirmation.remaining--;
-        logService.info('ui', `Confirmation step confirmed. Remaining: ${activeActionConfirmation.remaining}`);
+    if (modals.actionConfirmation) {
+        modals.actionConfirmation.remaining--;
+        logService.info('ui', `Confirmation step confirmed. Remaining: ${modals.actionConfirmation.remaining}`);
         
-        if (activeActionConfirmation.remaining <= 0) {
+        if (modals.actionConfirmation.remaining <= 0) {
             logService.info('ui', 'Confirmation complete. Executing final action.');
-            activeActionConfirmation.onConfirm();
+            modals.actionConfirmation.onConfirm();
             
             // Delay clearing the state slightly so that the current keydown event 
             // finishes propagation while the "blocker" is still active.
             setTimeout(() => {
-                activeActionConfirmation = null;
+                modals.actionConfirmation = null;
             }, 100);
         }
     } else {
@@ -147,7 +148,7 @@ function confirmActionStep(): void {
 }
 
 function closeActionConfirmation(): void {
-    activeActionConfirmation = null;
+    modals.actionConfirmation = null;
 }
 
 function setActiveSubfolderFilter(filter: string | 'all' | 'root'): void {
@@ -155,19 +156,19 @@ function setActiveSubfolderFilter(filter: string | 'all' | 'root'): void {
 }
 
 function openIconPicker(current: string, onSelect: (icon: string) => void, title?: string): void {
-    activeIconPicker = { current, onSelect, title };
+    modals.iconPicker = { current, onSelect, title };
 }
 
 function closeIconPicker(): void {
-    activeIconPicker = null;
+    modals.iconPicker = null;
 }
 
 function openProgramPicker(key: string, tab: Tab): void {
-    activeProgramPicker = { key, tab };
+    modals.programPicker = { key, tab };
 }
 
 function closeProgramPicker(): void {
-    activeProgramPicker = null;
+    modals.programPicker = null;
 }
 
 function showToast(message: string): void {
@@ -287,43 +288,43 @@ function selectAll(ids: string[]): void {
 }
 
 function openContextMenu(x: number, y: number, card: Card): void {
-    activeContextMenu = { x, y, card };
+    modals.contextMenu = { x, y, card };
 }
 
 function closeContextMenu(): void {
-    activeContextMenu = null;
+    modals.contextMenu = null;
 }
 
 function openSettings(card: Card): void {
-    activeSettingsCard = card;
+    modals.settingsCard = card;
 }
 
 function closeSettings(): void {
-    activeSettingsCard = null;
+    modals.settingsCard = null;
 }
 
 function openTabSettings(tab: Tab): void {
-    activeSettingsTab = tab;
+    modals.settingsTab = tab;
 }
 
 function closeTabSettings(): void {
-    activeSettingsTab = null;
+    modals.settingsTab = null;
 }
 
 function openHotkeyPicker(card: Card, onSelect?: (code: string) => void): void {
-    activeHotkeyPicker = { card, onSelect };
+    modals.hotkeyPicker = { card, onSelect };
 }
 
 function closeHotkeyPicker(): void {
-    activeHotkeyPicker = null;
+    modals.hotkeyPicker = null;
 }
 
 function closeHotkeyConflict(): void {
-    activeHotkeyConflict = null;
+    modals.hotkeyConflict = null;
 }
 
 function setHotkeyConflict(code: string, cards: Card[]): void {
-    activeHotkeyConflict = { code, cards };
+    modals.hotkeyConflict = { code, cards };
 }
 
 function startEditingCard(card: Card): void {

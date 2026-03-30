@@ -224,6 +224,9 @@
     navigation_pane: false
   });
 
+  // Calculate total rows in the main block to maintain consistent key height
+  const mainRowsCount = $derived(5 + (layout.f1_f12 ? 1 : 0) + (layout.f13_f24 ? 1 : 0));
+
   // Dynamically calculate aspect ratio so keys stay perfectly square/proportional
   // Original base aspect was 2.8 for 15 columns and 6 rows. (15/6 * 1.12 = 2.8)
   const dynamicAspect = $derived.by(() => {
@@ -444,35 +447,35 @@
       data-testid="keyboard-layout-wrapper"
       data-tauri-drag-region
     >
-      <!-- F13-F24 Row -->
-      {#if layout.f13_f24}
-        <div class="keyboard-row f-row">
-          {#each f13_f24_row as key}
-            {#if key.isSpacer}
-              <div class="key-spacer" style="flex: {key.width || 1}"></div>
-            {:else}
-              {@render renderKey(key)}
-            {/if}
-          {/each}
-        </div>
-      {/if}
-
-      <!-- F1-F12 Row -->
-      {#if layout.f1_f12}
-        <div class="keyboard-row f-row">
-          {#each f1_f12_row as key}
-            {#if key.isSpacer}
-              <div class="key-spacer" style="flex: {key.width || 1}"></div>
-            {:else}
-              {@render renderKey(key)}
-            {/if}
-          {/each}
-        </div>
-      {/if}
-
       <!-- Main Keyboard and Numpad Area -->
       <div class="main-area">
         <div class="main-keyboard-block">
+          <!-- F13-F24 Row -->
+          {#if layout.f13_f24}
+            <div class="keyboard-row f-row">
+              {#each f13_f24_row as key}
+                {#if key.isSpacer}
+                  <div class="key-spacer" style="flex: {key.width || 1}"></div>
+                {:else}
+                  {@render renderKey(key)}
+                {/if}
+              {/each}
+            </div>
+          {/if}
+
+          <!-- F1-F12 Row -->
+          {#if layout.f1_f12}
+            <div class="keyboard-row f-row">
+              {#each f1_f12_row as key}
+                {#if key.isSpacer}
+                  <div class="key-spacer" style="flex: {key.width || 1}"></div>
+                {:else}
+                  {@render renderKey(key)}
+                {/if}
+              {/each}
+            </div>
+          {/if}
+
           {#each mainKeyboardRows as row}
             <div class="keyboard-row">
               {#each row as key}
@@ -488,6 +491,14 @@
 
         {#if layout.num_lock}
           <div class="numpad-block">
+            <!-- Add spacers to align NumPad with QWERTY when F-rows are present -->
+            {#if layout.f13_f24}
+              <div class="keyboard-row spacer-row"></div>
+            {/if}
+            {#if layout.f1_f12}
+              <div class="keyboard-row spacer-row"></div>
+            {/if}
+
             {#each numpadRows as row}
               <div class="keyboard-row">
                 {#each row as key}
@@ -563,7 +574,7 @@
   .keyboard-layout-wrapper {
     display: flex;
     flex-direction: column;
-    gap: 0.4cqmin;
+    gap: 1.6cqmin;
     width: 100%;
     height: 100%;
     justify-content: space-between;
@@ -571,49 +582,59 @@
 
   .main-area {
     display: flex;
-    gap: 3.8cqmin;
-    flex: 5; /* 5 main rows */
+    gap: 1.9cqmin;
+    flex: var(--main-rows, 5); /* Use dynamic row count for flex basis */
+    align-items: stretch; /* Crucial for height propagation */
   }
 
   .main-keyboard-block {
     display: flex;
     flex-direction: column;
-    gap: 0.4cqmin;
+    gap: 1.6cqmin;
     flex: 1;
+    height: 100%;
     justify-content: space-between;
   }
 
   .numpad-block {
     display: flex;
     flex-direction: column;
-    gap: 0.4cqmin;
+    gap: 1.6cqmin;
     width: 25%;
+    height: 100%;
     justify-content: space-between;
+  }
+
+  .spacer-row {
+    pointer-events: none;
+    visibility: hidden;
   }
 
   .keyboard-row {
     display: flex;
-    gap: 3.8cqmin; /* Original gap that keeps keys square */
+    gap: 1.9cqmin; /* Original gap that keeps keys square */
     width: 100%;
     flex: 1; /* Automatically adjust height based on available space */
   }
 
   .f-row {
     flex: 1;
+    gap: 1.9cqmin;
   }
 
   .navigation-pane-row {
     display: flex;
-    gap: 0.3cqmin;
-    flex: 0.8; /* Slightly shorter than main rows */
-    margin-top: 0.5cqmin;
-    padding-top: 0.5cqmin;
+    gap: 0.4cqmin;
+    flex: 0.5; /* Half the height of regular rows */
+    margin-top: 0.8cqmin;
+    padding-top: 0.8cqmin;
     border-top: 1px solid var(--color-border);
   }
 
   .key {
     position: relative;
     height: 100%;
+    aspect-ratio: 1 / 1;
     background: var(--color-surface-1);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-sm);
@@ -625,6 +646,17 @@
     justify-content: center;
     padding: 0;
     overflow: hidden;
+  }
+
+  .key.is-small {
+    aspect-ratio: auto; /* Allow small keys to be rectangular */
+    width: 100%;
+    border-radius: 4px;
+  }
+
+  /* Keys with custom flex width should not be forced to square */
+  .key[style*="flex"] {
+    aspect-ratio: auto;
   }
 
   .key.is-small {

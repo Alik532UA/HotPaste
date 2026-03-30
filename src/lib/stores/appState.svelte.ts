@@ -1,19 +1,17 @@
 /**
  * Application State — Facade for specialized state modules.
+ * This is the primary entry point for UI components to access state and actions.
  */
 
 import { uiState } from './uiState.svelte';
 import { fsState } from './fileSystemState.svelte';
 import { configState } from './configState.svelte';
-import { logService } from '../services/logService.svelte';
-import { isTabHotkey, isCardHotkey, getHotkeyLabel, TAB_CODES } from '../utils/keyboardLayout';
+import { hotkeyState } from './hotkeyState.svelte';
+import { getHotkeyLabel, TAB_CODES, isTabHotkey } from '../utils/keyboardLayout';
 import type { Card } from '../types';
 import Fuse from 'fuse.js';
-import { readText } from '@tauri-apps/plugin-clipboard-manager';
-import { invoke } from '@tauri-apps/api/core';
-import { getCurrentWindow } from '@tauri-apps/api/window';
 
-/** Fuse.js instance for fuzzy search */
+/** Fuse.js instance for fuzzy search (computed based on active cards) */
 const fuse = $derived(new Fuse(fsState.activeCards, {
     keys: [
         { name: 'name', weight: 1.0 },
@@ -25,7 +23,10 @@ const fuse = $derived(new Fuse(fsState.activeCards, {
     ignoreLocation: true
 }));
 
-/** Facade for all application state */
+/** 
+ * Centralized getter for all application state.
+ * Components should call this to get reactive access to all stores.
+ */
 export function getState() {
     return {
         // UI State
@@ -68,6 +69,7 @@ export function getState() {
 
 // --- Combined / Derived logic ---
 
+/** Performs filtering and fuzzy search on the active cards */
 function getFilteredCards() {
     const query = uiState.searchQuery.trim();
     const filter = uiState.activeSubfolderFilter;
@@ -96,8 +98,9 @@ function getFilteredCards() {
     return results;
 }
 
-// --- Proxy Actions (for backward compatibility) ---
+// --- Re-exports (Proxy Actions) ---
 
+// UI Actions
 export const showToast = uiState.showToast;
 export const showFlash = uiState.showFlash;
 export const setScale = (s: number) => { uiState.setScale(s); configState.setScale(uiState.scale); };
@@ -106,6 +109,7 @@ export const setSearchQuery = uiState.setSearchQuery;
 export const setCardView = uiState.setCardView;
 export const setCardDensity = uiState.setCardDensity;
 export const toggleCardView = uiState.toggleCardView;
+export const toggleCardDensity = uiState.toggleCardDensity;
 export const selectTab = (i: number, isExplicit: boolean = true) => {
     const tab = fsState.tabs[i];
     uiState.selectTab(i, fsState.tabs.length, tab?.type, isExplicit);
@@ -114,13 +118,11 @@ export const selectTabByHotkey = (c: string) => {
     if (!isTabHotkey(c)) return false;
     const index = TAB_CODES.indexOf(c);
     const tab = fsState.tabs[index];
-    // Hotkey press is an explicit user action, so we pass true for isExplicitClick
     return uiState.selectTabByHotkey(c, fsState.tabs.length, tab?.type, true);
 };
 export const toggleCardSelection = uiState.toggleCardSelection;
 export const clearSelection = uiState.clearSelection;
 export const selectAll = () => uiState.selectAll(getFilteredCards().map((c: Card) => c.id));
-
 export const openContextMenu = uiState.openContextMenu;
 export const closeContextMenu = uiState.closeContextMenu;
 export const openSettings = uiState.openSettings;
@@ -136,7 +138,10 @@ export const startEditingCard = uiState.startEditingCard;
 export const stopEditingCard = uiState.stopEditingCard;
 export const setSelectionMode = uiState.setSelectionMode;
 export const toggleSelectionMode = uiState.toggleSelectionMode;
+export const toggleMinimalMode = uiState.toggleMinimalMode;
+export const setMinimalMode = uiState.setMinimalMode;
 
+// File System Actions
 export const connectDirectory = fsState.connectDirectory;
 export const connectDefaultProject = fsState.connectDefaultProject;
 export const refreshTabs = fsState.refreshTabs;
@@ -159,55 +164,6 @@ export const saveCurrentTabConfig = fsState.saveCurrentTabConfig;
 export const saveTabOrder = fsState.saveTabOrder;
 export const startNewCardCreation = fsState.startNewCardCreation;
 export const openTabInExplorer = fsState.openTabInExplorer;
-
-/** Create a new card from clipboard content automatically */
-export async function quickPasteFromClipboard() {
-    try {
-        let text = '';
-        
-        // Determine if running in Tauri environment
-        // @ts-ignore
-        const isTauri = !!(typeof window !== "undefined" && (window.__TAURI_INTERNALS__ || window.__TAURI__));
-
-        if (isTauri) {
-            text = await readText();
-        } else {
-            text = await navigator.clipboard.readText();
-        }
-
-        if (!text || text.trim() === '') {
-            uiState.showToast('Буфер обміну порожній');
-            return;
-        }
-
-        // Create a mock card structure for saveCard
-        const tempId = `quick-new-${Date.now()}`;
-        const mockCard: Card = {
-            id: tempId, 
-            name: "New Snippet", 
-            fileName: "", 
-            filePath: tempId, 
-            content: text, 
-            extension: "txt",
-            displayName: null, 
-            hotkey: '', 
-            icon: null, 
-            color: null, 
-            borderColor: null, 
-            strikethrough: [],
-            subfolder: null,
-            size: 0, 
-            lastModified: 0, 
-            isNewMock: true
-        };
-
-        await fsState.saveCard(mockCard, text);
-    } catch (err) {
-        logService.log('error', 'Failed to quick paste', err);
-        uiState.showToast('Помилка доступу до буфера обміну');
-    }
-}
-
 export const removeOrphanedConfig = fsState.removeOrphanedConfig;
 export const linkFileManually = fsState.linkFileManually;
 export const updateCardHotkey = fsState.updateCardHotkey;
@@ -215,6 +171,8 @@ export const resetCardHotkeyToDefault = fsState.resetCardHotkeyToDefault;
 export const resolveHotkeyConflict = fsState.resolveHotkeyConflict;
 export const updateCardSettings = fsState.updateCardSettings;
 export const copyCard = fsState.copyCard;
+
+// Batch Actions
 export const deleteSelectedCards = async () => {
     const ids = uiState.selectedCardIds;
     if (ids.size === 0) return;
@@ -231,168 +189,7 @@ export const moveSelectedCardsToTab = async (target: string) => {
     uiState.clearSelection();
 };
 
-/** Trigger a card or assignment action by hotkey, with confirmation support */
-export async function copyCardByHotkey(code: string): Promise<boolean> {
-    const activeTab = fsState.tabs[uiState.activeTabIndex];
-    if (!activeTab) return false;
-
-    logService.debug('app', `copyCardByHotkey: code=${code}, tabType=${activeTab.type}`);
-
-    // Handle Keyboard Tab
-    if (activeTab.type === 'keyboard') {
-        const assignment = activeTab.assignments?.[code];
-        if (assignment) {
-            const confirmCount = assignment.confirmCount || 1;
-            logService.info('app', `Assignment found for ${code}: ${assignment.name}, confirmCount=${confirmCount}`);
-
-            const executeAction = () => {
-                logService.info('app', `Executing assignment action: ${assignment.name} (${assignment.path})`);
-                invoke('launch_program_by_path', { path: assignment.path }).catch(err => 
-                    logService.error('app', `Failed to launch: ${assignment.path}`, err)
-                );
-                // Hide window after successful launch (like Start Menu)
-                invoke('hide_window').catch(() => {
-                    getCurrentWindow().hide();
-                });
-            };
-
-            if (confirmCount > 1) {
-                logService.info('app', `Opening confirmation modal for assignment (total presses needed: ${confirmCount})`);
-                uiState.openActionConfirmation({
-                    assignment,
-                    key: code,
-                    total: confirmCount,
-                    onConfirm: executeAction
-                });
-                return true; // Modal is open, wait for further presses
-            } else {
-                executeAction();
-                return true;
-            }
-        }
-        return false;
-    }
-
-    // Handle Snippets Tab
-    const cards = activeTab.cards.filter(c => c.hotkey === code);
-    if (cards.length === 0) return false;
-
-    if (cards.length > 1) {
-        logService.warn('app', `Hotkey conflict detected for ${code}. Opening resolution modal.`);
-        uiState.setHotkeyConflict(code, cards);
-        return true;
-    }
-
-    const card = cards[0];
-    const confirmCount = card.confirmCount || 1;
-    logService.info('app', `Card found for ${code}: ${card.name}, confirmCount=${confirmCount}`);
-
-    const executeAction = () => {
-        logService.info('app', `Executing card copy action: ${card.name}`);
-        fsState.copyCard(card);
-    };
-
-    if (confirmCount > 1) {
-        logService.info('app', `Opening confirmation modal for card (total presses needed: ${confirmCount})`);
-        uiState.openActionConfirmation({
-            card,
-            key: code,
-            total: confirmCount,
-            onConfirm: executeAction
-        });
-        return true; // Modal is open, wait for further presses
-    } else {
-        await executeAction();
-        return true;
-    }
-}
-
-// --- Keyboard handler ---
-
-export function handleGlobalKeydown(event: KeyboardEvent): void {
-    // 1. SYSTEMIC FIX: Robust input detection
-    const target = event.target as HTMLElement;
-    const isInput = target && (
-        ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || 
-        target.isContentEditable ||
-        target.closest('input, textarea, [contenteditable="true"]')
-    );
-
-    if (isInput || event.defaultPrevented) return;
-
-    // 2. Block hotkeys when modals are open
-    if (
-        uiState.editingCardPath ||
-        uiState.activeSettingsCard ||
-        uiState.activeSettingsTab ||
-        uiState.activeHotkeyPicker ||
-        uiState.activeHotkeyConflict ||
-        uiState.activeIconPicker ||
-        uiState.activeProgramPicker ||
-        uiState.activeActionConfirmation
-    ) return;
-    if (!fsState.isConnected) return;
-
-    // Quick paste from clipboard on Ctrl+V
-    if ((event.ctrlKey || event.metaKey) && event.code === 'KeyV') {
-        event.preventDefault();
-        quickPasteFromClipboard();
-        return;
-    }
-
-    if (event.ctrlKey && event.code === 'KeyN') {
-        event.preventDefault();
-        fsState.startNewCardCreation();
-        return;
-    }
-
-    if (event.ctrlKey || event.metaKey || event.altKey) return;
-
-    if (event.code === 'Escape') {
-        event.preventDefault();
-        invoke('hide_window').catch(() => {
-            getCurrentWindow().hide();
-        });
-        return;
-    }
-
-    // Toggle Minimal/Full mode
-    const toggleConfig = configState.config.toggleModeHotkey;
-    const isSpace = event.code === 'Space';
-    const isF11 = event.code === 'F11';
-
-    const shouldToggle = 
-        (toggleConfig === 'space_f11' && (isSpace || isF11)) ||
-        (toggleConfig === 'space' && isSpace) ||
-        (toggleConfig === 'f11' && isF11);
-
-    if (shouldToggle) {
-        event.preventDefault();
-        uiState.toggleMinimalMode();
-        return;
-    }
-
-    const code = event.code;
-
-    // 3. Tab Navigation (1-9 or Arrows)
-    if (code === 'ArrowLeft' || code === 'ArrowRight') {
-        const tabCount = fsState.tabs.length;
-        if (tabCount > 1) {
-            event.preventDefault();
-            const direction = code === 'ArrowLeft' ? -1 : 1;
-            const nextIndex = (uiState.activeTabIndex + direction + tabCount) % tabCount;
-            selectTab(nextIndex);
-        }
-        return;
-    }
-
-    if (selectTabByHotkey(code)) {
-        event.preventDefault();
-        return;
-    }
-
-    if (isCardHotkey(code)) {
-        event.preventDefault();
-        copyCardByHotkey(code);
-    }
-}
+// Keyboard Actions (proxied from hotkeyState)
+export const handleGlobalKeydown = hotkeyState.handleGlobalKeydown;
+export const copyCardByHotkey = hotkeyState.copyCardByHotkey;
+export const quickPasteFromClipboard = hotkeyState.quickPasteFromClipboard;
