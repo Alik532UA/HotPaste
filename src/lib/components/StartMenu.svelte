@@ -80,7 +80,8 @@
 
   // F13-F24 Row
   const f13_f24_row: KeyInfo[] = [
-    { code: "isSpacer", label: "", isSpacer: true, width: 2 },
+    { code: "isSpacer", label: "", isSpacer: true, width: 1.5 },
+    { code: "isSpacer", label: "", isSpacer: true, width: 0.5 },
     { code: "F13", label: "F13" },
     { code: "F14", label: "F14" },
     { code: "F15", label: "F15" },
