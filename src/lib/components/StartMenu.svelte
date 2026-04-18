@@ -56,6 +56,7 @@
     width?: number;
     isSpacer?: boolean;
     isSmall?: boolean;
+    isHidden?: boolean;
   }
 
   // F1-F12 Row
@@ -80,7 +81,7 @@
 
   // F13-F24 Row
   const f13_f24_row: KeyInfo[] = [
-    { code: "isSpacer", label: "", isSpacer: true, width: 1.5 },
+    { code: "EscapeGhost", label: "", width: 1.5, isHidden: true },
     { code: "isSpacer", label: "", isSpacer: true, width: 0.5 },
     { code: "F13", label: "F13" },
     { code: "F14", label: "F14" },
@@ -227,7 +228,7 @@
   });
 
   // Dynamic aspect ratio calculation to keep keys perfectly square
-  const dynamicKbAspect = $derived.by(() => {
+  const layoutInfo = $derived.by(() => {
     const padding = 0.025; // 2.5%
     const gap = 0.012; // 1.2%
     const blockGap = 0.015; // 1.5%
@@ -235,16 +236,18 @@
     const navPadding = 0.01; // 1%
     const fRowMargin = 0.005; // 0.5%
     
-    let fRows = 0;
-    if (layout.f1_f12) fRows += 1;
-    if (layout.f13_f24) fRows += 1;
-    const R = 5 + fRows;
+    let fRowsCount = 0;
+    if (layout.f1_f12) fRowsCount += 1;
+    if (layout.f13_f24) fRowsCount += 1;
+    const R = 5 + fRowsCount;
     
     let uRatio = 0;
     const cwRatio = 1 - 2 * padding; // 0.95
     
     if (layout.num_lock) {
-      const mainBlockRatio = (cwRatio - blockGap) * (15 / 19.2);
+      // Total horizontal units: 15 (Main) + 4.2 (Numpad) = 19.2
+      const totalUnits = 19.2;
+      const mainBlockRatio = (cwRatio - blockGap) * (15 / totalUnits);
       uRatio = (mainBlockRatio - 14 * gap) / 15;
     } else {
       uRatio = (cwRatio - 14 * gap) / 15;
@@ -252,7 +255,7 @@
     
     let hRatio = R * uRatio;
     hRatio += (R - 1) * gap;
-    hRatio += fRows * fRowMargin;
+    hRatio += fRowsCount * fRowMargin;
     
     if (layout.navigation_pane) {
       hRatio += gap; 
@@ -263,7 +266,10 @@
     
     hRatio += 2 * padding;
     
-    return 1 / hRatio;
+    return {
+      aspect: 1 / hRatio,
+      keyHeightCqi: uRatio * 100
+    };
   });
 
   const totalMainRows = $derived(5 + (layout.f1_f12 ? 1 : 0) + (layout.f13_f24 ? 1 : 0));
@@ -296,8 +302,6 @@
   });
 
   import { untrack } from "svelte";
-
-  // ... (rest of imports)
 
   // Sync assignments from the active keyboard tab to the startMenuState
   $effect(() => {
@@ -423,13 +427,14 @@
     class:assigned={!!assignment}
     class:selected={uiState.activeProgramPicker?.key === key.code}
     class:disabled={!clickable}
+    class:hidden={key.isHidden}
     style="--key-width: {key.width || 1}"
     onmouseenter={() => (hoveredKey = key)}
     onmouseleave={() => (hoveredKey = null)}
-    onclick={() => clickable && handleKeyClick(key)}
-    oncontextmenu={(e) => clickable && handleKeyContextMenu(e, key)}
+    onclick={() => clickable && !key.isHidden && handleKeyClick(key)}
+    oncontextmenu={(e) => clickable && !key.isHidden && handleKeyContextMenu(e, key)}
     type="button"
-    disabled={!clickable && !assignment}
+    disabled={(!clickable && !assignment) || key.isHidden}
     data-testid="key-{key.code}"
   >
     <span class="key-label">{key.label}</span>
@@ -468,7 +473,7 @@
     in:fly={{ y: 20, delay: 100 }}
     data-tauri-drag-region={!uiState.activeProgramPicker ? "" : undefined}
     data-testid="keyboard-body"
-    style="--kb-aspect: {dynamicKbAspect};"
+    style="--kb-aspect: {layoutInfo.aspect}; --key-height: {layoutInfo.keyHeightCqi}cqi;"
   >
     <div
       class="keyboard-layout-wrapper"
@@ -639,7 +644,8 @@
   .spacer-row {
     pointer-events: none;
     visibility: hidden;
-    flex: 1;
+    height: var(--key-height);
+    flex: 0 0 auto;
     margin-bottom: 0.5%;
   }
 
@@ -647,7 +653,8 @@
     display: flex;
     gap: var(--key-gap);
     width: 100%;
-    flex: 1;
+    height: var(--key-height);
+    flex: 0 0 auto;
   }
 
   .f-row {
@@ -657,11 +664,12 @@
   .navigation-pane-row {
     display: flex;
     gap: 0.4%;
-    margin-top: 1%;
+    margin-top: 1.5%;
     padding-top: 1%;
     border-top: 1px solid var(--color-border);
     width: 100%;
-    flex: 1;
+    height: auto;
+    flex: 0 0 auto;
   }
 
   .key {
@@ -685,7 +693,9 @@
 
   .key.is-small {
     flex: var(--key-width, 0.5);
-    height: 100%;
+    width: 0;
+    height: auto;
+    aspect-ratio: 1 / 1;
     border-radius: 0.4cqi;
   }
 
@@ -718,6 +728,12 @@
     background: transparent;
     cursor: default;
     pointer-events: none;
+  }
+
+  .key.hidden {
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
   }
 
   .key-label {
@@ -798,6 +814,7 @@
   .key-spacer {
     flex: var(--spacer-width, 1);
     width: 0;
+    min-width: 0;
     height: 100%;
     pointer-events: none;
   }

@@ -194,6 +194,17 @@ async function reconcileTabMetadata(tab: Tab): Promise<void> {
             }
         }
 
+        // Restore tab metadata
+        if (config.tab) {
+            tab.displayName = config.tab.displayName || null;
+            tab.icon = config.tab.icon || null;
+            tab.color = config.tab.color || null;
+            tab.type = (config.tab.type as TabType) || 'snippets';
+            tab.assignments = config.tab.assignments || {};
+            tab.keyboardLayout = config.tab.keyboardLayout;
+            tab.name = tab.displayName || (tab.path === '__root__' ? 'Файли' : tab.path);
+        }
+
         const orderArr = config.tab?.order || [];
         tab.cards.sort((a, b) => {
             const indexA = orderArr.indexOf(a.fileName);
@@ -456,6 +467,7 @@ async function updateTabSettings(tab: Tab, settings: Partial<Tab>): Promise<void
             rootConfig.tab.color = tab.color;
             rootConfig.tab.type = tab.type;
             rootConfig.tab.assignments = tab.assignments;
+            rootConfig.tab.keyboardLayout = tab.keyboardLayout;
         } else {
             if (!rootConfig.tabs) rootConfig.tabs = {};
             if (!rootConfig.tabs[tab.path]) rootConfig.tabs[tab.path] = {};
@@ -465,6 +477,7 @@ async function updateTabSettings(tab: Tab, settings: Partial<Tab>): Promise<void
             tMeta.color = tab.color;
             tMeta.type = tab.type;
             tMeta.assignments = tab.assignments;
+            tMeta.keyboardLayout = tab.keyboardLayout;
             if (Object.keys(tMeta).length === 0) delete rootConfig.tabs[tab.path];
         }
         await getFSService().writeConfig('__root__', rootConfig);
@@ -477,6 +490,7 @@ async function updateTabSettings(tab: Tab, settings: Partial<Tab>): Promise<void
         localConfig.tab.color = tab.color;
         localConfig.tab.type = tab.type;
         localConfig.tab.assignments = tab.assignments;
+        localConfig.tab.keyboardLayout = tab.keyboardLayout;
         await getFSService().writeConfig(tab.path, localConfig);
 
         uiState.showToast(`Налаштування вкладки збережено`);
