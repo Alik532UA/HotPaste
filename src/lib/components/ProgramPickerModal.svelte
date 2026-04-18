@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { X, Search, Monitor, Play, Settings2, Power, RotateCcw, Moon, Zap, Lock, LogOut, Link, Terminal, Check, Info, LayoutGrid, List, Trash2, Download, Music, Video, Image, User, Network, PanelsTopLeft, Type, EyeOff, Folder } from "lucide-svelte";
+  import { X, Search, Monitor, Play, Settings2, Power, RotateCcw, Moon, Zap, Lock, LogOut, Link, Terminal, Check, Info, LayoutGrid, List, Trash2, Download, Music, Video, Image, User, Network, PanelsTopLeft, Type, EyeOff, Folder, FolderOpen } from "lucide-svelte";
   import { getState, updateTabAssignment, openIconPicker } from "../stores/appState.svelte";
   import SearchInput from "./ui/SearchInput.svelte";
   import IconRenderer from "./ui/IconRenderer.svelte";
@@ -21,14 +21,21 @@
   let selectedProg = $state<ShortcutInfo | null>(null);
   let customUrl = $state("");
   let customCommand = $state("");
-  let customUrlIcon = $state("lucide:Link");
-  let customCommandIcon = $state("lucide:Terminal");
   
   let programs = $state<ShortcutInfo[]>([]);
   let isLoading = $state(false);
   let icons = $state<Record<string, string>>({});
 
   const isTauri = typeof window !== "undefined" && !!(window as any).__TAURI_INTERNALS__;
+
+  async function openLocalFolder() {
+    if (!context?.tab?.path) return;
+    try {
+        await invoke("open_path", { path: context.tab.path });
+    } catch (err) {
+        logService.error("app", "Failed to open local folder", err);
+    }
+  }
 
   const SYSTEM_COMMANDS: ShortcutInfo[] = [
     { name: "Shutdown", path: "shutdown /s /t 0", icon: "power" },
@@ -187,7 +194,7 @@
             name: customUrl.trim(),
             path: url,
             type: 'url',
-            icon: customUrlIcon,
+            icon: 'lucide:Link',
             confirmCount: 1
         });
     }
@@ -199,7 +206,7 @@
             name: customCommand,
             path: customCommand,
             type: 'commands',
-            icon: customCommandIcon,
+            icon: 'lucide:Terminal',
             confirmCount: 1
         });
     }
@@ -264,6 +271,18 @@
   }
 </script>
 
+{#snippet iconButton(icon: string | null | undefined, onclick: () => void, size: 'sm' | 'md' | 'lg' = 'md')}
+    <button 
+        class="icon-edit-btn size-{size}" 
+        onclick={onclick} 
+        title="Змінити іконку" 
+        type="button"
+    >
+        <IconRenderer {icon} size={size === 'sm' ? 24 : size === 'md' ? 32 : 48} />
+        <div class="edit-overlay"><Settings2 size={size === 'sm' ? 12 : 16} /></div>
+    </button>
+{/snippet}
+
 {#snippet skeleton()}
   <div class="program-container grid-mode">
     {#each Array(12) as _}
@@ -307,10 +326,7 @@
       {#if selectedProg}
         <div class="inspector-content" in:fly={{ y: 10, duration: 200 }}>
             <div class="inspector-header">
-                <button class="draft-icon-btn" onclick={openDraftIconPicker} title="Змінити іконку" type="button">
-                    <IconRenderer icon={selectedProg.icon} size={48} />
-                    <div class="edit-overlay"><Settings2 size={16} /></div>
-                </button>
+                {@render iconButton(selectedProg.icon, openDraftIconPicker, 'lg')}
                 <div class="draft-details">
                     <div class="input-field">
                         <label for="custom-label">Назва для клавіатури</label>
@@ -436,9 +452,6 @@
           <div class="modal-body">
             {#if activeTab === 'url'}
               <div class="custom-input-section">
-                <button class="section-icon" onclick={() => openIconPicker(customUrlIcon, v => customUrlIcon = v)} type="button">
-                  <IconRenderer icon={customUrlIcon} size={48} />
-                </button>
                 <h3>Add Custom URL</h3>
                 <div class="input-group">
                     <input type="text" bind:value={customUrl} placeholder="example.com" onkeydown={(e) => { if (e.key === 'Enter') handleAddUrl(); }} aria-label="URL" />
@@ -451,9 +464,6 @@
                     <div class="info-tag"><Info size={14} /> Підтримує шляхи до папок та системні команди</div>
                     <h4>Custom Command / Path</h4>
                     <div style="display: flex; gap: 16px; align-items: center; margin-bottom: 12px;">
-                        <button class="section-icon small" onclick={() => openIconPicker(customCommandIcon, v => customCommandIcon = v)} type="button">
-                            <IconRenderer icon={customCommandIcon} size={24} />
-                        </button>
                         <div class="input-group">
                             <input type="text" bind:value={customCommand} placeholder="C:\Users\Documents" onkeydown={(e) => { if (e.key === 'Enter') handleAddCustomCommand(); }} aria-label="Command" />
                             <button class="btn-add" onclick={handleAddCustomCommand} disabled={!customCommand} type="button">Add</button>
@@ -616,10 +626,8 @@
     align-items: flex-start;
   }
 
-  .draft-icon-btn {
+  .icon-edit-btn {
     position: relative;
-    width: 64px;
-    height: 64px;
     border-radius: 16px;
     background: var(--color-surface-2);
     border: 1px solid var(--color-border);
@@ -627,7 +635,20 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: all 0.2s;
+    flex-shrink: 0;
+    color: var(--color-text-primary);
   }
+  .icon-edit-btn:hover {
+    background: var(--color-surface-3);
+    border-color: var(--color-accent-cyan);
+    transform: translateY(-2px);
+  }
+  
+  .icon-edit-btn.size-sm { width: 40px; height: 40px; border-radius: 10px; }
+  .icon-edit-btn.size-md { width: 56px; height: 56px; }
+  .icon-edit-btn.size-lg { width: 64px; height: 64px; }
+
   .edit-overlay {
     position: absolute;
     bottom: -4px;
@@ -640,7 +661,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
   }
+  .size-sm .edit-overlay { width: 16px; height: 16px; bottom: -2px; right: -2px; }
 
   .draft-details {
     flex: 1;
@@ -821,6 +844,18 @@
 
   .btn-close { background: transparent; border: none; color: var(--color-text-muted); cursor: pointer; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; }
   .btn-close:hover { background: var(--color-surface-3); color: var(--color-text-primary); }
+
+  .custom-input-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    padding: 40px;
+    background: var(--color-surface-1);
+    border-radius: 20px;
+    margin-bottom: 20px;
+  }
+  .custom-input-section h3 { margin: 0; font-size: 1.2rem; }
 
   .skeleton-bg { background: linear-gradient(90deg, var(--color-surface-2) 25%, var(--color-surface-3) 50%, var(--color-surface-2) 75%); background-size: 200% 100%; animation: skeleton-loading 1.5s infinite linear; }
   @keyframes skeleton-loading { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
