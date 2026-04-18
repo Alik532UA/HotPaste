@@ -210,7 +210,7 @@
   // Navigation Pane (30 keys)
   const navigationPaneRow: KeyInfo[] = Array.from({ length: 30 }, (_, i) => ({
     code: `Nav${(i + 1).toString().padStart(2, '0')}`,
-    label: (i + 1).toString(),
+    label: "",
     isSmall: true,
     width: 0.5
   }));
@@ -694,6 +694,7 @@
     justify-content: center;
     padding: 0;
     overflow: hidden;
+    container-type: size;
   }
 
   .key.is-small {
@@ -702,10 +703,6 @@
     height: auto;
     aspect-ratio: 1 / 1;
     border-radius: 0.4cqi;
-  }
-
-  .key.is-small .key-label {
-    font-size: 2.2cqi;
   }
 
   .key:hover {
@@ -743,17 +740,29 @@
 
   .key-label {
     position: absolute;
-    top: 8%;
-    left: 8%;
-    font-size: 3cqi;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 45cqh;
     font-weight: 700;
     color: var(--color-text-muted);
     letter-spacing: -0.01em;
     z-index: 2;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    white-space: nowrap;
+    line-height: 1;
+  }
+
+  .key.assigned .key-label {
+    top: 10%;
+    left: 10%;
+    transform: none;
+    font-size: 22cqh;
+    opacity: 0.8;
   }
 
   .key.disabled .key-label {
-    font-size: 2.6cqi;
+    font-size: 40cqh;
     font-weight: 500;
   }
 
@@ -789,7 +798,7 @@
   }
 
   .mode-text .key-assignment-label {
-    font-size: 2.2cqi;
+    font-size: 25cqh;
     font-weight: 700;
     text-align: center;
     margin-top: 8%;
@@ -802,7 +811,7 @@
   }
 
   .mode-both .key-assignment-label {
-    font-size: 1.8cqi;
+    font-size: 18cqh;
     max-width: 95%;
     margin-top: 2%;
   }
