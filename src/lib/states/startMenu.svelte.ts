@@ -1,5 +1,6 @@
 import { TauriFileSystemService } from '../services/tauriFileSystem';
 import { logService } from '../services/logService.svelte';
+import { storage } from '../services/storage';
 import type { ShortcutInfo } from '../types';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-shell';
@@ -27,7 +28,7 @@ class StartMenuState {
     }
 
     private loadAssignments() {
-        const stored = localStorage.getItem('hotpaste-start-assignments');
+        const stored = storage.get('hotpaste-start-assignments');
         if (stored) {
             try {
                 const parsed = JSON.parse(stored);
@@ -45,7 +46,7 @@ class StartMenuState {
     }
 
     private saveAssignments() {
-        localStorage.setItem('hotpaste-start-assignments', JSON.stringify(this.assignments));
+        storage.set('hotpaste-start-assignments', JSON.stringify(this.assignments));
     }
 
     async refreshShortcuts() {

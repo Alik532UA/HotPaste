@@ -15,6 +15,7 @@
   import { uiState } from "../stores/uiState.svelte";
   import { configState } from "../stores/configState.svelte";
   import { openHotkeyPicker } from "../stores/appState.svelte";
+  import { logService } from "../services/logService.svelte";
   import { theme } from "../states/theme.svelte";
   import { dataService } from "../services/dataService";
   import { t } from "../i18n";
@@ -86,7 +87,7 @@
         await dataService.clearAllData();
         window.location.reload();
       } catch (e) {
-        console.error("Failed to clear data", e);
+        logService.error('GlobalSettings', `Failed to clear data: ${e}`);
         isClearing = false;
       }
     }

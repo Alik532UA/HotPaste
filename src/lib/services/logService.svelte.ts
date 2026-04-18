@@ -84,12 +84,14 @@ export const logService = {
 
         // Console output
         const timeStr = entry.timestamp.toLocaleTimeString();
-        console.log(
-            `%c[${timeStr}] [${entry.level.toUpperCase()}] [${entry.category}] %c${message}`,
-            levelStyles[level],
-            'color: inherit; font-weight: normal;',
-            ...(data.length > 0 ? data : [])
-        );
+        if (import.meta.env.DEV || level === 'error') {
+            console.log(
+                `%c[${timeStr}] [${entry.level.toUpperCase()}] [${entry.category}] %c${message}`,
+                levelStyles[level],
+                'color: inherit; font-weight: normal;',
+                ...(data.length > 0 ? data : [])
+            );
+        }
 
         // Expose to window for manual export
         if (typeof window !== 'undefined') {

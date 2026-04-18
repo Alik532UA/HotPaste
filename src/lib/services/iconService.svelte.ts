@@ -2,6 +2,7 @@ import { readFile, copyFile, mkdir, exists, writeFile } from '@tauri-apps/plugin
 import { documentDir, join, extname } from '@tauri-apps/api/path';
 import { open } from '@tauri-apps/plugin-dialog';
 import { getFSService } from '../stores/fileSystemState.svelte';
+import { logService } from './logService.svelte';
 
 class IconService {
     iconCache = $state<Record<string, string>>({});
@@ -54,7 +55,7 @@ class IconService {
             // Return portable relative path
             return `.assets/icons/${fileName}`;
         } catch (err) {
-            console.error('Failed to pick/save icon', err);
+            logService.error('IconService', `Failed to pick/save icon: ${err}`);
             return null;
         }
     }
@@ -111,7 +112,7 @@ class IconService {
             
             return relPath;
         } catch (err) {
-            console.error('Failed to save base64 icon', err);
+            logService.error('IconService', `Failed to save base64 icon: ${err}`);
             return base64DataUrl;
         }
     }
@@ -146,7 +147,7 @@ class IconService {
             this.iconCache[relPath] = url;
             return url;
         } catch (err) {
-            console.error('Failed to load local icon', err);
+            logService.error('IconService', `Failed to load local icon: ${err}`);
             return '';
         }
     }

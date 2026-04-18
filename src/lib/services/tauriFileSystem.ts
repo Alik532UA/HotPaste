@@ -10,6 +10,7 @@ import { HotPasteConfigSchema } from '../schemas/config';
 import * as fs from '@tauri-apps/plugin-fs';
 import * as path from '@tauri-apps/api/path';
 import { open as openShell, Command } from '@tauri-apps/plugin-shell';
+import { logService } from './logService.svelte';
 
 export class TauriFileSystemService implements IFileSystemService {
     private customRoot: string | null = null;
@@ -30,7 +31,7 @@ export class TauriFileSystemService implements IFileSystemService {
                 }
                 return true;
             } catch (err) {
-                console.error('Failed to set project root:', err);
+                logService.error('TauriFS', `Failed to set project root: ${err}`);
                 return false;
             }
         }
@@ -65,7 +66,7 @@ export class TauriFileSystemService implements IFileSystemService {
             }
             return true;
         } catch (err) {
-            console.error('Tauri FS access error:', err);
+            logService.error('TauriFS', `Tauri FS access error: ${err}`);
             return false;
         }
     }
@@ -85,7 +86,7 @@ export class TauriFileSystemService implements IFileSystemService {
             // This is more reliable on Windows than openShell with file:///
             await Command.create('explorer', [fullPath]).execute();
         } catch (err) {
-            console.error('Failed to open explorer via command:', err);
+            logService.error('TauriFS', `Failed to open explorer via command: ${err}`);
             // Fallback to openShell if explorer command fails
             try {
                 const fullPath = await this.resolvePath(pathStr);
@@ -99,7 +100,7 @@ export class TauriFileSystemService implements IFileSystemService {
                 }
                 await openShell(fileUrl);
             } catch (openErr) {
-                console.error('Fallback openShell also failed:', openErr);
+                logService.error('TauriFS', `Fallback openShell also failed: ${openErr}`);
             }
         }
     }

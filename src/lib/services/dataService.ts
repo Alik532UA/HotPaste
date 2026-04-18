@@ -1,4 +1,6 @@
 import { t } from "../i18n";
+import { storage } from "./storage";
+import { logService } from "./logService.svelte";
 
 export const dataService = {
     /**
@@ -6,7 +8,7 @@ export const dataService = {
      * cookies, Cache Storage, and IndexedDB.
      */
     async clearAllData() {
-        localStorage.clear();
+        storage.clear();
         sessionStorage.clear();
         
         // Clear cookies
@@ -30,7 +32,7 @@ export const dataService = {
                     try {
                         window.indexedDB.deleteDatabase(db.name);
                     } catch (e) {
-                        console.error(`Failed to delete DB: ${db.name}`, e);
+                        logService.error('DataService', `Failed to delete DB: ${db.name} - ${e}`);
                     }
                 }
             }

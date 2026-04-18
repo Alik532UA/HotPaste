@@ -7,6 +7,7 @@ import type { Tab, Card, HotPasteConfig } from '../types';
 import { CONFIG_FILENAME } from '../types';
 import { HotPasteConfigSchema } from '../schemas/config';
 import { TauriFileSystemService } from './tauriFileSystem';
+import { logService } from './logService.svelte';
 
 export interface IFileSystemService {
     requestAccess(): Promise<boolean>;
@@ -43,7 +44,7 @@ class LocalFileSystemService implements IFileSystemService {
     }
 
     async openExplorer(_path: string): Promise<void> {
-        console.warn('Open explorer not supported in browser');
+        logService.warn('FileSystem', 'Open explorer not supported in browser');
     }
 
     async requestAccess(): Promise<boolean> {
@@ -53,7 +54,7 @@ class LocalFileSystemService implements IFileSystemService {
             });
             return true;
         } catch (err) {
-            console.error('Directory access denied', err);
+            logService.error('FileSystem', `Directory access denied: ${err}`);
             return false;
         }
     }
@@ -212,7 +213,7 @@ class LocalFileSystemService implements IFileSystemService {
     async renameDirectory(path: string, newName: string): Promise<void> {
         // Renaming directories in FS API is basically moving all files.
         // Simplified: not fully implemented for browser version.
-        console.warn('Rename directory not implemented for browser');
+        logService.warn('FileSystem', 'Rename directory not implemented for browser');
     }
 
     async readConfig(tabPath: string): Promise<HotPasteConfig> {

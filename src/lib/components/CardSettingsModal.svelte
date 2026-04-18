@@ -10,6 +10,7 @@
   import SnippetCard from "./SnippetCard.svelte";
   import { untrack } from "svelte";
   import { uiState } from "../stores/uiState.svelte";
+  import { logService } from "../services/logService.svelte";
 
   const appState = getState();
   const card = $derived(appState.activeSettingsCard);
@@ -85,7 +86,7 @@
         } as any);
         closeSettings();
       } catch (error) {
-        console.error("Failed to save card settings:", error);
+        logService.error('CardSettings', `Failed to save card settings: ${error}`);
       }
     }
   }

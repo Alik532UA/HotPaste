@@ -14,7 +14,7 @@ class BackgroundState {
     }
 
     set(newType: BgType) {
-        console.log(`[BackgroundState] Setting background to: ${newType}`);
+        // Removed console.log
         this._type.value = newType;
     }
 

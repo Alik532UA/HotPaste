@@ -27,7 +27,7 @@
             copied = true;
             setTimeout(() => (copied = false), 2000);
         } catch (err) {
-            console.error("Помилка копіювання:", err);
+            logService.error('DebugListener', `Помилка копіювання: ${err}`);
         }
     }
 

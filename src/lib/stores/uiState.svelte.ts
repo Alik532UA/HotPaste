@@ -4,6 +4,7 @@
 
 import { logService } from '../services/logService.svelte';
 import { configState } from './configState.svelte';
+import { storage } from '../services/storage';
 import { getHotkeyLabel, TAB_CODES, isTabHotkey } from '../utils/keyboardLayout';
 import type { Card, ShortcutInfo, Tab } from '../types';
 
@@ -22,8 +23,8 @@ let isSelectionMode = $state(false);
 let isMinimalMode = $state(false);
 let activeSubfolderFilter = $state<string | 'all' | 'root'>('all');
 
-let cardView = $state<'short' | 'full'>((localStorage.getItem('hp_card_view') as any) || 'short');
-let cardDensity = $state<'expanded' | 'normal' | 'compact'>((localStorage.getItem('hp_card_density') as any) || 'normal');
+let cardView = $state<'short' | 'full'>((storage.get('hp_card_view') as any) || 'short');
+let cardDensity = $state<'expanded' | 'normal' | 'compact'>((storage.get('hp_card_density') as any) || 'normal');
 
 let activeTabIndex = $state(0);
 
@@ -201,12 +202,12 @@ function setSearchQuery(query: string): void {
 
 function setCardView(view: 'short' | 'full'): void {
     cardView = view;
-    localStorage.setItem('hp_card_view', view);
+    storage.set('hp_card_view', view);
 }
 
 function setCardDensity(density: 'expanded' | 'normal' | 'compact'): void {
     cardDensity = density;
-    localStorage.setItem('hp_card_density', density);
+    storage.set('hp_card_density', density);
 }
 
 function toggleCardView(): void {

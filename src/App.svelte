@@ -45,6 +45,7 @@
   import { checkForUpdates } from "./lib/services/versionService";
   import UpdateModal from "./lib/components/ui/UpdateModal.svelte";
   import ActionConfirmationModal from "./lib/components/ui/ActionConfirmationModal.svelte";
+  import LogCopyButton from "./lib/components/ui/LogCopyButton.svelte";
   import {
     Sparkles,
     Waves,
@@ -443,6 +444,7 @@
 {/if}
 
 <DynamicBackground />
+<LogCopyButton />
 
 <style>
   .app-shell {

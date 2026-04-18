@@ -1,5 +1,7 @@
 import { versionStore } from "../stores/versionStore.svelte";
+import { storage } from "./storage";
 import { relaunch } from "@tauri-apps/plugin-process"; // Tauri V2 API
+import { logService } from "./logService.svelte";
 
 const VERSION_URL = "/app-version.json";
 const LOCAL_V_KEY = "hp_version_current";
@@ -28,18 +30,18 @@ export async function checkForUpdates() {
         const currentRunningV = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0';
         
         // Отримуємо версію, яку ми вважаємо "поточною" в цьому браузері
-        let localV = localStorage.getItem(LOCAL_V_KEY);
+        let localV = storage.get(LOCAL_V_KEY);
 
         // Якщо це перший запуск (немає запису), просто фіксуємо поточну версію як встановлену
         if (!localV) {
-            localStorage.setItem(LOCAL_V_KEY, currentRunningV);
+            storage.set(LOCAL_V_KEY, currentRunningV);
             return;
         }
 
         // Якщо версія на сервері новіша за ту, що збережена в браузері
         if (isNewer(serverV, localV)) {
-            const refusedV = localStorage.getItem(REFUSED_V_KEY);
-            const refusedAt = parseInt(localStorage.getItem(REFUSED_AT_KEY) || "0");
+            const refusedV = storage.get(REFUSED_V_KEY);
+            const refusedAt = parseInt(storage.get(REFUSED_AT_KEY) || "0");
             const now = Date.now();
 
             // Пропонуємо оновлення, якщо:
@@ -53,7 +55,7 @@ export async function checkForUpdates() {
                 versionStore.setUpdate(true);
             }
         }
-    } catch (e) { console.error("Update check failed", e); }
+    } catch (e) { logService.error('Version', `Update check failed: ${e}`); }
 }
 
 /** Процес глибокого очищення та перезапуску */
@@ -66,11 +68,11 @@ export async function applyUpdateAndDeepClean() {
         }
 
         // 2. Очищення Web Storage (localStorage, sessionStorage, IndexedDB)
-        localStorage.clear();
+        storage.clear();
         sessionStorage.clear();
 
         // 3. Записуємо нову версію ПІСЛЯ очищення
-        localStorage.setItem(LOCAL_V_KEY, versionStore.serverVersion);
+        storage.set(LOCAL_V_KEY, versionStore.serverVersion);
 
         // 4. Перезапуск
         // @ts-ignore
@@ -83,7 +85,7 @@ export async function applyUpdateAndDeepClean() {
             window.location.reload();
         }
     } catch (e) {
-        console.error("Relaunch failed", e);
+        logService.error('VersionService', `Relaunch failed: ${e}`);
         // Fallback: якщо щось пішло не так (наприклад, у браузері reload заблоковано)
         versionStore.setManualRestart(true);
     }
@@ -91,7 +93,7 @@ export async function applyUpdateAndDeepClean() {
 
 /** Відкласти оновлення (Slovko logic) */
 export function skipUpdate() {
-    localStorage.setItem(REFUSED_V_KEY, versionStore.serverVersion);
-    localStorage.setItem(REFUSED_AT_KEY, Date.now().toString());
+    storage.set(REFUSED_V_KEY, versionStore.serverVersion);
+    storage.set(REFUSED_AT_KEY, Date.now().toString());
     versionStore.setUpdate(false);
 }

@@ -3,8 +3,10 @@
  */
 
 import { DEFAULT_CONFIG, type AppConfig } from '../types';
+import { storage } from '../services/storage';
 import { getWinVK } from '../utils/keyboardLayout';
 import { invoke } from '@tauri-apps/api/core';
+import { logService } from '../services/logService.svelte';
 
 let config = $state<AppConfig>(loadConfig());
 
@@ -42,7 +44,7 @@ export const configState = {
                 if (await isEnabled()) await disable();
             }
         } catch (e) {
-            console.error('Failed to set autostart', e);
+            logService.error('Config', `Failed to set autostart: ${e}`);
         }
     },
 
@@ -53,7 +55,7 @@ export const configState = {
         // Sync with Tauri hook worker
         const { vk, alt } = getWinVK(key);
         invoke('restart_hook_worker_tauri', { vkCode: vk, useAlt: alt })
-            .catch(e => console.error('Failed to restart hook worker', e));
+            .catch(e => logService.error('Config', `Failed to restart hook worker: ${e}`));
     },
 
     setFontFamily(font: string) {
@@ -79,7 +81,7 @@ export const configState = {
 
 function loadConfig(): AppConfig {
     try {
-        const stored = localStorage.getItem('hotpaste-config');
+        const stored = storage.get('hotpaste-config');
         if (stored) {
             return { ...DEFAULT_CONFIG, ...JSON.parse(stored) };
         }
@@ -91,7 +93,7 @@ function loadConfig(): AppConfig {
 
 function saveConfig(): void {
     try {
-        localStorage.setItem('hotpaste-config', JSON.stringify(config));
+        storage.set('hotpaste-config', JSON.stringify(config));
     } catch {
         // ignore storage errors
     }

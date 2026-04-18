@@ -40,7 +40,7 @@
     }
 
     function selectOption(id: string) {
-        console.log(`[SegmentedToggle ${id}] selecting: ${id}`);
+        // Removed console.log
         onSelect(id);
         isOpen = false;
     }

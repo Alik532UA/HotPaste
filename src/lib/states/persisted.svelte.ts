@@ -5,27 +5,30 @@
  * when used in global singleton classes during module initialization.
  */
 
+import { storage } from '../services/storage';
+import { logService } from '../services/logService.svelte';
+
 export function persistedState<T>(key: string, defaultValue: T) {
     let value = $state<T>(load());
 
     function load(): T {
-        if (typeof localStorage === 'undefined') return defaultValue;
+        if (typeof window === 'undefined') return defaultValue;
         try {
-            const stored = localStorage.getItem(key);
+            const stored = storage.get(key);
             if (stored === null) return defaultValue;
             return JSON.parse(stored);
         } catch (err) {
-            console.error(`[PersistedState] Failed to load key "${key}":`, err);
+            logService.error('PersistedState', `Failed to load key "${key}": ${err}`);
             return defaultValue;
         }
     }
 
     function save(v: T) {
-        if (typeof localStorage === 'undefined') return;
+        if (typeof window === 'undefined') return;
         try {
-            localStorage.setItem(key, JSON.stringify(v));
+            storage.set(key, JSON.stringify(v));
         } catch (err) {
-            console.error(`[PersistedState] Failed to save key "${key}":`, err);
+            logService.error('PersistedState', `Failed to save key "${key}": ${err}`);
         }
     }
 

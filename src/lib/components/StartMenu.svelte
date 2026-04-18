@@ -164,7 +164,7 @@
       { code: "ControlLeft", label: "Ctrl", width: 1.2 },
       { code: "MetaLeft", label: "Win", width: 1.2 },
       { code: "AltLeft", label: "Alt", width: 1.2 },
-      { code: "Space", label: "Space", width: 6 },
+      { code: "Space", label: "Space", width: 6.6 },
       { code: "AltRight", label: "Alt", width: 1.2 },
       { code: "MetaRight", label: "Win", width: 1.2 },
       { code: "ContextMenu", label: "Menu", width: 1.2 },
@@ -199,7 +199,7 @@
       { code: "NumpadEnter", label: "↵", width: 1 },
     ],
     [
-      { code: "Numpad0", label: "0", width: 2.1 },
+      { code: "Numpad0", label: "0", width: 2 },
       { code: "NumpadDecimal", label: "." },
       { code: "isSpacer", label: "", isSpacer: true, width: 1 },
     ],
@@ -209,7 +209,8 @@
   const navigationPaneRow: KeyInfo[] = Array.from({ length: 30 }, (_, i) => ({
     code: `Nav${(i + 1).toString().padStart(2, '0')}`,
     label: (i + 1).toString(),
-    isSmall: true
+    isSmall: true,
+    width: 0.5
   }));
 
   // Map of key code -> ShortcutInfo
@@ -222,23 +223,6 @@
     f13_f24: false,
     num_lock: false,
     navigation_pane: false
-  });
-
-  // Calculate total rows in the main block to maintain consistent key height
-  const mainRowsCount = $derived(5 + (layout.f1_f12 ? 1 : 0) + (layout.f13_f24 ? 1 : 0));
-
-  // Dynamically calculate aspect ratio so keys stay perfectly square/proportional
-  // Original base aspect was 2.8 for 15 columns and 6 rows. (15/6 * 1.12 = 2.8)
-  const dynamicAspect = $derived.by(() => {
-    let cols = 15; // base width for QWERTY
-    let rows = 5;  // 5 QWERTY main rows
-
-    if (layout.f1_f12) rows += 1;
-    if (layout.f13_f24) rows += 1;
-    if (layout.num_lock) cols += 4.5; // Numpad is ~4.5 width units
-    if (layout.navigation_pane) rows += 0.8; // Nav pane is slightly shorter than a full row
-
-    return (cols / rows) * 1.12;
   });
 
   onMount(() => {
@@ -360,12 +344,12 @@
       const { invoke } = await import("@tauri-apps/api/core");
       await invoke("hide_window");
     } catch (err) {
-      console.error("Failed to hide window via command:", err);
+      logService.error('StartMenu', `Failed to hide window via command: ${err}`);
       try {
         const { getCurrentWindow } = await import("@tauri-apps/api/window");
         getCurrentWindow().hide();
       } catch (innerErr) {
-        console.error("Failed to hide window via JS API:", innerErr);
+        logService.error('StartMenu', `Failed to hide window via JS API: ${innerErr}`);
       }
     }
   }
@@ -396,7 +380,7 @@
     class:assigned={!!assignment}
     class:selected={uiState.activeProgramPicker?.key === key.code}
     class:disabled={!clickable}
-    style="flex: {key.width || 1}"
+    style="--key-width: {key.width || 1}"
     onmouseenter={() => (hoveredKey = key)}
     onmouseleave={() => (hoveredKey = null)}
     onclick={() => clickable && handleKeyClick(key)}
@@ -441,7 +425,6 @@
     in:fly={{ y: 20, delay: 100 }}
     data-tauri-drag-region={!uiState.activeProgramPicker ? "" : undefined}
     data-testid="keyboard-body"
-    style="--kb-aspect: {dynamicAspect}"
   >
     <div
       class="keyboard-layout-wrapper"
@@ -456,7 +439,7 @@
             <div class="keyboard-row f-row">
               {#each f13_f24_row as key}
                 {#if key.isSpacer}
-                  <div class="key-spacer" style="flex: {key.width || 1}"></div>
+                  <div class="key-spacer" style="--spacer-width: {key.width || 1}"></div>
                 {:else}
                   {@render renderKey(key)}
                 {/if}
@@ -469,7 +452,7 @@
             <div class="keyboard-row f-row">
               {#each f1_f12_row as key}
                 {#if key.isSpacer}
-                  <div class="key-spacer" style="flex: {key.width || 1}"></div>
+                  <div class="key-spacer" style="--spacer-width: {key.width || 1}"></div>
                 {:else}
                   {@render renderKey(key)}
                 {/if}
@@ -481,7 +464,7 @@
             <div class="keyboard-row">
               {#each row as key}
                 {#if key.isSpacer}
-                  <div class="key-spacer" style="flex: {key.width || 1}"></div>
+                  <div class="key-spacer" style="--spacer-width: {key.width || 1}"></div>
                 {:else}
                   {@render renderKey(key)}
                 {/if}
@@ -504,7 +487,7 @@
               <div class="keyboard-row">
                 {#each row as key}
                   {#if key.isSpacer}
-                    <div class="key-spacer" style="flex: {key.width || 1}"></div>
+                    <div class="key-spacer" style="--spacer-width: {key.width || 1}"></div>
                   {:else}
                     {@render renderKey(key)}
                   {/if}
@@ -545,24 +528,26 @@
   }
 
   .keyboard-body {
-    --kb-aspect: 2.8;
-    aspect-ratio: var(--kb-aspect) / 1;
-    width: min(95%, calc(92cqh * var(--kb-aspect)));
+    width: 95%;
+    max-width: 1200px; /* Limit maximum size on ultra-wide screens */
     height: auto;
+    max-height: 95cqh;
     background: var(--color-bg-primary);
     backdrop-filter: var(--backdrop-filter);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-xl);
-    padding: 2cqmin;
+    padding: 2.5cqmin;
     box-shadow: var(--shadow-lg);
     pointer-events: auto;
     transition:
       transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
       opacity 0.3s ease;
-    container-type: size;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    margin: 0 auto;
+    overflow: hidden;
   }
 
   .keyboard-body.modal-open {
@@ -573,72 +558,76 @@
   }
 
   .keyboard-layout-wrapper {
+    --key-height: 5.8cqmin;
+    --key-gap: 1.2cqmin;
     display: flex;
     flex-direction: column;
-    gap: 1.6cqmin;
+    gap: var(--key-gap);
     width: 100%;
-    height: 100%;
-    justify-content: space-between;
+    height: auto;
   }
 
   .main-area {
     display: flex;
-    gap: 1.9cqmin;
-    flex: var(--main-rows, 5); /* Use dynamic row count for flex basis */
-    align-items: stretch; /* Crucial for height propagation */
+    gap: 1.5cqmin;
+    width: 100%;
+    align-items: flex-start;
   }
 
   .main-keyboard-block {
     display: flex;
     flex-direction: column;
-    gap: 1.6cqmin;
-    flex: 1;
-    height: 100%;
-    justify-content: space-between;
+    gap: var(--key-gap);
+    flex: 15; /* Total units in QWERTY row */
+    width: 0;
+    min-width: 0;
   }
 
   .numpad-block {
     display: flex;
     flex-direction: column;
-    gap: 1.6cqmin;
-    width: 25%;
-    height: 100%;
-    justify-content: space-between;
+    gap: var(--key-gap);
+    flex: 4.2; /* Numpad width units */
+    width: 0;
+    min-width: 0;
   }
 
   .spacer-row {
     pointer-events: none;
     visibility: hidden;
+    height: calc(var(--key-height) + 0.5cqmin); /* Match F-row height + margin */
+    margin: 0;
   }
 
   .keyboard-row {
     display: flex;
-    gap: 1.9cqmin; /* Original gap that keeps keys square */
+    gap: var(--key-gap);
     width: 100%;
-    flex: 1; /* Automatically adjust height based on available space */
-    min-height: 0; /* Prevent content from stretching the row */
+    height: var(--key-height);
+    flex: 0 0 auto; /* Do not stretch rows vertically */
   }
 
   .f-row {
-    flex: 1;
-    gap: 1.9cqmin;
-    min-height: 0;
+    margin-bottom: 0.5cqmin;
   }
 
   .navigation-pane-row {
     display: flex;
     gap: 0.4cqmin;
-    flex: 0.5; /* Half the height of regular rows */
-    margin-top: 0.8cqmin;
-    padding-top: 0.8cqmin;
+    margin-top: 1cqmin;
+    padding-top: 1cqmin;
     border-top: 1px solid var(--color-border);
-    min-height: 0;
+    width: 100%;
+    height: var(--key-height);
+    flex: 0 0 auto;
   }
 
   .key {
     position: relative;
+    flex: var(--key-width, 1);
+    width: 0; /* Let flex-basis control the width */
+    min-width: 0;
     height: 100%;
-    aspect-ratio: 1 / 1;
     background: var(--color-surface-1);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-sm);
@@ -650,23 +639,16 @@
     justify-content: center;
     padding: 0;
     overflow: hidden;
-    min-width: 0;
-    min-height: 0;
   }
 
   .key.is-small {
-    aspect-ratio: auto; /* Allow small keys to be rectangular */
-    width: 100%;
+    flex: var(--key-width, 0.5);
+    height: 100%;
     border-radius: 4px;
   }
 
-  /* Only allow keys with flex width other than 1 to be non-square */
-  .key[style*="flex"]:not([style="flex: 1"]) {
-    aspect-ratio: auto;
-  }
-
   .key.is-small .key-label {
-    font-size: 2.8cqmin;
+    font-size: 2.2cqmin;
   }
 
   .key:hover {
@@ -698,9 +680,9 @@
 
   .key-label {
     position: absolute;
-    top: 10%;
-    left: 10%;
-    font-size: 4cqmin;
+    top: 8%;
+    left: 8%;
+    font-size: 3.2cqmin;
     font-weight: 700;
     color: var(--color-text-muted);
     letter-spacing: -0.01em;
@@ -708,7 +690,7 @@
   }
 
   .key.disabled .key-label {
-    font-size: 3.2cqmin;
+    font-size: 2.8cqmin;
     font-weight: 500;
   }
 
@@ -716,9 +698,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 60%;
-    height: 60%;
-    margin-top: 10%;
+    width: 55%;
+    height: 55%;
+    margin-top: 8%;
   }
 
   :global(.key-app-icon) {
@@ -738,26 +720,26 @@
   }
 
   .mode-icon .key-app-icon-container {
-    width: 75%;
-    height: 75%;
-    margin-top: 10%;
+    width: 70%;
+    height: 70%;
+    margin-top: 8%;
   }
 
   .mode-text .key-assignment-label {
-    font-size: 2.8cqmin;
+    font-size: 2.2cqmin;
     font-weight: 700;
     text-align: center;
-    margin-top: 10%;
+    margin-top: 8%;
   }
 
   .mode-both .key-app-icon-container {
-    width: 40%;
-    height: 40%;
-    margin-top: 5%;
+    width: 35%;
+    height: 35%;
+    margin-top: 4%;
   }
 
   .mode-both .key-assignment-label {
-    font-size: 2cqmin;
+    font-size: 1.8cqmin;
     max-width: 95%;
     margin-top: 2%;
   }
@@ -772,6 +754,9 @@
   }
 
   .key-spacer {
+    flex: var(--spacer-width, 1);
+    width: 0;
+    height: 100%;
     pointer-events: none;
   }
 </style>
