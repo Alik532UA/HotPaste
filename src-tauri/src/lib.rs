@@ -224,12 +224,27 @@ async fn launch_program_by_path(path: String) -> Result<(), String> {
             return Ok(());
         }
 
-        // 4. Try raw ShellExecute first (handles 'control', 'calc', 'notepad', etc.)
+        // 4. If it looks like an AppID/AUMID (contains '!'), launch via explorer
+        // and STOP to prevent Windows from interpreting 'www.' as a URL in later steps.
+        if path.contains('!') {
+            let app_path = if path.starts_with("shell:") {
+                path
+            } else {
+                format!("shell:AppsFolder\\{}", path)
+            };
+            let _ = Command::new("explorer")
+                .arg(&app_path)
+                .creation_flags(CREATE_NO_WINDOW)
+                .spawn();
+            return Ok(());
+        }
+
+        // 5. Try raw ShellExecute first (handles 'control', 'calc', 'notepad', etc.)
         if launch_via_shell_execute(&path).is_ok() {
             return Ok(());
         }
 
-        // 5. Try opening via explorer directly (handles shell aliases like Documents, Downloads, etc.)
+        // 6. Try opening via explorer directly (handles shell aliases like Documents, Downloads, etc.)
         // We use spawn().is_ok() to check if explorer was started.
         if Command::new("explorer")
             .arg(&path)
@@ -240,7 +255,7 @@ async fn launch_program_by_path(path: String) -> Result<(), String> {
             return Ok(());
         }
 
-        // 6. Fallback to AppID (AUMID) and try shell:AppsFolder
+        // 7. Fallback to AppID (AUMID) and try shell:AppsFolder
         let final_path = if path.starts_with("shell:") {
             path
         } else {
