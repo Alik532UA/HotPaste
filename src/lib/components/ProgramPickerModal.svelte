@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { X, Search, Monitor, Play, Settings2, Power, RotateCcw, Moon, Zap, Lock, LogOut, Link, Terminal, Check, Info, LayoutGrid, List, Trash2 } from "lucide-svelte";
+  import { X, Search, Monitor, Play, Settings2, Power, RotateCcw, Moon, Zap, Lock, LogOut, Link, Terminal, Check, Info, LayoutGrid, List, Trash2, Download, Music, Video, Image, User, Network, PanelsTopLeft, Type, EyeOff, Folder } from "lucide-svelte";
   import { getState, updateTabAssignment, openIconPicker } from "../stores/appState.svelte";
   import SearchInput from "./ui/SearchInput.svelte";
   import IconRenderer from "./ui/IconRenderer.svelte";
@@ -39,13 +39,36 @@
     { name: "Log off", path: "shutdown /l", icon: "log-out" },
   ];
 
+  const SYSTEM_FOLDERS: ShortcutInfo[] = [
+    { name: "Documents", path: "Documents", icon: "folder" },
+    { name: "Downloads", path: "Downloads", icon: "download" },
+    { name: "Music", path: "Music", icon: "music" },
+    { name: "Videos", path: "Videos", icon: "video" },
+    { name: "Pictures", path: "Pictures", icon: "image" },
+    { name: "Personal Folder", path: ".", icon: "user" },
+    { name: "File Explorer", path: "explorer", icon: "monitor" },
+    { name: "Settings", path: "ms-settings:", icon: "settings" },
+    { name: "Control Panel", path: "control", icon: "layout-grid" },
+    { name: "Network", path: "shell:NetworkPlacesFolder", icon: "network" },
+  ];
+
   const COMMAND_ICONS: Record<string, any> = {
     "power": Power,
     "rotate-ccw": RotateCcw,
     "moon": Moon,
     "zap": Zap,
     "lock": Lock,
-    "log-out": LogOut
+    "log-out": LogOut,
+    "folder": Folder,
+    "download": Download,
+    "music": Music,
+    "video": Video,
+    "image": Image,
+    "user": User,
+    "monitor": Monitor,
+    "settings": Settings2,
+    "layout-grid": LayoutGrid,
+    "network": Network
   };
 
   const tabs = [
@@ -64,13 +87,10 @@
     { id: 'none', label: 'Приховати', icon: EyeOff },
   ] as const;
 
-  // Manual imports for icons used in displayModes to avoid undefined
-  import { PanelsTopLeft, Image, Type, EyeOff, Folder } from "lucide-svelte";
-
   async function loadPrograms() {
     if (!context) return;
     if (activeTab === "url" || activeTab === "commands") {
-        programs = activeTab === "commands" ? SYSTEM_COMMANDS : [];
+        programs = activeTab === "commands" ? [...SYSTEM_COMMANDS, ...SYSTEM_FOLDERS] : [];
         isLoading = false;
         return;
     }
@@ -257,6 +277,31 @@
   </div>
 {/snippet}
 
+{#snippet section(title: string, items: ShortcutInfo[])}
+    {@const filtered = items.filter(p => 
+      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.path.toLowerCase().includes(searchQuery.toLowerCase())
+    )}
+    {#if filtered.length > 0}
+        <div class="section-block">
+            <h4>{title}</h4>
+            <div class="program-container grid-mode">
+                {#each filtered as item}
+                    <button class="program-item grid-mode" onclick={() => prepareSelection(item)} type="button">
+                        <div class="prog-icon command-icon">
+                            {#if COMMAND_ICONS[item.icon || '']}
+                                {@const Icon = COMMAND_ICONS[item.icon || '']}
+                                <Icon size={32} />
+                            {/if}
+                        </div>
+                        <span class="prog-name">{item.name}</span>
+                    </button>
+                {/each}
+            </div>
+        </div>
+    {/if}
+{/snippet}
+
 {#snippet inspector()}
     <div class="inspector-panel">
       {#if selectedProg}
@@ -402,19 +447,9 @@
               </div>
             {:else if activeTab === 'commands'}
               <div class="commands-section">
-                <div class="program-container grid-mode">
-                    {#each SYSTEM_COMMANDS as cmd}
-                      <button class="program-item grid-mode" onclick={() => prepareSelection(cmd)} type="button">
-                        <div class="prog-icon command-icon">
-                            {#if COMMAND_ICONS[cmd.icon || '']}
-                                {@const Icon = COMMAND_ICONS[cmd.icon || '']}
-                                <Icon size={32} />
-                            {/if}
-                        </div>
-                        <span class="prog-name">{cmd.name}</span>
-                      </button>
-                    {/each}
-                </div>
+                {@render section("Системні команди", SYSTEM_COMMANDS)}
+                {@render section("Системні папки", SYSTEM_FOLDERS)}
+
                 <div class="custom-command-box">
                     <div class="info-tag"><Info size={14} /> Підтримує шляхи до папок та системні команди</div>
                     <h4>Custom Command / Path</h4>
@@ -776,6 +811,8 @@
   .view-btn.active { background: var(--color-bg-primary); color: var(--color-accent-cyan); box-shadow: var(--shadow-sm); }
 
   .commands-section { display: flex; flex-direction: column; gap: 24px; }
+  .section-block { display: flex; flex-direction: column; gap: 12px; }
+  .section-block h4 { margin: 0 0 4px 0; font-size: 0.85rem; font-weight: 700; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
   .custom-command-box { background: var(--color-surface-2); padding: 20px; border-radius: 16px; border: 1px solid var(--color-border); }
   .info-tag { font-size: 0.75rem; color: var(--color-accent-cyan); display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
   .custom-command-box h4 { margin: 0 0 12px 0; font-size: 0.9rem; }
