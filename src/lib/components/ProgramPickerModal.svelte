@@ -150,7 +150,7 @@
     selectedProg = {
       ...prog,
       icon: finalIcon,
-      displayMode: prog.displayMode || 'both',
+      displayMode: prog.displayMode || 'icon',
       customLabel: prog.customLabel || prog.name,
       confirmCount: prog.confirmCount || 1
     };
@@ -447,9 +447,6 @@
               </div>
             {:else if activeTab === 'commands'}
               <div class="commands-section">
-                {@render section("Системні команди", SYSTEM_COMMANDS)}
-                {@render section("Системні папки", SYSTEM_FOLDERS)}
-
                 <div class="custom-command-box">
                     <div class="info-tag"><Info size={14} /> Підтримує шляхи до папок та системні команди</div>
                     <h4>Custom Command / Path</h4>
@@ -463,6 +460,9 @@
                         </div>
                     </div>
                 </div>
+
+                {@render section("Системні папки", SYSTEM_FOLDERS)}
+                {@render section("Системні команди", SYSTEM_COMMANDS)}
               </div>
             {:else if isLoading}
               {@render skeleton()}
