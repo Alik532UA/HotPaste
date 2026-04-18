@@ -813,11 +813,12 @@ pub fn run() {
         }))
         .on_page_load(|webview, payload| {
             if matches!(payload.event(), tauri::webview::PageLoadEvent::Finished) {
-                let app = webview.app_handle();
-                let product_name = app.config().product_name.clone().unwrap_or_default();
-                if let Some(window) = app.get_webview_window("main") {
-                    let _ = window.set_title(&product_name);
-                }
+                let product_name = webview.app_handle().config().product_name.clone().unwrap_or_default();
+                let js = format!(
+                    "document.title = document.title.replace('HotPaste', '{}')",
+                    product_name
+                );
+                let _ = webview.eval(&js);
             }
         })
         .setup(|app| {
