@@ -815,11 +815,16 @@ pub fn run() {
         .setup(|app| {
             let handle = app.handle().clone();
             let _ = APP_HANDLE.set(handle);
-            let show_item = MenuItemBuilder::with_id("show", "Show HotPaste").build(app).expect("f");
+            let product_name = app.config().product_name.clone().unwrap_or_else(|| "HotPaste".to_string());
+            
+            let show_text = format!("Show {}", product_name);
+            let show_item = MenuItemBuilder::with_id("show", &show_text).build(app).expect("f");
             let quit_item = MenuItemBuilder::with_id("quit", "Quit").build(app).expect("f");
             let menu = MenuBuilder::new(app).items(&[&show_item, &quit_item]).build().expect("f");
             let tray_menu = menu.clone();
-            let _tray = TrayIconBuilder::new().icon(app.default_window_icon().unwrap().clone())
+            let _tray = TrayIconBuilder::new()
+                .icon(app.default_window_icon().unwrap().clone())
+                .tooltip(&product_name)
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "show" => { toggle_window(app); }
                     "quit" => { 
@@ -843,7 +848,6 @@ pub fn run() {
                 }).build(app).expect("f");
 
             if let Some(window) = app.get_webview_window("main") {
-                let product_name = app.config().product_name.clone().unwrap_or_else(|| "HotPaste".to_string());
                 let _ = window.set_title(&product_name);
                 
                 if IS_MINIMAL.load(Ordering::SeqCst) { resize_to_minimal(&window); } else { resize_to_90_percent(&window); }
