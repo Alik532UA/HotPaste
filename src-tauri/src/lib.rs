@@ -231,7 +231,18 @@ async fn launch_program_by_path(path: String) -> Result<(), String> {
             return Ok(());
         }
 
-        // 4. Otherwise, treat as an AppID (AUMID) and try shell:AppsFolder
+        // 4. Try opening via explorer directly (handles shell aliases like Documents, Downloads, etc.)
+        // We use status().is_ok() to check if explorer was started, not if the path was found.
+        if Command::new("explorer")
+            .arg(&path)
+            .creation_flags(CREATE_NO_WINDOW)
+            .spawn()
+            .is_ok() 
+        {
+            return Ok(());
+        }
+
+        // 5. Fallback to AppID (AUMID) and try shell:AppsFolder
         let final_path = if path.starts_with("shell:") {
             path
         } else {

@@ -324,6 +324,15 @@
       return;
     }
 
+    const tabIndex = getTabIndexForKey(key.code);
+    if (tabIndex !== null) {
+      const targetTab = fsState.tabs[tabIndex];
+      if (targetTab) {
+        uiState.selectTab(tabIndex, fsState.tabs.length, targetTab.type);
+      }
+      return;
+    }
+
     const assignment = assignments[key.code];
     if (assignment) {
       // Use the global hotkey handler which includes confirmation logic
@@ -347,15 +356,26 @@
 
   function isKeyAssignable(code: string): boolean {
     if (code.startsWith("Key")) return true;
-    if (code.startsWith("Digit")) return true;
-    if (code.startsWith("F") && /^F[1-9][0-4]?$/.test(code)) {
-      const num = parseInt(code.substring(1));
-      return num >= 1 && num <= 24;
+    
+    // Numeric row is reserved for tabs (1-0, -, =)
+    if (code.startsWith("Digit") || code === "Minus" || code === "Equal") return false;
+
+    // F1-F24
+    if (code.startsWith("F")) {
+      const numMatch = code.match(/^F(\d+)$/);
+      if (numMatch) {
+        const num = parseInt(numMatch[1], 10);
+        return num >= 1 && num <= 24;
+      }
     }
-    if (code.startsWith("Numpad") || code === "NumLock") return true;
+    
+    // Numpad (excluding NumLock)
+    if (code.startsWith("Numpad")) return true;
+    
     if (code.startsWith("Nav")) return true;
-    if (
-      [
+    
+    // Only punctuation and symbol keys
+    const allowedSymbols = [
         "BracketLeft",
         "BracketRight",
         "Backslash",
@@ -364,30 +384,34 @@
         "Comma",
         "Period",
         "Slash",
-        "Backquote",
-        "Minus",
-        "Equal",
-        "Backspace",
-        "Tab",
-        "CapsLock",
-        "ShiftLeft",
-        "ShiftRight",
-        "ControlLeft",
-        "ControlRight",
-        "AltLeft",
-        "AltRight",
-        "MetaLeft",
-        "MetaRight",
-        "ContextMenu",
-        "Space"
-      ].includes(code)
-    )
-      return true;
-    return false;
+        "Backquote"
+    ];
+    
+    return allowedSymbols.includes(code);
+  }
+
+  function getTabIndexForKey(code: string): number | null {
+    if (code.startsWith("Digit")) {
+      const num = parseInt(code.replace("Digit", ""), 10);
+      return num === 0 ? 9 : num - 1;
+    }
+    if (code === "Minus") return 10;
+    if (code === "Equal") return 11;
+    return null;
   }
 
   function isKeyClickable(code: string): boolean {
+    const tabIndex = getTabIndexForKey(code);
+    if (tabIndex !== null) {
+      return !!fsState.tabs[tabIndex];
+    }
     return isKeyAssignable(code);
+  }
+
+  function getTabForKey(code: string) {
+    const index = getTabIndexForKey(code);
+    if (index !== null) return fsState.tabs[index];
+    return null;
   }
 
   async function handleHide() {
@@ -424,6 +448,7 @@
 {#snippet renderKey(key: KeyInfo)}
   {@const assignment = assignments[key.code]}
   {@const clickable = isKeyClickable(key.code)}
+  {@const tab = getTabForKey(key.code)}
   <button
     class="key"
     class:is-small={key.isSmall}
@@ -432,7 +457,8 @@
     class:selected={uiState.activeProgramPicker?.key === key.code}
     class:disabled={!clickable}
     class:hidden={key.isHidden}
-    style="--key-width: {key.width || 1}"
+    class:has-tab-color={!!tab?.color}
+    style="--key-width: {key.width || 1}; {tab?.color ? `--tab-color: ${tab.color}` : ''}"
     onmouseenter={() => (hoveredKey = key)}
     onmouseleave={() => (hoveredKey = null)}
     onclick={() => clickable && !key.isHidden && handleKeyClick(key)}
@@ -730,6 +756,17 @@
     background: transparent;
     cursor: default;
     pointer-events: none;
+  }
+
+  .key.has-tab-color {
+    box-shadow: inset 0 0 16px color-mix(in srgb, var(--tab-color) 65%, transparent);
+    border-color: color-mix(in srgb, var(--tab-color) 45%, var(--color-border));
+  }
+
+  .key.has-tab-color:hover {
+    background: color-mix(in srgb, var(--tab-color) 15%, var(--color-surface-1));
+    box-shadow: inset 0 0 24px color-mix(in srgb, var(--tab-color) 85%, transparent);
+    border-color: var(--tab-color);
   }
 
   .key.hidden {
