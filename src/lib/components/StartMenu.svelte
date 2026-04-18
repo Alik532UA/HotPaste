@@ -225,6 +225,48 @@
     navigation_pane: false
   });
 
+  // Dynamic aspect ratio calculation to keep keys perfectly square
+  const dynamicKbAspect = $derived.by(() => {
+    const padding = 0.025; // 2.5%
+    const gap = 0.012; // 1.2%
+    const blockGap = 0.015; // 1.5%
+    const navGap = 0.01; // 1%
+    const navPadding = 0.01; // 1%
+    const fRowMargin = 0.005; // 0.5%
+    
+    let fRows = 0;
+    if (layout.f1_f12) fRows += 1;
+    if (layout.f13_f24) fRows += 1;
+    const R = 5 + fRows;
+    
+    let uRatio = 0;
+    const cwRatio = 1 - 2 * padding; // 0.95
+    
+    if (layout.num_lock) {
+      const mainBlockRatio = (cwRatio - blockGap) * (15 / 19.2);
+      uRatio = (mainBlockRatio - 14 * gap) / 15;
+    } else {
+      uRatio = (cwRatio - 14 * gap) / 15;
+    }
+    
+    let hRatio = R * uRatio;
+    hRatio += (R - 1) * gap;
+    hRatio += fRows * fRowMargin;
+    
+    if (layout.navigation_pane) {
+      hRatio += gap; 
+      hRatio += navGap; 
+      hRatio += navPadding; 
+      hRatio += uRatio; 
+    }
+    
+    hRatio += 2 * padding;
+    
+    return 1 / hRatio;
+  });
+
+  const totalMainRows = $derived(5 + (layout.f1_f12 ? 1 : 0) + (layout.f13_f24 ? 1 : 0));
+
   onMount(() => {
     startMenuState.refreshShortcuts();
 
@@ -425,11 +467,13 @@
     in:fly={{ y: 20, delay: 100 }}
     data-tauri-drag-region={!uiState.activeProgramPicker ? "" : undefined}
     data-testid="keyboard-body"
+    style="--kb-aspect: {dynamicKbAspect};"
   >
     <div
       class="keyboard-layout-wrapper"
       data-testid="keyboard-layout-wrapper"
       data-tauri-drag-region
+      style="--main-rows: {totalMainRows};"
     >
       <!-- Main Keyboard and Numpad Area -->
       <div class="main-area">
@@ -518,25 +562,26 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 2cqmin;
+    padding: 2%;
     pointer-events: none;
     container-type: size;
   }
 
   .start-menu-container.minimal {
-    padding: 1cqmin;
+    padding: 1%;
   }
 
   .keyboard-body {
-    width: 95%;
-    max-width: 1200px; /* Limit maximum size on ultra-wide screens */
+    width: min(95%, calc(92cqh * var(--kb-aspect)));
+    max-width: 1200px;
     height: auto;
     max-height: 95cqh;
+    aspect-ratio: var(--kb-aspect) / 1;
     background: var(--color-bg-primary);
     backdrop-filter: var(--backdrop-filter);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-xl);
-    padding: 2.5cqmin;
+    padding: 2.5%;
     box-shadow: var(--shadow-lg);
     pointer-events: auto;
     transition:
@@ -548,6 +593,7 @@
     justify-content: center;
     margin: 0 auto;
     overflow: hidden;
+    container-type: inline-size;
   }
 
   .keyboard-body.modal-open {
@@ -558,79 +604,74 @@
   }
 
   .keyboard-layout-wrapper {
-    --key-height: 5.8cqmin;
-    --key-gap: 1.2cqmin;
+    --key-gap: 1.2%;
     display: flex;
     flex-direction: column;
     gap: var(--key-gap);
     width: 100%;
-    height: auto;
+    height: 100%;
   }
 
   .main-area {
     display: flex;
-    gap: 1.5cqmin;
+    gap: 1.5%;
     width: 100%;
-    align-items: flex-start;
+    flex: var(--main-rows, 5);
   }
 
   .main-keyboard-block {
     display: flex;
     flex-direction: column;
     gap: var(--key-gap);
-    flex: 15; /* Total units in QWERTY row */
-    width: 0;
-    min-width: 0;
+    flex: 15;
+    height: 100%;
   }
 
   .numpad-block {
     display: flex;
     flex-direction: column;
     gap: var(--key-gap);
-    flex: 4.2; /* Numpad width units */
-    width: 0;
-    min-width: 0;
+    flex: 4.2;
+    height: 100%;
   }
 
   .spacer-row {
     pointer-events: none;
     visibility: hidden;
-    height: calc(var(--key-height) + 0.5cqmin); /* Match F-row height + margin */
-    margin: 0;
+    flex: 1;
+    margin-bottom: 0.5%;
   }
 
   .keyboard-row {
     display: flex;
     gap: var(--key-gap);
     width: 100%;
-    height: var(--key-height);
-    flex: 0 0 auto; /* Do not stretch rows vertically */
+    flex: 1;
   }
 
   .f-row {
-    margin-bottom: 0.5cqmin;
+    margin-bottom: 0.5%;
   }
 
   .navigation-pane-row {
     display: flex;
-    gap: 0.4cqmin;
-    margin-top: 1cqmin;
-    padding-top: 1cqmin;
+    gap: 0.4%;
+    margin-top: 1%;
+    padding-top: 1%;
     border-top: 1px solid var(--color-border);
     width: 100%;
-    height: var(--key-height);
-    flex: 0 0 auto;
+    flex: 1;
   }
 
   .key {
     position: relative;
     flex: var(--key-width, 1);
-    width: 0; /* Let flex-basis control the width */
+    width: 0;
     min-width: 0;
     height: 100%;
     background: var(--color-surface-1);
     border: 1px solid var(--color-border);
-    border-radius: var(--radius-sm);
+    border-radius: 0.8cqi;
     color: var(--color-text-primary);
     cursor: pointer;
     transition: all 0.15s ease;
@@ -644,11 +685,11 @@
   .key.is-small {
     flex: var(--key-width, 0.5);
     height: 100%;
-    border-radius: 4px;
+    border-radius: 0.4cqi;
   }
 
   .key.is-small .key-label {
-    font-size: 2.2cqmin;
+    font-size: 2.2cqi;
   }
 
   .key:hover {
@@ -660,7 +701,7 @@
 
   .key:active,
   .key.selected {
-    transform: translateY(0.2cqmin);
+    transform: translateY(0.2cqi);
     box-shadow: var(--shadow-sm);
     background: var(--color-bg-secondary);
   }
@@ -682,7 +723,7 @@
     position: absolute;
     top: 8%;
     left: 8%;
-    font-size: 3.2cqmin;
+    font-size: 3cqi;
     font-weight: 700;
     color: var(--color-text-muted);
     letter-spacing: -0.01em;
@@ -690,7 +731,7 @@
   }
 
   .key.disabled .key-label {
-    font-size: 2.8cqmin;
+    font-size: 2.6cqi;
     font-weight: 500;
   }
 
@@ -726,7 +767,7 @@
   }
 
   .mode-text .key-assignment-label {
-    font-size: 2.2cqmin;
+    font-size: 2.2cqi;
     font-weight: 700;
     text-align: center;
     margin-top: 8%;
@@ -739,7 +780,7 @@
   }
 
   .mode-both .key-assignment-label {
-    font-size: 1.8cqmin;
+    font-size: 1.8cqi;
     max-width: 95%;
     margin-top: 2%;
   }
