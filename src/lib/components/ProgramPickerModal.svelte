@@ -29,9 +29,8 @@
   const isTauri = typeof window !== "undefined" && !!(window as any).__TAURI_INTERNALS__;
 
   async function openLocalFolder() {
-    if (!context?.tab?.path) return;
     try {
-        await invoke("open_path", { path: context.tab.path });
+        await invoke("open_local_shortcuts_folder");
     } catch (err) {
         logService.error("app", "Failed to open local folder", err);
     }
@@ -476,31 +475,43 @@
               </div>
             {:else if isLoading}
               {@render skeleton()}
-            {:else if filteredPrograms.length === 0}
-              <div class="empty">{t.modals.noPrograms}</div>
             {:else}
-              <div class="program-container" class:grid-mode={viewMode === 'grid'} class:list-mode={viewMode === 'list'}>
-                {#each filteredPrograms as prog}
-                  <button 
-                    class="program-item" 
-                    class:selected={selectedProg?.path === prog.path}
-                    onclick={() => prepareSelection(prog)}
-                    title={prog.path}
-                    type="button"
-                  >
-                    <div class="prog-icon">
-                      {#if icons[prog.path]}<img src={icons[prog.path]} alt="" />{:else}<div class="icon-placeholder"></div>{/if}
-                    </div>
-                    <div class="prog-info">
-                      <span class="prog-name">{prog.name}</span>
-                      {#if viewMode === 'list'}<span class="prog-path">{prog.path}</span>{/if}
-                    </div>
-                    {#if selectedProg?.path === prog.path}
-                        <div class="selection-check" in:scale><Check size={14} /></div>
-                    {/if}
-                  </button>
-                {/each}
-              </div>
+              {#if activeTab === 'local' && context?.tab?.path}
+                <div class="tab-action-bar">
+                    <button class="btn-action-outline" onclick={openLocalFolder} type="button">
+                        <FolderOpen size={18} />
+                        <span>Відкрити локальну папку</span>
+                    </button>
+                    <div class="path-display" title={context.tab.path}>{context.tab.path}</div>
+                </div>
+              {/if}
+
+              {#if filteredPrograms.length === 0}
+                <div class="empty">{t.modals.noPrograms}</div>
+              {:else}
+                <div class="program-container" class:grid-mode={viewMode === 'grid'} class:list-mode={viewMode === 'list'}>
+                  {#each filteredPrograms as prog}
+                    <button 
+                      class="program-item" 
+                      class:selected={selectedProg?.path === prog.path}
+                      onclick={() => prepareSelection(prog)}
+                      title={prog.path}
+                      type="button"
+                    >
+                      <div class="prog-icon">
+                        {#if icons[prog.path]}<img src={icons[prog.path]} alt="" />{:else}<div class="icon-placeholder"></div>{/if}
+                      </div>
+                      <div class="prog-info">
+                        <span class="prog-name">{prog.name}</span>
+                        {#if viewMode === 'list'}<span class="prog-path">{prog.path}</span>{/if}
+                      </div>
+                      {#if selectedProg?.path === prog.path}
+                          <div class="selection-check" in:scale><Check size={14} /></div>
+                      {/if}
+                    </button>
+                  {/each}
+                </div>
+              {/if}
             {/if}
           </div>
         </div>
@@ -832,6 +843,47 @@
   .view-toggle { display: flex; gap: 4px; background: var(--color-surface-2); padding: 4px; border-radius: 10px; }
   .view-btn { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: none; background: transparent; color: var(--color-text-muted); border-radius: 6px; cursor: pointer; }
   .view-btn.active { background: var(--color-bg-primary); color: var(--color-accent-cyan); box-shadow: var(--shadow-sm); }
+
+  .tab-action-bar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 16px;
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    margin-bottom: 20px;
+  }
+
+  .btn-action-outline {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: transparent;
+    border: 1px solid var(--color-accent-cyan);
+    color: var(--color-accent-cyan);
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .btn-action-outline:hover {
+    background: color-mix(in srgb, var(--color-accent-cyan) 10%, transparent);
+    box-shadow: 0 0 12px color-mix(in srgb, var(--color-accent-cyan) 20%, transparent);
+  }
+
+  .path-display {
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+    font-family: monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+  }
 
   .commands-section { display: flex; flex-direction: column; gap: 24px; }
   .section-block { display: flex; flex-direction: column; gap: 12px; }

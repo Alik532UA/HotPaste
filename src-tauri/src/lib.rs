@@ -197,13 +197,6 @@ unsafe extern "system" fn low_level_keyboard_proc_worker(
 }
 
 #[tauri::command]
-async fn launch_start_program(app: AppHandle, name: String) -> Result<(), String> {
-    let docs = app.path().document_dir().map_err(|e| e.to_string())?;
-    let path = docs.join("HotPaste").join("start").join(name);
-    launch_program_by_path(path.to_string_lossy().to_string()).await
-}
-
-#[tauri::command]
 async fn launch_program_by_path(path: String) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
@@ -807,6 +800,51 @@ async fn restart_hook_worker_tauri(_app: AppHandle, vk_code: u32, use_alt: bool)
 #[tauri::command]
 async fn hide_window(window: tauri::WebviewWindow) { let _ = window.hide(); }
 
+#[tauri::command]
+async fn open_path(path: String) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        use std::os::windows::process::CommandExt;
+
+        let _ = Command::new("explorer")
+            .arg(&path)
+            .creation_flags(CREATE_NO_WINDOW)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+        Ok(())
+    }
+    #[cfg(not(target_os = "windows"))]
+    Ok(())
+}
+
+#[tauri::command]
+async fn save_icon(app: AppHandle, name: String, base64_data: String) -> Result<String, String> {
+    use base64::{Engine as _, engine::general_purpose};
+    let docs = app.path().document_dir().map_err(|e| e.to_string())?;
+    let icon_dir = docs.join("HotPaste").join(".assets").join("icons");
+    if !icon_dir.exists() { std::fs::create_dir_all(&icon_dir).map_err(|e| e.to_string())?; }
+    
+    let clean_name = name.chars().filter(|c| c.is_alphanumeric()).collect::<String>();
+    let file_name = format!("{}.png", clean_name);
+    let file_path = icon_dir.join(&file_name);
+    
+    let data = general_purpose::STANDARD.decode(base64_data.replace("data:image/png;base64,", ""))
+        .map_err(|e| e.to_string())?;
+    std::fs::write(&file_path, data).map_err(|e| e.to_string())?;
+    
+    Ok(file_name)
+}
+
+#[tauri::command]
+async fn open_local_shortcuts_folder(app: AppHandle) -> Result<(), String> {
+    let docs = app.path().document_dir().map_err(|e| e.to_string())?;
+    let start_path = docs.join("HotPaste").join("start");
+    if !start_path.exists() { std::fs::create_dir_all(&start_path).map_err(|e| e.to_string())?; }
+    open_path(start_path.to_string_lossy().to_string()).await
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -818,9 +856,10 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, Some(vec!["--minimized"])))
         .invoke_handler(tauri::generate_handler![
-            launch_start_program, launch_program_by_path, get_running_processes, get_system_shortcuts, 
+            launch_program_by_path, get_running_processes, get_system_shortcuts, 
             get_local_shortcuts, get_system_apps, get_shortcut_icon, get_shortcut_icons_batch, 
-            clear_icon_cache, set_minimal_mode_tauri, hide_window, restart_hook_worker_tauri
+            clear_icon_cache, set_minimal_mode_tauri, hide_window, restart_hook_worker_tauri,
+            open_path, save_icon, open_local_shortcuts_folder
         ])
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             if let Some(window) = app.get_webview_window("main") {
