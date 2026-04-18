@@ -811,6 +811,15 @@ pub fn run() {
                 let _ = window.show(); let _ = window.set_focus(); let _ = window.center();
             }
         }))
+        .on_page_load(|webview, payload| {
+            if matches!(payload.event(), tauri::webview::PageLoadEvent::Finished) {
+                let app = webview.app_handle();
+                let product_name = app.config().product_name.clone().unwrap_or_default();
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.set_title(&product_name);
+                }
+            }
+        })
         .setup(|app| {
             let handle = app.handle().clone();
             let _ = APP_HANDLE.set(handle);
@@ -821,7 +830,14 @@ pub fn run() {
             let _tray = TrayIconBuilder::new().icon(app.default_window_icon().unwrap().clone())
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "show" => { toggle_window(app); }
-                    "quit" => { kill_hook_worker(); app.exit(0); }
+                    "quit" => { 
+                        kill_hook_worker(); 
+                        app.cleanup_before_exit();
+                        #[cfg(target_os = "windows")]
+                        std::process::exit(0);
+                        #[cfg(not(target_os = "windows"))]
+                        app.exit(0); 
+                    }
                     _ => {}
                 })
                 .on_tray_icon_event(move |tray, event| {

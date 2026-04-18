@@ -1,4 +1,12 @@
 {
   "productName": "HotPaste-dev",
-  "identifier": "com.hotpaste.dev"
+  "identifier": "com.hotpaste.dev",
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "HotPaste-dev"
+      }
+    ]
+  }
 }
