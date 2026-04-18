@@ -20,12 +20,13 @@
             const nav = window.navigator as any;
             let deviceStr = nav.userAgent || 'unknown';
 
+            const currentRunningV = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0';
             const header = [
                 '--- REPORT from Copy LOG button ---',
                 `DATE: ${new Date().toLocaleString()}`,
                 `URL: ${window.location.href}`,
                 `DEVICE: ${deviceStr}`,
-                `VERSION: ${versionStore.serverVersion || 'unknown'}`,
+                `VERSION: ${currentRunningV}`,
                 '---'
             ].join('\n');
 

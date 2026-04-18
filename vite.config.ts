@@ -11,6 +11,21 @@ export default defineConfig(() => ({
   base: './',
   plugins: [
     svelte(),
+    (() => {
+      let isDev = false;
+      return {
+        name: 'html-transform',
+        configResolved(config) {
+          isDev = config.command === 'serve';
+        },
+        transformIndexHtml(html) {
+          if (isDev) {
+            return html.replace('<title>HotPaste', '<title>HotPaste-dev');
+          }
+          return html;
+        }
+      };
+    })(),
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'auto',

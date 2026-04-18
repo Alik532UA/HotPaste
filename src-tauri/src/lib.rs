@@ -811,16 +811,7 @@ pub fn run() {
                 let _ = window.show(); let _ = window.set_focus(); let _ = window.center();
             }
         }))
-        .on_page_load(|webview, payload| {
-            if matches!(payload.event(), tauri::webview::PageLoadEvent::Finished) {
-                let product_name = webview.app_handle().config().product_name.clone().unwrap_or_default();
-                let js = format!(
-                    "document.title = document.title.replace('HotPaste', '{}')",
-                    product_name
-                );
-                let _ = webview.eval(&js);
-            }
-        })
+
         .setup(|app| {
             let handle = app.handle().clone();
             let _ = APP_HANDLE.set(handle);
@@ -852,6 +843,9 @@ pub fn run() {
                 }).build(app).expect("f");
 
             if let Some(window) = app.get_webview_window("main") {
+                let product_name = app.config().product_name.clone().unwrap_or_else(|| "HotPaste".to_string());
+                let _ = window.set_title(&product_name);
+                
                 if IS_MINIMAL.load(Ordering::SeqCst) { resize_to_minimal(&window); } else { resize_to_90_percent(&window); }
                 let _ = window.show(); let _ = window.center();
                 #[cfg(target_os = "windows")] { let _ = window.set_shadow(false); set_rounded_corners(&window); }
