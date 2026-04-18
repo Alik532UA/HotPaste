@@ -1,12 +1,21 @@
 [package]
-name = "app"
-version = "0.1.36"
+name = "hotpaste"
+version = "0.1.37"
 description = "A Tauri App"
 authors = ["you"]
 license = ""
 repository = ""
 edition = "2021"
 rust-version = "1.77.2"
+default-run = "HotPaste-dev"
+
+[[bin]]
+name = "HotPaste"
+path = "src/main.rs"
+
+[[bin]]
+name = "HotPaste-dev"
+path = "src/main.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

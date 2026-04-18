@@ -229,12 +229,10 @@
 
   // Dynamic aspect ratio calculation to keep keys perfectly square
   const layoutInfo = $derived.by(() => {
-    const padding = 0.025; // 2.5%
-    const gap = 0.012; // 1.2%
-    const blockGap = 0.015; // 1.5%
-    const navGap = 0.01; // 1%
-    const navPadding = 0.01; // 1%
-    const fRowMargin = 0.005; // 0.5%
+    const padding = 2.5; // 2.5% cqi
+    const gap = 1.2; // 1.2% cqi
+    const blockGap = 1.5; // 1.5% cqi
+    const fRowMargin = 0.5; // 0.5% cqi
     
     let fRowsCount = 0;
     if (layout.f1_f12) fRowsCount += 1;
@@ -242,33 +240,39 @@
     const R = 5 + fRowsCount;
     
     let uRatio = 0;
-    const cwRatio = 1 - 2 * padding; // 0.95
     
     if (layout.num_lock) {
-      // Total horizontal units: 15 (Main) + 4.2 (Numpad) = 19.2
-      const totalUnits = 19.2;
-      const mainBlockRatio = (cwRatio - blockGap) * (15 / totalUnits);
-      uRatio = (mainBlockRatio - 14 * gap) / 15;
+      // Equation: (15*u + 14*gap) + blockGap + (4*u + 3*gap) = 95
+      // 19*u + 17*gap + blockGap = 95
+      uRatio = (95 - blockGap - 17 * gap) / 19;
     } else {
-      uRatio = (cwRatio - 14 * gap) / 15;
+      // Equation: 15*u + 14*gap = 95
+      uRatio = (95 - 14 * gap) / 15;
     }
+    
+    const qwertyWidth = 15 * uRatio + 14 * gap;
+    const numpadWidth = 4 * uRatio + 3 * gap;
     
     let hRatio = R * uRatio;
     hRatio += (R - 1) * gap;
     hRatio += fRowsCount * fRowMargin;
     
     if (layout.navigation_pane) {
-      hRatio += gap; 
-      hRatio += navGap; 
-      hRatio += navPadding; 
-      hRatio += uRatio; 
+      hRatio += 1.5; // margin-top
+      hRatio += 1.0; // padding-top
+      hRatio += (uRatio * 0.5); // Row height is based on square 0.5 keys
     }
     
     hRatio += 2 * padding;
     
     return {
-      aspect: 1 / hRatio,
-      keyHeightCqi: uRatio * 100
+      aspect: 100 / hRatio,
+      keyHeightCqi: uRatio,
+      qwertyWidth,
+      numpadWidth,
+      gap,
+      blockGap,
+      fRowMargin
     };
   });
 
@@ -473,7 +477,7 @@
     in:fly={{ y: 20, delay: 100 }}
     data-tauri-drag-region={!uiState.activeProgramPicker ? "" : undefined}
     data-testid="keyboard-body"
-    style="--kb-aspect: {layoutInfo.aspect}; --key-height: {layoutInfo.keyHeightCqi}cqi;"
+    style="--kb-aspect: {layoutInfo.aspect}; --key-height: {layoutInfo.keyHeightCqi}cqi; --qwerty-width: {layoutInfo.qwertyWidth}cqi; --numpad-width: {layoutInfo.numpadWidth}cqi; --key-gap: {layoutInfo.gap}cqi; --block-gap: {layoutInfo.blockGap}cqi; --f-margin: {layoutInfo.fRowMargin}cqi;"
   >
     <div
       class="keyboard-layout-wrapper"
@@ -587,7 +591,7 @@
     backdrop-filter: var(--backdrop-filter);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-xl);
-    padding: 2.5%;
+    padding: 2.5cqi;
     box-shadow: var(--shadow-lg);
     pointer-events: auto;
     transition:
@@ -610,7 +614,6 @@
   }
 
   .keyboard-layout-wrapper {
-    --key-gap: 1.2%;
     display: flex;
     flex-direction: column;
     gap: var(--key-gap);
@@ -620,7 +623,7 @@
 
   .main-area {
     display: flex;
-    gap: 1.5%;
+    gap: var(--block-gap);
     width: 100%;
     flex: var(--main-rows, 5);
   }
@@ -629,7 +632,8 @@
     display: flex;
     flex-direction: column;
     gap: var(--key-gap);
-    flex: 15;
+    width: var(--qwerty-width);
+    flex: none;
     height: 100%;
   }
 
@@ -637,7 +641,8 @@
     display: flex;
     flex-direction: column;
     gap: var(--key-gap);
-    flex: 4.2;
+    width: var(--numpad-width);
+    flex: none;
     height: 100%;
   }
 
@@ -646,7 +651,7 @@
     visibility: hidden;
     height: var(--key-height);
     flex: 0 0 auto;
-    margin-bottom: 0.5%;
+    margin-bottom: var(--f-margin);
   }
 
   .keyboard-row {
@@ -658,14 +663,14 @@
   }
 
   .f-row {
-    margin-bottom: 0.5%;
+    margin-bottom: var(--f-margin);
   }
 
   .navigation-pane-row {
     display: flex;
-    gap: 0.4%;
-    margin-top: 1.5%;
-    padding-top: 1%;
+    gap: 0.4cqi;
+    margin-top: 1.5cqi;
+    padding-top: 1cqi;
     border-top: 1px solid var(--color-border);
     width: 100%;
     height: auto;
