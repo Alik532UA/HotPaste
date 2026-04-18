@@ -231,8 +231,13 @@ async fn launch_program_by_path(path: String) -> Result<(), String> {
             return Ok(());
         }
 
-        // 4. Try opening via explorer directly (handles shell aliases like Documents, Downloads, etc.)
-        // We use status().is_ok() to check if explorer was started, not if the path was found.
+        // 4. Try raw ShellExecute first (handles 'control', 'calc', 'notepad', etc.)
+        if launch_via_shell_execute(&path).is_ok() {
+            return Ok(());
+        }
+
+        // 5. Try opening via explorer directly (handles shell aliases like Documents, Downloads, etc.)
+        // We use spawn().is_ok() to check if explorer was started.
         if Command::new("explorer")
             .arg(&path)
             .creation_flags(CREATE_NO_WINDOW)
@@ -242,7 +247,7 @@ async fn launch_program_by_path(path: String) -> Result<(), String> {
             return Ok(());
         }
 
-        // 5. Fallback to AppID (AUMID) and try shell:AppsFolder
+        // 6. Fallback to AppID (AUMID) and try shell:AppsFolder
         let final_path = if path.starts_with("shell:") {
             path
         } else {
