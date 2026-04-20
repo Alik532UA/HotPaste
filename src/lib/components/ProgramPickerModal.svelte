@@ -324,43 +324,46 @@
     <div class="inspector-panel">
       {#if selectedProg}
         <div class="inspector-content" in:fly={{ y: 10, duration: 200 }}>
-            <div class="inspector-header">
+            <div class="inspector-header" data-testid="inspector-header">
                 {@render iconButton(selectedProg.icon, openDraftIconPicker, 'lg')}
                 <div class="draft-details">
                     <div class="input-field">
-                        <label for="custom-label">Назва для клавіатури</label>
+                        <label for="custom-label" data-testid="label-custom-name">Назва для клавіатури</label>
                         <input 
                             id="custom-label"
                             type="text" 
                             bind:value={selectedProg.customLabel} 
                             placeholder="Введіть назву..."
                             spellcheck="false"
+                            data-testid="input-custom-name"
                         />
                     </div>
-                    <span class="draft-path" title={selectedProg.path}>{selectedProg.path}</span>
+                    <span class="draft-path" title={selectedProg.path} data-testid="draft-path">{selectedProg.path}</span>
                 </div>
             </div>
 
-            <div class="inspector-settings">
-                <div class="setting-group">
-                    <span class="label-text">Режим відображення</span>
-                    <div class="mode-grid">
+            <div class="inspector-settings" data-testid="inspector-settings">
+                <div class="setting-group" data-testid="setting-group-display-mode">
+                    <span class="label-text" data-testid="label-display-mode">Режим відображення</span>
+                    <div class="mode-grid" data-testid="display-mode-grid">
                         {#each displayModes as mode}
+                            {@const ModeIcon = mode.icon}
                             <button 
                                 class="mode-btn" 
                                 class:active={selectedProg?.displayMode === mode.id}
                                 onclick={() => { if (selectedProg) selectedProg.displayMode = mode.id; }}
                                 type="button"
+                                data-testid={`btn-display-mode-${mode.id}`}
                             >
-                                <mode.icon size={18} />
+                                <ModeIcon size={18} />
                                 <span>{mode.label}</span>
                             </button>
                         {/each}
                     </div>
                 </div>
 
-                <div class="setting-group" style="margin-top: 16px;">
-                    <label for="confirm-count">Кількість натискань для активації</label>
+                <div class="setting-group" style="margin-top: 16px;" data-testid="setting-group-confirm-count">
+                    <label for="confirm-count" data-testid="label-confirm-count">Кількість натискань для активації</label>
                     <div class="number-input-row">
                         <input 
                             id="confirm-count"
@@ -368,18 +371,19 @@
                             min="1" 
                             max="10"
                             bind:value={selectedProg.confirmCount} 
+                            data-testid="input-confirm-count"
                         />
-                        <span class="hint">1 = миттєво</span>
+                        <span class="hint" data-testid="hint-confirm-count">1 = миттєво</span>
                     </div>
                 </div>
             </div>
 
-            <div class="inspector-actions">
-                <button class="btn-confirm" onclick={handleConfirm} type="button">
+            <div class="inspector-actions" data-testid="inspector-actions">
+                <button class="btn-confirm" onclick={handleConfirm} type="button" data-testid="btn-assign-program">
                     <Check size={18} />
                     Призначити
                 </button>
-                <button class="btn-clear-inline" onclick={handleClear} type="button">
+                <button class="btn-clear-inline" onclick={handleClear} type="button" data-testid="btn-clear-assignment">
                     <Trash2 size={16} /> Очистити призначення
                 </button>
             </div>
@@ -421,30 +425,32 @@
 
       <div class="main-layout">
         <div class="left-column">
-            <div class="sidebar">
+            <div class="sidebar" data-testid="sidebar-tabs">
                 {#each tabs as tab}
+                    {@const TabIcon = tab.icon}
                     <button 
                         class="side-tab" 
                         class:active={activeTab === tab.id}
                         onclick={() => { activeTab = tab.id; if (tab.id !== 'url' && tab.id !== 'commands') isLoading = true; }}
                         type="button"
+                        data-testid={`btn-side-tab-${tab.id}`}
                     >
-                        <tab.icon size={20} />
+                        <TabIcon size={20} />
                         <span>{tab.label}</span>
                     </button>
                 {/each}
             </div>
-            <div class="side-inspector">
+            <div class="side-inspector" data-testid="side-inspector">
                 {@render inspector()}
             </div>
         </div>
 
-        <div class="content-area">
-          <div class="search-box">
-            <SearchInput bind:value={searchQuery} placeholder={t.modals.searchPrograms} />
-            <div class="view-toggle">
-                <button class="view-btn" class:active={viewMode === 'grid'} onclick={() => viewMode = 'grid'} type="button" aria-label="Grid view"><LayoutGrid size={18} /></button>
-                <button class="view-btn" class:active={viewMode === 'list'} onclick={() => viewMode = 'list'} type="button" aria-label="List view"><List size={18} /></button>
+        <div class="content-area" data-testid="content-area">
+          <div class="search-box" data-testid="search-box">
+            <SearchInput bind:value={searchQuery} placeholder={t.modals.searchPrograms} testId="input-search-programs" />
+            <div class="view-toggle" data-testid="view-toggle-container">
+                <button class="view-btn" class:active={viewMode === 'grid'} onclick={() => viewMode = 'grid'} type="button" aria-label="Grid view" data-testid="btn-view-grid"><LayoutGrid size={18} /></button>
+                <button class="view-btn" class:active={viewMode === 'list'} onclick={() => viewMode = 'list'} type="button" aria-label="List view" data-testid="btn-view-list"><List size={18} /></button>
             </div>
           </div>
 
@@ -487,9 +493,9 @@
               {/if}
 
               {#if filteredPrograms.length === 0}
-                <div class="empty">{t.modals.noPrograms}</div>
+                <div class="empty" data-testid="empty-programs">{t.modals.noPrograms}</div>
               {:else}
-                <div class="program-container" class:grid-mode={viewMode === 'grid'} class:list-mode={viewMode === 'list'}>
+                <div class="program-container" class:grid-mode={viewMode === 'grid'} class:list-mode={viewMode === 'list'} data-testid="program-list">
                   {#each filteredPrograms as prog}
                     <button 
                       class="program-item" 
@@ -497,16 +503,17 @@
                       onclick={() => prepareSelection(prog)}
                       title={prog.path}
                       type="button"
+                      data-testid={`program-item-${prog.name.toLowerCase().replace(/\s+/g, '-')}`}
                     >
                       <div class="prog-icon">
-                        {#if icons[prog.path]}<img src={icons[prog.path]} alt="" />{:else}<div class="icon-placeholder"></div>{/if}
+                        {#if icons[prog.path]}<img src={icons[prog.path]} alt="" data-testid="prog-icon-img" />{:else}<div class="icon-placeholder" data-testid="prog-icon-placeholder"></div>{/if}
                       </div>
                       <div class="prog-info">
-                        <span class="prog-name">{prog.name}</span>
-                        {#if viewMode === 'list'}<span class="prog-path">{prog.path}</span>{/if}
+                        <span class="prog-name" data-testid="prog-name">{prog.name}</span>
+                        {#if viewMode === 'list'}<span class="prog-path" data-testid="prog-path">{prog.path}</span>{/if}
                       </div>
                       {#if selectedProg?.path === prog.path}
-                          <div class="selection-check" in:scale><Check size={14} /></div>
+                          <div class="selection-check" in:scale data-testid="selection-check"><Check size={14} /></div>
                       {/if}
                     </button>
                   {/each}

@@ -107,21 +107,21 @@
     {#if type === "keyboard"}
       <div class="form-group" data-testid="form-group-keyboard-layout">
         <span class="label-text" data-testid="label-keyboard-modules">Клавіатурні модулі</span>
-        <div class="checkbox-grid">
-          <label class="checkbox-item">
-            <input type="checkbox" bind:checked={keyboardLayout.f1_f12} />
+        <div class="checkbox-grid" data-testid="keyboard-modules-grid">
+          <label class="checkbox-item" data-testid="label-module-f1-f12">
+            <input type="checkbox" bind:checked={keyboardLayout.f1_f12} data-testid="checkbox-module-f1-f12" />
             <span>F1-F12</span>
           </label>
-          <label class="checkbox-item">
-            <input type="checkbox" bind:checked={keyboardLayout.f13_f24} />
+          <label class="checkbox-item" data-testid="label-module-f13-f24">
+            <input type="checkbox" bind:checked={keyboardLayout.f13_f24} data-testid="checkbox-module-f13-f24" />
             <span>F13-F24</span>
           </label>
-          <label class="checkbox-item">
-            <input type="checkbox" bind:checked={keyboardLayout.num_lock} />
+          <label class="checkbox-item" data-testid="label-module-numpad">
+            <input type="checkbox" bind:checked={keyboardLayout.num_lock} data-testid="checkbox-module-numpad" />
             <span>Num Pad</span>
           </label>
-          <label class="checkbox-item">
-            <input type="checkbox" bind:checked={keyboardLayout.navigation_pane} />
+          <label class="checkbox-item" data-testid="label-module-nav">
+            <input type="checkbox" bind:checked={keyboardLayout.navigation_pane} data-testid="checkbox-module-nav" />
             <span>Navigation Pane</span>
           </label>
         </div>

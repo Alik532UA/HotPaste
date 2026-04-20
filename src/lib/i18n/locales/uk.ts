@@ -93,7 +93,8 @@ export const uk = {
         searchEmojis: "Пошук емодзі...",
         noPrograms: "Програм не знайдено",
         viewGrid: "Сітка",
-        viewList: "Список"
+        viewList: "Список",
+        pressCountLabel: "натискань залишилось"
     },
     menu: {
         copyText: "Копіювати текст",

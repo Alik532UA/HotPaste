@@ -73,24 +73,24 @@
             </svg>
         </div>
 
-        <h1 class="hero-title">{t.app.title}</h1>
-        <p class="hero-subtitle">
+        <h1 class="hero-title" data-testid="hero-title">{t.app.title}</h1>
+        <p class="hero-subtitle" data-testid="hero-subtitle">
             {t.app.subtitle}
         </p>
 
         <!-- How it works -->
-        <div class="flow-demo">
-            <div class="flow-step">
+        <div class="flow-demo" data-testid="flow-demo">
+            <div class="flow-step" data-testid="flow-step-tab">
                 <span class="flow-key">5</span>
                 <span class="flow-arrow">→</span>
                 <span class="flow-label">{t.app.stepTab}</span>
             </div>
-            <div class="flow-step">
+            <div class="flow-step" data-testid="flow-step-card">
                 <span class="flow-key">j</span>
                 <span class="flow-arrow">→</span>
                 <span class="flow-label">{t.app.stepCard}</span>
             </div>
-            <div class="flow-step">
+            <div class="flow-step" data-testid="flow-step-copied">
                 <span class="flow-result"><ClipboardCheck size={24} /></span>
                 <span class="flow-label">{t.app.stepCopied}</span>
             </div>
@@ -139,13 +139,13 @@
             {/if}
         </div>
 
-        <p class="hint">
+        <p class="hint" data-testid="connect-hint">
             {@html t.app.connectHint}
         </p>
 
         <!-- Keyboard hints -->
-        <div class="keyboard-hints">
-            <div class="hint-row">
+        <div class="keyboard-hints" data-testid="keyboard-hints">
+            <div class="hint-row" data-testid="hint-row-tabs">
                 <span class="hint-keys">
                     <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd>...<kbd>9</kbd><kbd
                         >0</kbd
@@ -153,7 +153,7 @@
                 </span>
                 <span class="hint-desc">{t.app.kbSwitchTab}</span>
             </div>
-            <div class="hint-row">
+            <div class="hint-row" data-testid="hint-row-cards">
                 <span class="hint-keys">
                     <kbd>q</kbd><kbd>w</kbd><kbd>e</kbd><kbd>r</kbd>...<kbd
                         >m</kbd
@@ -161,7 +161,7 @@
                 </span>
                 <span class="hint-desc">{t.app.kbCopyCard}</span>
             </div>
-            <div class="hint-row">
+            <div class="hint-row" data-testid="hint-row-scale">
                 <span class="hint-keys">
                     <kbd>Ctrl</kbd>+<kbd>scroll</kbd>
                 </span>

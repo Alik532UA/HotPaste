@@ -336,7 +336,8 @@
               <button
                 class="scale-btn"
                 onclick={() => adjustScale(-0.1)}
-                title="Зменшити">−</button
+                title="Зменшити"
+                data-testid="btn-scale-decrease">−</button
               >
               <span
                 class="scale-value"
@@ -346,13 +347,15 @@
                 role="button"
                 tabindex="0"
                 title="Тягніть для зміни"
+                data-testid="scale-value"
               >
                 {Math.round(appState.scale * 100)}%
               </span>
               <button
                 class="scale-btn"
                 onclick={() => adjustScale(0.1)}
-                title="Збільшити">+</button
+                title="Збільшити"
+                data-testid="btn-scale-increase">+</button
               >
             </div>
 
@@ -361,6 +364,7 @@
                 class="icon-btn"
                 onclick={handleRefreshTabs}
                 title={t.app.refresh}
+                data-testid="btn-refresh-tabs"
               >
                 <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
                   <path
@@ -382,6 +386,7 @@
                 class="icon-btn"
                 onclick={connectDirectory}
                 title={t.app.changeDir}
+                data-testid="btn-change-directory"
               >
                 <FolderOpen size={18} />
               </button>
@@ -389,6 +394,7 @@
                 class="icon-btn"
                 onclick={() => globalSettingsModal?.open()}
                 title={t.common.settings}
+                data-testid="btn-global-settings"
               >
                 <Settings size={20} />
               </button>

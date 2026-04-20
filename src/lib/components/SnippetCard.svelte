@@ -465,7 +465,7 @@
     <!-- Card header -->
     {#if !isCompact}
       <div class="card-header" data-testid={`card-header-${card.id}`}>
-        <div class="drag-handle" title="Перетягнути картку">
+        <div class="drag-handle" title="Перетягнути картку" data-testid={`drag-handle-${card.id}`}>
           <GripVertical size={14} />
         </div>
         {#if isMissing}

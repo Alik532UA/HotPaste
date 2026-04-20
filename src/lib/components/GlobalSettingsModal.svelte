@@ -117,7 +117,7 @@
     {#if activeTab === "appearance"}
       <div class="tab-pane" in:fade={{ duration: 200 }}>
         <!-- Theme Selection -->
-        <section class="settings-section">
+        <section class="settings-section" data-testid="section-appearance-theme">
           <h3 class="section-title">
             <Palette size={18} />
             {t.common.settings} — {t.tabs.color || "Тема"}
@@ -132,13 +132,14 @@
               options={themeSelectionOptions}
               value={theme.current}
               onSelect={(id) => theme.set(id as any)}
+              testId="theme-selection"
             />
           </div>
         </section>
 
         <div class="divider"></div>
 
-        <section class="settings-section">
+        <section class="settings-section" data-testid="section-appearance-snippets">
           <h3 class="section-title">
             <Layout size={18} />
             {t.tabs.typeSnippets}
@@ -153,13 +154,14 @@
               options={modeOptions}
               value={configState.config.defaultModeSnippets}
               onSelect={(id) => configState.setDefaultModeSnippets(id as any)}
+              testId="default-mode-snippets"
             />
           </div>
         </section>
 
         <div class="divider"></div>
 
-        <section class="settings-section">
+        <section class="settings-section" data-testid="section-appearance-keyboard">
           <h3 class="section-title">
             <Keyboard size={18} />
             {t.tabs.typeKeyboard}
@@ -174,6 +176,7 @@
               options={modeOptions}
               value={configState.config.defaultModeKeyboard}
               onSelect={(id) => configState.setDefaultModeKeyboard(id as any)}
+              testId="default-mode-keyboard"
             />
           </div>
         </section>

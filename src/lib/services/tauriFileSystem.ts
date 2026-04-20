@@ -10,10 +10,12 @@ import { HotPasteConfigSchema } from '../schemas/config';
 import * as fs from '@tauri-apps/plugin-fs';
 import * as path from '@tauri-apps/api/path';
 import { open as openShell, Command } from '@tauri-apps/plugin-shell';
+import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { logService } from './logService.svelte';
 
 export class TauriFileSystemService implements IFileSystemService {
     private customRoot: string | null = null;
+    private isCustomPath = false;
 
     private async getApi() {
         return { fs, path };
@@ -21,6 +23,7 @@ export class TauriFileSystemService implements IFileSystemService {
 
     async setProjectRoot(pathStr: string | null): Promise<boolean> {
         this.customRoot = pathStr;
+        this.isCustomPath = false; // Internal project roots are relative to HotPaste documents folder
         if (pathStr) {
             // Ensure directory exists
             try {
@@ -40,13 +43,17 @@ export class TauriFileSystemService implements IFileSystemService {
 
     private async resolvePath(pathStr: string): Promise<string> {
         const { path } = await this.getApi();
-        const base = await path.documentDir();
         
         let fullBase: string;
-        if (this.customRoot) {
-            fullBase = await path.join(base, 'HotPaste', this.customRoot);
+        if (this.isCustomPath && this.customRoot) {
+            fullBase = this.customRoot;
         } else {
-            fullBase = await path.join(base, 'HotPaste');
+            const base = await path.documentDir();
+            if (this.customRoot) {
+                fullBase = await path.join(base, 'HotPaste', this.customRoot);
+            } else {
+                fullBase = await path.join(base, 'HotPaste');
+            }
         }
 
         if (pathStr === '__root__') return fullBase;
@@ -57,14 +64,29 @@ export class TauriFileSystemService implements IFileSystemService {
     }
 
     async requestAccess(): Promise<boolean> {
-        // Tauri has system access by default if configured in capabilities
         try {
-            const { fs } = await this.getApi();
-            const root = await this.resolvePath('__root__');
-            if (!(await fs.exists(root))) {
-                await fs.mkdir(root, { recursive: true });
+            const selected = await openDialog({
+                directory: true,
+                multiple: false,
+                title: 'Виберіть папку для HotPaste'
+            });
+
+            if (selected && typeof selected === 'string') {
+                this.customRoot = selected;
+                this.isCustomPath = true;
+                logService.info('TauriFS', `Selected custom directory: ${selected}`);
+                return true;
             }
-            return true;
+
+            // If cancelled, keep current or default
+            if (!this.customRoot) {
+                const { fs } = await this.getApi();
+                const root = await this.resolvePath('__root__');
+                if (!(await fs.exists(root))) {
+                    await fs.mkdir(root, { recursive: true });
+                }
+            }
+            return !!this.customRoot;
         } catch (err) {
             logService.error('TauriFS', `Tauri FS access error: ${err}`);
             return false;
@@ -76,6 +98,9 @@ export class TauriFileSystemService implements IFileSystemService {
     }
 
     getRootName(): string {
+        if (this.isCustomPath && this.customRoot) {
+            return this.customRoot.split(/[/\\]/).pop() || this.customRoot;
+        }
         return 'Documents/HotPaste';
     }
 

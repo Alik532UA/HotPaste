@@ -159,7 +159,7 @@
     <!-- Content -->
     <div class="icons-grid-scroll" data-testid="icon-picker-scroll-area">
       {#if activeTab === "lucide"}
-        <div class="icons-grid" data-testid="icons-grid">
+        <div class="icons-grid" data-testid="icons-grid-lucide">
           {#each filteredLucide as name}
             {@const IconComp = (LucideIcons as any)[name]}
             <button 
@@ -167,7 +167,7 @@
               class:selected={picker?.current === name}
               onclick={() => handleSelect(name)}
               title={name}
-              data-testid="icon-item-{name}"
+              data-testid={`btn-icon-item-${name}`}
             >
               {#if IconComp}
                 <IconComp size={22} />
@@ -176,23 +176,23 @@
           {/each}
         </div>
         {#if filteredLucide.length === 0}
-          <div class="empty-state" data-testid="icon-picker-empty">{t.common.empty}</div>
+          <div class="empty-state" data-testid="icon-picker-empty-lucide">{t.common.empty}</div>
         {/if}
       {:else}
-        <div class="emoji-grid" data-testid="emoji-grid">
+        <div class="emoji-grid" data-testid="icons-grid-emoji">
           {#each filteredEmojis as emoji}
             <button 
               class="emoji-item" 
               class:selected={picker?.current === emoji}
               onclick={() => handleSelect(emoji)}
-              data-testid="emoji-item-{emoji}"
+              data-testid={`btn-emoji-item-${emoji}`}
             >
               {emoji}
             </button>
           {/each}
         </div>
         {#if filteredEmojis.length === 0}
-          <div class="empty-state" data-testid="icon-picker-empty">{t.common.empty}</div>
+          <div class="empty-state" data-testid="icon-picker-empty-emoji">{t.common.empty}</div>
         {/if}
       {/if}
     </div>

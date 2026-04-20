@@ -250,8 +250,8 @@
               </div>
 
               <!-- Confirmation Row -->
-              <div class="identity-row">
-                <span class="identity-label">Кількість натискань</span>
+              <div class="identity-row" data-testid="identity-row-confirm">
+                <span class="identity-label" data-testid="label-confirm-count">Кількість натискань</span>
                 <div class="identity-controls">
                     <input 
                         type="number" 
@@ -259,8 +259,9 @@
                         max="10" 
                         bind:value={confirmCount} 
                         class="confirm-input"
+                        data-testid="input-confirm-count"
                     />
-                    <span class="hint">1 = миттєво</span>
+                    <span class="hint" data-testid="hint-confirm-count">1 = миттєво</span>
                 </div>
               </div>
             </div>

@@ -44,38 +44,38 @@
       onmousedown={(e) => e.stopPropagation()} 
       transition:scale={{ duration: 300, start: 0.95 }}
     >
-      <div class="confirm-header">
-        <div class="icon-pulse">
+      <div class="confirm-header" data-testid="confirm-header">
+        <div class="icon-pulse" data-testid="confirm-icon-pulse">
             {#if confirmation?.card}
                 <IconRenderer icon={confirmation?.card?.icon} size={48} />
             {:else if confirmation?.assignment}
                 <IconRenderer icon={confirmation?.assignment?.icon} size={48} />
             {/if}
         </div>
-        <h2>Підтвердження дії</h2>
-        <p class="target-name">
+        <h2 data-testid="confirm-title">Підтвердження дії</h2>
+        <p class="target-name" data-testid="confirm-target-name">
             {confirmation?.card?.name || confirmation?.assignment?.name || "Дія"}
         </p>
       </div>
 
-      <div class="confirm-body">
-        <div class="counter-display">
-            <span class="remaining">{confirmation?.remaining}</span>
-            <span class="label">натискань залишилось</span>
+      <div class="confirm-body" data-testid="confirm-body">
+        <div class="counter-display" data-testid="confirm-counter-display">
+            <span class="remaining" data-testid="confirm-remaining-count">{confirmation?.remaining}</span>
+            <span class="label">{(t.modals as any)?.pressCountLabel || "натискань залишилось"}</span>
         </div>
         
-        <div class="instruction">
+        <div class="instruction" data-testid="confirm-instruction">
             <Keyboard size={16} />
-            <span>Натисніть повторно клавішу <strong>{confirmation?.key || confirmation?.card?.hotkey || '?'}</strong></span>
+            <span>Натисніть повторно клавішу <strong data-testid="confirm-hotkey">{confirmation?.key || confirmation?.card?.hotkey || '?'}</strong></span>
         </div>
       </div>
 
-      <div class="confirm-actions">
-        <button class="btn-cancel" onclick={handleCancel}>
+      <div class="confirm-actions" data-testid="confirm-actions">
+        <button class="btn-cancel" onclick={handleCancel} data-testid="btn-confirm-cancel">
             <X size={18} />
             {t.common.cancel}
         </button>
-        <button class="btn-confirm" onclick={handleConfirm}>
+        <button class="btn-confirm" onclick={handleConfirm} data-testid="btn-confirm-now">
             <Check size={18} />
             Підтвердити зараз
         </button>

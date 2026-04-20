@@ -93,7 +93,8 @@ export const en = {
         searchEmojis: "Search emojis...",
         noPrograms: "No programs found",
         viewGrid: "Grid",
-        viewList: "List"
+        viewList: "List",
+        pressCountLabel: "presses remaining"
     },
     menu: {
         copyText: "Copy text",
