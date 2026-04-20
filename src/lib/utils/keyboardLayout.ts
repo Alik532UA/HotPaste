@@ -109,11 +109,11 @@ export function isTabHotkey(code: string): boolean {
 
 /**
  * Check if a code is a card hotkey.
- * Allows Digit codes (if not used for tabs) or Key codes.
+ * Allows any physical key code that isn't already a tab hotkey.
  */
 export function isCardHotkey(code: string): boolean {
-    // For cards, we allow any Key or Digit code that isn't already a tab hotkey
-    return (code.startsWith('Key') || code.startsWith('Digit')) && !isTabHotkey(code);
+    // We allow any key code to be a card hotkey as long as it's not Digit1-0 (reserved for tabs)
+    return !isTabHotkey(code) && code !== 'Escape';
 }
 
 /**

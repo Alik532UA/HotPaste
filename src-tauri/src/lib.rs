@@ -201,21 +201,33 @@ async fn launch_program_by_path(path: String) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
         use std::path::Path;
+        println!("launch_program_by_path: {}", path);
 
-        // 1. Detect URI protocol (e.g., ms-settings:, http:)
+        // 1. If it looks like an AppID/AUMID (contains '!'), launch via shell:AppsFolder
+        // We do this EARLY to prevent Windows from interpreting 'www.' prefixes as URLs in later steps.
+        if path.contains('!') {
+            let app_path = if path.starts_with("shell:") {
+                path
+            } else {
+                format!("shell:AppsFolder\\{}", path)
+            };
+            return launch_via_shell_execute(&app_path);
+        }
+
+        // 2. Detect URI protocol (e.g., ms-settings:, http:)
         let is_uri = path.contains(':')
             && !path.contains('\\')
             && !path.contains('/')
             && !path.contains(' ');
 
-        // 2. Check if it's a direct file path that exists
+        // 3. Check if it's a direct file path that exists
         let path_exists = Path::new(&path).exists();
 
         if is_uri || path_exists {
             return launch_via_shell_execute(&path);
         }
 
-        // 3. If it has spaces and doesn't exist, it's likely a command with arguments (e.g., shutdown /s)
+        // 4. If it has spaces and doesn't exist, it's likely a command with arguments (e.g., shutdown /s)
         if path.contains(' ') {
             let _ = Command::new("cmd")
                 .args(["/C", &path])
@@ -224,28 +236,12 @@ async fn launch_program_by_path(path: String) -> Result<(), String> {
             return Ok(());
         }
 
-        // 4. If it looks like an AppID/AUMID (contains '!'), launch via explorer
-        // and STOP to prevent Windows from interpreting 'www.' as a URL in later steps.
-        if path.contains('!') {
-            let app_path = if path.starts_with("shell:") {
-                path
-            } else {
-                format!("shell:AppsFolder\\{}", path)
-            };
-            let _ = Command::new("explorer")
-                .arg(&app_path)
-                .creation_flags(CREATE_NO_WINDOW)
-                .spawn();
-            return Ok(());
-        }
-
-        // 5. Try raw ShellExecute first (handles 'control', 'calc', 'notepad', etc.)
+        // 5. Try raw ShellExecute (handles 'control', 'calc', 'notepad', etc.)
         if launch_via_shell_execute(&path).is_ok() {
             return Ok(());
         }
 
         // 6. Try opening via explorer directly (handles shell aliases like Documents, Downloads, etc.)
-        // We use spawn().is_ok() to check if explorer was started.
         if Command::new("explorer")
             .arg(&path)
             .creation_flags(CREATE_NO_WINDOW)
@@ -255,7 +251,7 @@ async fn launch_program_by_path(path: String) -> Result<(), String> {
             return Ok(());
         }
 
-        // 7. Fallback to AppID (AUMID) and try shell:AppsFolder
+        // 7. Last resort fallback to AppID (AUMID) and try shell:AppsFolder
         let final_path = if path.starts_with("shell:") {
             path
         } else {

@@ -280,29 +280,6 @@
 
   onMount(() => {
     startMenuState.refreshShortcuts();
-
-    const handleKeyDown = async (e: KeyboardEvent) => {
-      if (
-        uiState.activeProgramPicker ||
-        uiState.activeSettingsCard ||
-        uiState.activeSettingsTab ||
-        uiState.activeHotkeyPicker ||
-        uiState.activeActionConfirmation
-      )
-        return;
-
-      if (isInputFocused()) return;
-
-      const assignment = assignments[e.code];
-      if (assignment && isKeyClickable(e.code)) {
-        e.preventDefault();
-        // Use the global hotkey handler which includes confirmation and window hiding logic
-        await copyCardByHotkey(e.code);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
   });
 
   import { untrack } from "svelte";
