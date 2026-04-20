@@ -100,6 +100,7 @@
         class:active={subfolderMenu.activeFilter === 'all'}
         onclick={() => handleAction(() => subfolderMenu.onSelect('all'))} 
         role="menuitem"
+        data-testid="menu-item-filter-all"
       >
         <icons.LayoutGrid size={14} />
         <span>All - всі</span>
@@ -111,6 +112,7 @@
         class:active={subfolderMenu.activeFilter === 'root'}
         onclick={() => handleAction(() => subfolderMenu.onSelect('root'))} 
         role="menuitem"
+        data-testid="menu-item-filter-root"
       >
         <icons.Folder size={14} />
         <span>only root - тільки корнева</span>
@@ -125,6 +127,7 @@
           class:active={subfolderMenu.activeFilter === folder}
           onclick={() => handleAction(() => subfolderMenu.onSelect(folder))} 
           role="menuitem"
+          data-testid={`menu-item-filter-folder-${folder}`}
         >
           <icons.FolderOpen size={14} />
           <span>{folder}</span>

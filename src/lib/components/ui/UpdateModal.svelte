@@ -5,41 +5,41 @@
 </script>
 
 {#if versionStore.isUpdateAvailable}
-    <div class="modal-overlay">
-        <div class="update-card shadow-xl">
+    <div class="modal-overlay" data-testid="update-modal-overlay">
+        <div class="update-card shadow-xl" data-testid="update-modal-content">
             {#if versionStore.needsManualRestart}
                 <!-- FALLBACK: Повідомлення про ручний перезапуск -->
-                <div class="icon-container error">
+                <div class="icon-container error" data-testid="update-icon-error">
                     <AlertOctagon size={48} />
                 </div>
-                <h2>Потрібна дія</h2>
-                <p>Кеш очищено, але автоматичний перезапуск не вдався.</p>
-                <div class="warning-box">
+                <h2 data-testid="update-title">Потрібна дія</h2>
+                <p data-testid="update-desc">Кеш очищено, але автоматичний перезапуск не вдався.</p>
+                <div class="warning-box" data-testid="update-warning-box">
                     Будь ласка, <b>закрийте та запустіть програму вручну</b> для завершення оновлення.
                 </div>
-                <button class="btn-primary" onclick={() => window.close()}>
+                <button class="btn-primary" onclick={() => window.close()} data-testid="btn-update-close-app">
                     <Power size={18} /> Закрити програму
                 </button>
             {:else}
                 <!-- СТАНДАРТНЕ ВІКНО -->
-                <div class="icon-container accent">
+                <div class="icon-container accent" data-testid="update-icon-accent">
                     <RefreshCw size={48} class="spin-once" />
                 </div>
-                <h2>Доступна нова версія!</h2>
-                <p>Версія <b>{versionStore.serverVersion}</b> готова до встановлення.</p>
+                <h2 data-testid="update-title">Доступна нова версія!</h2>
+                <p data-testid="update-version-info">Версія <b data-testid="update-server-version">{versionStore.serverVersion}</b> готова до встановлення.</p>
                 
-                <div class="warning-box">
+                <div class="warning-box" data-testid="update-warning-box">
                     Це оновлення повністю очистить веб-кеш інтерфейсу для стабільної роботи. 
                     Ваші підключені папки та файли <b>не постраждають</b>.
                 </div>
 
-                <div class="actions">
-                    <button class="btn-primary" onclick={applyUpdateAndDeepClean}>
+                <div class="actions" data-testid="update-actions">
+                    <button class="btn-primary" onclick={applyUpdateAndDeepClean} data-testid="btn-update-apply">
                         <RefreshCw size={18} />
                         Оновити та очистити кеш
                     </button>
                     
-                    <button class="btn-ghost" onclick={skipUpdate}>
+                    <button class="btn-ghost" onclick={skipUpdate} data-testid="btn-update-skip">
                         <X size={18} />
                         Скасувати (на 5 днів)
                     </button>

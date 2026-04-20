@@ -140,7 +140,7 @@
 
           <span class="tab-name" data-testid={`tab-name-${tab.path}`}>{tab.name}</span>
           {#if tab.subfolders.length > 0}
-            <icons.ChevronDown size={14} class="tab-chevron" />
+            <icons.ChevronDown size={14} class="tab-chevron" data-testid={`tab-chevron-${tab.path}`} />
           {/if}
           <span class="tab-count" data-testid={`tab-count-${tab.path}`}>{tab.cards.length}</span>
         </button>

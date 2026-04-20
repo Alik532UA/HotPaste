@@ -301,7 +301,7 @@
 
         <div class="divider"></div>
 
-        <section class="settings-section">
+        <section class="settings-section" data-testid="section-system-hotkey">
           <h3 class="section-title">
             <Zap size={18} />
             {t.settings.globalHotkey}
@@ -324,10 +324,11 @@
                   handleOpenHotkeyPicker();
                 }
               }}
+              testId="global-hotkey-preset"
             />
             
             {#if !["Win", "Alt+Space"].includes(configState.config.triggerKey)}
-              <button class="custom-hotkey-btn" onclick={handleOpenHotkeyPicker}>
+              <button class="custom-hotkey-btn" onclick={handleOpenHotkeyPicker} data-testid="btn-custom-hotkey-display">
                 {configState.config.triggerKey}
               </button>
             {/if}
@@ -336,7 +337,7 @@
 
         <div class="divider"></div>
 
-        <section class="settings-section">
+        <section class="settings-section" data-testid="section-system-mode-toggle">
           <h3 class="section-title">
             <Maximize2 size={18} />
             {t.settings.modeToggle}
@@ -353,13 +354,14 @@
               ]}
               value={configState.config.toggleModeHotkey}
               onSelect={(id) => configState.setToggleModeHotkey(id as any)}
+              testId="mode-toggle-hotkey"
             />
           </div>
         </section>
 
         <div class="divider"></div>
 
-        <section class="settings-section">
+        <section class="settings-section" data-testid="section-system-clear">
           <h3 class="section-title danger">
             <Trash2 size={18} />
             {t.settings.clearCache}

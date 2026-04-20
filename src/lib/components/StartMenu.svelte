@@ -489,8 +489,8 @@
       style="--main-rows: {totalMainRows};"
     >
       <!-- Main Keyboard and Numpad Area -->
-      <div class="main-area">
-        <div class="main-keyboard-block">
+      <div class="main-area" data-testid="kb-main-area">
+        <div class="main-keyboard-block" data-testid="kb-qwerty-block">
           <!-- F13-F24 Row -->
           {#if layout.f13_f24}
             <div class="keyboard-row f-row">
