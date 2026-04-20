@@ -3,7 +3,7 @@ import { storage } from "./storage";
 import { relaunch } from "@tauri-apps/plugin-process"; // Tauri V2 API
 import { logService } from "./logService.svelte";
 
-const VERSION_URL = "/app-version.json";
+const VERSION_URL = "./app-version.json";
 const LOCAL_V_KEY = "hp_version_current";
 const REFUSED_V_KEY = "hp_version_refused";
 const REFUSED_AT_KEY = "hp_version_refused_at";

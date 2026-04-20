@@ -20,7 +20,7 @@
     /** Fetch version with cache busting */
     async function getAppVersion(): Promise<string> {
         try {
-            const res = await fetch(`/app-version.json?t=${Date.now()}`, { cache: "no-store" });
+            const res = await fetch(`./app-version.json?t=${Date.now()}`, { cache: "no-store" });
             const data = await res.json();
             return data.version || 'unknown';
         } catch (e) {
