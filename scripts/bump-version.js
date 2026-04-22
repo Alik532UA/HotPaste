@@ -37,7 +37,10 @@ try {
     }
 
     // 4. Створюємо маркер для фронтенду в папці public
-    fs.writeFileSync("public/app-version.json", JSON.stringify({ version }, null, 2));
+    fs.writeFileSync("public/app-version.json", JSON.stringify({ 
+        version,
+        buildTime: new Date().toISOString()
+    }, null, 2));
 
     // 5. Додаємо всі змінені файли до поточного коміту
     const cargoLockPath = "src-tauri/Cargo.lock";

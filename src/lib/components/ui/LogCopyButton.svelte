@@ -22,10 +22,9 @@
         try {
             const res = await fetch(`./app-version.json?t=${Date.now()}`, { cache: "no-store" });
             const data = await res.json();
-            return data.version || 'unknown';
+            return data.version || logService.appVersion;
         } catch (e) {
-            // Fallback to build-time version if fetch fails
-            return typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'unknown';
+            return logService.appVersion;
         }
     }
 

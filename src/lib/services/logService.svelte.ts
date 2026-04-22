@@ -63,6 +63,7 @@ const levelStyles: Record<LogLevel, string> = {
 };
 
 export const logService = {
+    appVersion: typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'unknown',
     get entries() { return logs; },
     get errorCount() { return errorCount; },
 
