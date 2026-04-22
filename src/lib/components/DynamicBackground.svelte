@@ -1,6 +1,6 @@
 <script lang="ts">
-    import { background } from '../states/background.svelte';
-    import { theme } from '../states/theme.svelte';
+    import { background } from '../states/BackgroundState.svelte';
+    import { theme } from '../states/ThemeState.svelte';
     import { uiState } from '../stores/uiState.svelte';
     import Waves from './backgrounds/Waves.svelte';
     import Particles from './backgrounds/Particles.svelte';

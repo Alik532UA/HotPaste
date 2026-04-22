@@ -21,7 +21,7 @@
     Link,
     Terminal,
   } from "lucide-svelte";
-  import { startMenuState } from "../states/startMenu.svelte";
+  import { startMenuState } from "../states/StartMenuState.svelte";
   import { fsState } from "../stores/fileSystemState.svelte";
   import { uiState } from "../stores/uiState.svelte";
   import { copyCardByHotkey } from "../stores/appState.svelte";

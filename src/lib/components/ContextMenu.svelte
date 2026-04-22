@@ -102,9 +102,9 @@
         role="menuitem"
         data-testid="menu-item-filter-all"
       >
-        <icons.LayoutGrid size={14} />
+        <LayoutGrid size={14} />
         <span>All - всі</span>
-        {#if subfolderMenu.activeFilter === 'all'}<icons.Check size={14} class="shortcut" />{/if}
+        {#if subfolderMenu.activeFilter === 'all'}<Check size={14} class="shortcut" />{/if}
       </button>
       
       <button 
@@ -114,9 +114,9 @@
         role="menuitem"
         data-testid="menu-item-filter-root"
       >
-        <icons.Folder size={14} />
+        <Folder size={14} />
         <span>only root - тільки корнева</span>
-        {#if subfolderMenu.activeFilter === 'root'}<icons.Check size={14} class="shortcut" />{/if}
+        {#if subfolderMenu.activeFilter === 'root'}<Check size={14} class="shortcut" />{/if}
       </button>
       
       <div class="divider" role="separator"></div>
@@ -129,57 +129,57 @@
           role="menuitem"
           data-testid={`menu-item-filter-folder-${folder}`}
         >
-          <icons.FolderOpen size={14} />
+          <FolderOpen size={14} />
           <span>{folder}</span>
-          {#if subfolderMenu.activeFilter === folder}<icons.Check size={14} class="shortcut" />{/if}
+          {#if subfolderMenu.activeFilter === folder}<Check size={14} class="shortcut" />{/if}
         </button>
       {/each}
 
     {:else if isAddTabMenu && addTabMenu}
       <button class="menu-item" onclick={() => handleAction(addTabMenu.onAddSnippets)} role="menuitem" data-testid="menu-item-add-snippets">
-        <icons.Type size={14} />
+        <Type size={14} />
         <span>{t.tabs.typeSnippets || "Нотатки"}</span>
       </button>
       <button class="menu-item" onclick={() => handleAction(addTabMenu.onAddKeyboard)} role="menuitem" data-testid="menu-item-add-keyboard">
-        <icons.Keyboard size={14} />
+        <Keyboard size={14} />
         <span>{t.tabs.typeKeyboard || "Клавіатура"}</span>
       </button>
 
     {:else if isCard && card}
       <!-- Card Menu Items -->
       <button class="menu-item" onclick={() => handleAction(() => copyCard(card))} role="menuitem" data-testid="menu-item-copy">
-        <icons.Copy size={14} />
+        <Copy size={14} />
         <span>{t.menu.copyText}</span>
         <span class="shortcut" data-testid="menu-item-shortcut">{appState.getHotkeyLabel(card.hotkey)}</span>
       </button>
 
       <button class="menu-item" onclick={() => handleAction(() => startEditingCard(card))} role="menuitem" data-testid="menu-item-edit">
-        <icons.Edit3 size={14} />
+        <Edit3 size={14} />
         <span>{t.menu.edit}</span>
       </button>
 
       <button class="menu-item" onclick={() => handleAction(() => openSettings(card))} role="menuitem" data-testid="menu-item-settings">
-        <icons.Settings size={14} />
+        <Settings size={14} />
         <span>{t.menu.settings}</span>
       </button>
 
       <div class="divider" role="separator"></div>
 
       <button class="menu-item" onclick={() => handleAction(() => duplicateCard(card))} role="menuitem" data-testid="menu-item-duplicate">
-        <icons.CopyPlus size={14} />
+        <CopyPlus size={14} />
         <span>{t.menu.duplicate}</span>
       </button>
 
       <div class="menu-item move-item" role="menuitem" aria-haspopup="true" data-testid="menu-item-move">
-        <icons.ExternalLink size={14} />
+        <ExternalLink size={14} />
         <span>{t.menu.move}</span>
-        <icons.ChevronRight size={14} class="arrow-icon" />
+        <ChevronRight size={14} class="arrow-icon" />
         
         <div class="submenu" role="menu" data-testid="submenu-move">
           {#each appState.tabs as t_item}
             {#if t_item.path !== card.filePath.split('/').slice(0, -1).join('/') && !(t_item.path === '__root__' && card.filePath.startsWith('__root__/'))}
               <button class="menu-item" onclick={() => handleMove(t_item.path)} role="menuitem" data-testid="submenu-item-move-to" data-tab-path={t_item.path}>
-                <span>{#if t_item.icon}{t_item.icon}{:else}<icons.Folder size={14} />{/if} {t_item.name}</span>
+                <span>{#if t_item.icon}{t_item.icon}{:else}<Folder size={14} />{/if} {t_item.name}</span>
               </button>
             {/if}
           {/each}
@@ -191,25 +191,25 @@
 
       <!-- Nudge / Move around -->
       <div class="menu-item move-item" role="menuitem" aria-haspopup="true" data-testid="menu-item-nudge">
-        <icons.Move size={14} />
+        <Move size={14} />
         <span>{t.menu.nudge}</span>
-        <icons.ChevronRight size={14} class="arrow-icon" />
+        <ChevronRight size={14} class="arrow-icon" />
         
         <div class="submenu nudge-submenu" role="menu" data-testid="submenu-nudge">
           <div class="nudge-grid">
             <button class="nudge-btn" onclick={() => moveCardRelative(card, -3)} title="{t.menu.nudgeUp} (3)" data-testid="nudge-up">
-              <icons.ChevronUp size={16} />
+              <ChevronUp size={16} />
             </button>
             <div class="nudge-row">
               <button class="nudge-btn" onclick={() => moveCardRelative(card, -1)} title={t.menu.nudgeLeft} data-testid="nudge-left">
-                <icons.ChevronLeft size={16} />
+                <ChevronLeft size={16} />
               </button>
               <button class="nudge-btn" onclick={() => moveCardRelative(card, 1)} title={t.menu.nudgeRight} data-testid="nudge-right">
-                <icons.ChevronRight size={16} />
+                <ChevronRight size={16} />
               </button>
             </div>
             <button class="nudge-btn" onclick={() => moveCardRelative(card, 3)} title="{t.menu.nudgeDown} (3)" data-testid="nudge-down">
-              <icons.ChevronDown size={16} />
+              <ChevronDown size={16} />
             </button>
           </div>
         </div>
@@ -218,24 +218,24 @@
       <div class="divider" role="separator"></div>
 
       <button class="menu-item danger" onclick={() => handleAction(() => deleteCard(card))} role="menuitem" data-testid="menu-item-delete">
-        <icons.Trash2 size={14} />
+        <Trash2 size={14} />
         <span>{t.menu.delete}</span>
       </button>
 
     {:else if isTab && tab}
       <!-- Tab Menu Items -->
       <button class="menu-item" onclick={() => handleAction(() => openTabInExplorer(tab))} role="menuitem" data-testid="menu-item-tab-open-folder">
-        <icons.FolderOpen size={14} />
+        <FolderOpen size={14} />
         <span>{t.menu.openFolder}</span>
       </button>
 
       <button class="menu-item" onclick={() => handleAction(() => openTabSettings(tab))} role="menuitem" data-testid="menu-item-tab-settings">
-        <icons.Settings size={14} />
+        <Settings size={14} />
         <span>{t.menu.tabSettings}</span>
       </button>
 
       <button class="menu-item" onclick={() => handleAction(() => duplicateTab(tab))} role="menuitem" data-testid="menu-item-tab-duplicate">
-        <icons.CopyPlus size={14} />
+        <CopyPlus size={14} />
         <span>{t.menu.tabDuplicate}</span>
       </button>
 
@@ -249,7 +249,7 @@
         aria-disabled={tab.path === '__root__'}
         data-testid="menu-item-tab-delete"
       >
-        <icons.Trash2 size={14} />
+        <Trash2 size={14} />
         <span>{t.menu.tabDelete}</span>
       </button>
     {/if}

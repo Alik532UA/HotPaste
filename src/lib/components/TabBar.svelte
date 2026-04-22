@@ -103,7 +103,6 @@
   <div class="tab-bar-container">
     <div class="tab-bar" role="tablist" aria-label={t.app.title}>
       {#each appState.tabs as tab, i (tab.path)}
-        {@const LucideIcon = getLucideIcon(tab.icon)}
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <button
           class="tab"

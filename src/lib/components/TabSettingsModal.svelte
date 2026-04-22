@@ -286,10 +286,6 @@
     font-weight: 500;
   }
 
-  .emoji-preview {
-    font-size: 1.1rem;
-  }
-
   .selected-icon-name {
     font-size: 0.85rem;
     color: var(--color-text-primary);

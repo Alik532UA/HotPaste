@@ -29,9 +29,9 @@
   import SegmentedToggle from "./lib/components/ui/SegmentedToggle.svelte";
   import BatchActionBar from "./lib/components/ui/BatchActionBar.svelte";
   import GlobalErrorFallback from "./lib/components/ui/GlobalErrorFallback.svelte";
-  import { theme } from "./lib/states/theme.svelte";
-  import { background } from "./lib/states/background.svelte";
-  import { adaptiveHeader } from "./lib/states/adaptiveHeader.svelte";
+  import { theme } from "./lib/states/ThemeState.svelte";
+  import { background } from "./lib/states/BackgroundState.svelte";
+  import { adaptiveHeader } from "./lib/states/AdaptiveHeader.svelte";
   import { language } from "./lib/i18n/language.svelte";
   import {
     initUrlSync,

@@ -1014,9 +1014,6 @@
     justify-content: center;
     color: var(--color-text-secondary);
   }
-  .card-icon.emoji {
-    font-size: 1.1rem;
-  }
   .card-icon.error {
     color: var(--color-danger);
   }
