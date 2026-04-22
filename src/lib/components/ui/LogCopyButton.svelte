@@ -12,10 +12,10 @@
     let { forceShow = false } = $props<{ forceShow?: boolean }>();
 
     let copied = $state(false);
-    let errorCount = $derived(logService.entries.filter(e => e.level === 'error').length);
+    let errorCount = $derived(logService.errorCount);
     
-    // Visibility logic
-    let isVisible = $derived(import.meta.env.DEV || forceShow || errorCount > 0);
+    // Visibility logic: only visible in DEV AND when there are errors (or forced)
+    let isVisible = $derived((import.meta.env.DEV && errorCount > 0) || forceShow);
 
     /** Fetch version with cache busting */
     async function getAppVersion(): Promise<string> {

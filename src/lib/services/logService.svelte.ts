@@ -13,7 +13,30 @@ interface LogEntry {
 }
 
 const MAX_LOGS = 500;
+const SESSION_STORAGE_KEY = 'hotpaste_logs';
 let logs = $state<LogEntry[]>([]);
+let errorCount = $state(0);
+
+// Initialize from sessionStorage
+if (typeof window !== 'undefined') {
+    try {
+        const stored = sessionStorage.getItem(SESSION_STORAGE_KEY);
+        if (stored) {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed.logs)) {
+                logs = parsed.logs.map((log: any) => ({
+                    ...log,
+                    timestamp: new Date(log.timestamp)
+                }));
+            }
+            if (typeof parsed.errorCount === 'number') {
+                errorCount = parsed.errorCount;
+            }
+        }
+    } catch (e) {
+        console.error('Failed to parse logs from sessionStorage', e);
+    }
+}
 
 /** Log visibility config */
 export const logConfig: Record<string, boolean> = {
@@ -39,6 +62,7 @@ const levelStyles: Record<LogLevel, string> = {
 
 export const logService = {
     get entries() { return logs; },
+    get errorCount() { return errorCount; },
 
     debug(category: string, message: string, ...data: unknown[]) {
         this.add('debug', category, message, data);
@@ -82,6 +106,19 @@ export const logService = {
         logs.push(entry);
         if (logs.length > MAX_LOGS) logs.shift();
 
+        if (level === 'error') {
+            errorCount++;
+        }
+
+        // Save to sessionStorage
+        if (typeof window !== 'undefined') {
+            try {
+                sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({ logs, errorCount }));
+            } catch (e) {
+                // Ignore storage quota errors
+            }
+        }
+
         // Console output
         const timeStr = entry.timestamp.toLocaleTimeString();
         if (import.meta.env.DEV || level === 'error') {
@@ -107,5 +144,9 @@ export const logService = {
 
     clear() {
         logs = [];
+        errorCount = 0;
+        if (typeof window !== 'undefined') {
+            sessionStorage.removeItem(SESSION_STORAGE_KEY);
+        }
     }
 };
