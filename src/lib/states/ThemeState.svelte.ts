@@ -5,7 +5,11 @@ export type ThemeType = 'dark-gray' | 'light-gray' | 'orange' | 'green';
 const THEMES: ThemeType[] = ['dark-gray', 'light-gray', 'orange', 'green'];
 
 class ThemeState {
-    private _current = persistedState<ThemeType>("hp_theme", "dark-gray");
+    private _current = persistedState<ThemeType>("hp_theme", 
+        typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches 
+            ? "dark-gray" 
+            : "light-gray"
+    );
     isChanging = $state(false);
 
     get current() { return this._current.value; }

@@ -5,6 +5,7 @@
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="HotPaste — блискавичний менеджер сніпетів з клавіатурною навігацією. Копіюй промти за 2 натискання клавіш." />
+    <meta name="color-scheme" content="light dark" />
     <meta name="theme-color" content="#0f0f14" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,6 +14,14 @@
   </head>
   <body>
     <script>
+      (function() {
+        try {
+          const saved = localStorage.getItem('hotpaste_hp_theme');      
+          const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          let theme = saved ? JSON.parse(saved) : (prefersDark ? 'dark-gray' : 'light-gray');
+          document.documentElement.setAttribute('data-theme', theme);
+        } catch (e) {}
+      })();
       if (window.__TAURI__) {
         document.documentElement.classList.add('is-tauri');
       }
