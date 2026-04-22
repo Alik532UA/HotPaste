@@ -10,14 +10,19 @@ class ThemeState {
 
     get current() { return this._current.value; }
 
-    constructor() {}
+    constructor() {
+        if (typeof window !== 'undefined') {
+            $effect.root(() => {
+                $effect(() => {
+                    document.documentElement.setAttribute("data-theme", this.current);
+                });
+                return () => {};
+            });
+        }
+    }
 
     init() {
-        $effect(() => {
-            if (typeof document !== 'undefined') {
-                document.documentElement.setAttribute("data-theme", this.current);
-            }
-        });
+        // Deprecated: initialization is now handled via $effect.root in constructor
     }
 
     async toggle() {

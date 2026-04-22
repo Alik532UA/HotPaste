@@ -10,15 +10,18 @@ class LanguageState {
     get current() { return this._current.value; }
 
     constructor() {
-        // No $effect here to avoid effect_orphan
+        if (typeof window !== 'undefined') {
+            $effect.root(() => {
+                $effect(() => {
+                    document.documentElement.lang = this.current;
+                });
+                return () => {};
+            });
+        }
     }
 
     init() {
-        $effect(() => {
-            if (typeof document !== 'undefined') {
-                document.documentElement.lang = this.current;
-            }
-        });
+        // Deprecated: initialization is now handled via $effect.root in constructor
     }
 
     set(lang: Language) {

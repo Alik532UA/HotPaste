@@ -210,8 +210,6 @@
       }
     }
 
-    theme.init();
-    language.init();
     background.init();
     initUrlSync();
     
