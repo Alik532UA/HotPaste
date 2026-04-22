@@ -3,5 +3,10 @@ node_modules
 .git
 .svelte-kit
 build
+dist
+src-tauri/target
+*.lock
+package-lock.json
+Cargo.lock
 .env
 .env.local

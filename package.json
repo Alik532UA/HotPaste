@@ -1,7 +1,7 @@
 {
   "name": "hotpaste",
   "private": true,
-  "version": "0.1.56",
+  "version": "0.1.57",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -14,6 +14,7 @@
     "tauri": "tauri",
     "dev:tauri": "powershell -Command \"Get-Process HotPaste-dev -ErrorAction SilentlyContinue | Stop-Process -Force; tauri dev --config src-tauri/tauri.conf.dev.json\"",
     "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json",
+    "test": "vitest",
     "prepare": "husky install"
   },
   "devDependencies": {
