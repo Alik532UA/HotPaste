@@ -160,13 +160,8 @@
         data-testid="btn-tab-icon-picker"
       >
         {#if icon}
-          {@const IconComp = (LucideIcons as any)[icon]}
           <div class="selected-icon-preview">
-            {#if IconComp}
-              <IconComp size={18} />
-            {:else}
-              <span class="emoji-preview">{icon}</span>
-            {/if}
+            <IconRenderer {icon} size={18} />
             <span class="selected-icon-name">{icon}</span>
           </div>
         {:else}

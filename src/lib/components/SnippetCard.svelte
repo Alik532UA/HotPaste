@@ -469,11 +469,9 @@
           <GripVertical size={14} />
         </div>
         {#if isMissing}
-          <span class="card-icon error"><icons.FileX size={16} /></span>
-        {:else if LucideIcon}
-          <span class="card-icon"><LucideIcon size={16} /></span>
+          <span class="card-icon error"><FileX size={16} /></span>
         {:else if card.icon}
-          <span class="card-icon emoji">{card.icon}</span>
+          <span class="card-icon"><IconRenderer icon={card.icon} size={16} /></span>
         {/if}
         <h3 class="card-title" data-testid={`card-title-${card.id}`}>
           <TextHighlight text={card.name} query={appState.searchQuery} />
@@ -497,7 +495,7 @@
             onclick={handleMoreClick}
             data-testid={`btn-card-more-${card.id}`}
           >
-            <icons.Menu size={18} />
+            <Menu size={18} />
           </button>
 
           <button

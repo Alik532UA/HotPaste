@@ -14,7 +14,7 @@
     moveCardRelative,
     openTabInExplorer,
   } from "../stores/appState.svelte";
-  import * as icons from "lucide-svelte";
+  import { LayoutGrid, Check, Folder, FolderOpen, Type, Keyboard, Copy, Edit3, Settings, CopyPlus, ExternalLink, ChevronRight, Move, ChevronUp, ChevronLeft, ChevronDown, Trash2 } from "lucide-svelte";
   import { onMount } from "svelte";
   import type { Card, Tab } from "../types";
   import { t } from "../i18n";

@@ -1,5 +1,4 @@
 <script lang="ts">
-  import * as icons from "lucide-svelte";
   import type { ComponentType } from "svelte";
   import { iconService } from "../../services/iconService.svelte";
   
@@ -14,24 +13,20 @@
   const isLucideStr = $derived(icon?.startsWith('lucide:'));
   const rawIconName = $derived(isLucideStr ? icon?.substring(7) : icon);
 
-  function toPascalCase(str: string) {
+  // Pascal to kebab
+  function toKebabCase(str: string) {
     if (!str) return '';
-    return str.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('');
+    return str.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase();
   }
 
-  const LucideIcon = $derived.by(() => {
-    if (!rawIconName || rawIconName.includes('/') || rawIconName.includes(':') || rawIconName.length > 100) return null;
-    const name = toPascalCase(rawIconName);
-    return (icons[name as keyof typeof icons] || icons[rawIconName as keyof typeof icons]) as ComponentType | undefined;
-  });
-
+  let LucideIcon = $state<ComponentType | null>(null);
   let localUrl = $state<string | null>(null);
 
   $effect(() => {
-    if (!icon) {
-        localUrl = null;
-        return;
-    }
+    LucideIcon = null;
+    localUrl = null;
+
+    if (!icon) return;
 
     if (icon.startsWith('data:')) {
         localUrl = icon;
@@ -55,7 +50,17 @@
         return;
     }
 
-    localUrl = null;
+    if (rawIconName && !rawIconName.includes('/') && !rawIconName.includes(':') && rawIconName.length > 2 && rawIconName.length <= 100) {
+        // Dynamic import
+        const kebabName = toKebabCase(rawIconName);
+        import(`lucide-svelte/icons/${kebabName}`)
+            .then(module => {
+                LucideIcon = module.default;
+            })
+            .catch(err => {
+                // Not a lucide icon
+            });
+    }
   });
 
   const isEmoji = $derived(icon && !LucideIcon && !localUrl && icon.length <= 4);
@@ -65,7 +70,7 @@
 {#if LucideIcon}
   <LucideIcon {size} class={className} />
 {:else if localUrl}
-  <img src={localUrl} alt="" style="width: {cssSize}; height: {cssSize}; object-fit: contain;" class={className} />
+  <img src={localUrl} alt="" loading="lazy" style="width: {cssSize}; height: {cssSize}; object-fit: contain;" class={className} />
 {:else if isEmoji}
   <span class={className} style="font-size: {cssSize}; line-height: 1;">{icon}</span>
 {/if}

@@ -1,7 +1,6 @@
 <script lang="ts">
   import { getState, closeSettings, updateCardSettings, renamePhysicalFile, openIconPicker, openHotkeyPicker } from "../stores/appState.svelte";
   import { Settings, Search, Keyboard, X as CloseIcon, Type, FileText, Palette, Eye, AlertCircle, ChevronRight, Check, Plus, MousePointer2 } from "lucide-svelte";
-  import * as LucideIcons from "lucide-svelte";
   import BaseModal from "./ui/BaseModal.svelte";
   import Input from "./ui/Input.svelte";
   import IconRenderer from "./ui/IconRenderer.svelte";

@@ -506,7 +506,7 @@
                       data-testid={`program-item-${prog.name.toLowerCase().replace(/\s+/g, '-')}`}
                     >
                       <div class="prog-icon">
-                        {#if icons[prog.path]}<img src={icons[prog.path]} alt="" data-testid="prog-icon-img" />{:else}<div class="icon-placeholder" data-testid="prog-icon-placeholder"></div>{/if}
+                        {#if icons[prog.path]}<img src={icons[prog.path]} alt="" loading="lazy" data-testid="prog-icon-img" />{:else}<div class="icon-placeholder" data-testid="prog-icon-placeholder"></div>{/if}
                       </div>
                       <div class="prog-info">
                         <span class="prog-name" data-testid="prog-name">{prog.name}</span>

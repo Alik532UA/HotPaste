@@ -36,14 +36,6 @@
     setSearchQuery("");
   }
 
-  function getLucideIcon(iconName: string | null): ComponentType | null {
-    if (!iconName || iconName.length <= 2) return null;
-    return (
-      (icons[iconName as keyof typeof icons] as ComponentType | undefined) ||
-      null
-    );
-  }
-
   function getTabStyle(tab: Tab) {
     if (!tab.color) return undefined;
     return `--tab-color: ${tab.color}`;
