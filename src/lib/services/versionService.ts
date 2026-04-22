@@ -1,5 +1,6 @@
 import { versionStore } from "../stores/versionStore.svelte";
 import { storage } from "./storage";
+import { sessionStore } from "./sessionStore";
 import { relaunch } from "@tauri-apps/plugin-process"; // Tauri V2 API
 import { logService } from "./logService.svelte";
 
@@ -61,15 +62,16 @@ export async function checkForUpdates() {
 /** Процес глибокого очищення та перезапуску */
 export async function applyUpdateAndDeepClean() {
     try {
-        // 1. Очищення браузерного кешу (Service Workers + Cache API)
+        // 1. Очищення браузерного кешу (Service Workers + Cache API) - тільки для цього додатку
         if ("caches" in window) {
             const keys = await caches.keys();
-            await Promise.all(keys.map(k => caches.delete(k)));
+            const ourKeys = keys.filter(k => k.includes('hotpaste'));
+            await Promise.all(ourKeys.map(k => caches.delete(k)));
         }
 
         // 2. Очищення Web Storage (localStorage, sessionStorage, IndexedDB)
         storage.clear();
-        sessionStorage.clear();
+        sessionStore.clear();
 
         // 3. Записуємо нову версію ПІСЛЯ очищення
         storage.set(LOCAL_V_KEY, versionStore.serverVersion);

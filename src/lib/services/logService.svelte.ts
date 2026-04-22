@@ -2,6 +2,8 @@
  * Advanced Log Service — Central log collection with levels and buffering.
  */
 
+import { sessionStore } from './sessionStore';
+
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 interface LogEntry {
@@ -20,7 +22,7 @@ let errorCount = $state(0);
 // Initialize from sessionStorage
 if (typeof window !== 'undefined') {
     try {
-        const stored = sessionStorage.getItem(SESSION_STORAGE_KEY);
+        const stored = sessionStore.get(SESSION_STORAGE_KEY);
         if (stored) {
             const parsed = JSON.parse(stored);
             if (Array.isArray(parsed.logs)) {
@@ -113,7 +115,7 @@ export const logService = {
         // Save to sessionStorage
         if (typeof window !== 'undefined') {
             try {
-                sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({ logs, errorCount }));
+                sessionStore.set(SESSION_STORAGE_KEY, JSON.stringify({ logs, errorCount }));
             } catch (e) {
                 // Ignore storage quota errors
             }
@@ -146,7 +148,7 @@ export const logService = {
         logs = [];
         errorCount = 0;
         if (typeof window !== 'undefined') {
-            sessionStorage.removeItem(SESSION_STORAGE_KEY);
+            sessionStore.remove(SESSION_STORAGE_KEY);
         }
     }
 };
