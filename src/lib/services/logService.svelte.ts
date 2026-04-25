@@ -140,9 +140,26 @@ export const logService = {
     },
 
     getRecentLogsText(): string {
-        return logs.map(e => 
-            `[${e.timestamp.toISOString()}] [${e.level.toUpperCase()}] [${e.category}] ${e.message} ${e.data ? JSON.stringify(e.data) : ''}`
-        ).join('\n');
+        return logs.map(e => {
+            const dataStr = e.data ? JSON.stringify(e.data, (_, v) => {
+                if (v instanceof Error) {
+                    const errObj: any = { 
+                        message: v.message, 
+                        stack: v.stack, 
+                        name: v.name 
+                    };
+                    // Safely copy other properties
+                    for (const key in v) {
+                        if (key !== 'message' && key !== 'stack' && key !== 'name') {
+                            errObj[key] = (v as any)[key];
+                        }
+                    }
+                    return errObj;
+                }
+                return v;
+            }, 2) : '';
+            return `[${e.timestamp.toISOString()}] [${e.level.toUpperCase()}] [${e.category}] ${e.message} ${dataStr}`;
+        }).join('\n');
     },
 
     clear() {

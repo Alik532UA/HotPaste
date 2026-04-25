@@ -176,10 +176,8 @@ export const copyCard = fsState.copyCard;
 export const deleteSelectedCards = async () => {
     const ids = uiState.selectedCardIds;
     if (ids.size === 0) return;
-    if (!confirm(`Ви впевнені, що хочете видалити ${ids.size} сніпетів?`)) return;
     const cardsToDelete = fsState.activeCards.filter(c => ids.has(c.id));
-    for (const card of cardsToDelete) await fsState.deleteCard(card);
-    uiState.clearSelection();
+    await fsState.deleteCardsBatch(cardsToDelete);
 };
 export const moveSelectedCardsToTab = async (target: string) => {
     const ids = uiState.selectedCardIds;

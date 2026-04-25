@@ -27,7 +27,7 @@
     <div class="plus-icon">
       <Plus size={32} />
     </div>
-    <span class="add-text">{t.common.add}</span>
+    <span class="add-text">{t.app.newCard}</span>
   </div>
 </div>
 

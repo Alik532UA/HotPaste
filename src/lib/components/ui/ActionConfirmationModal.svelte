@@ -50,24 +50,30 @@
                 <IconRenderer icon={confirmation?.card?.icon} size={48} />
             {:else if confirmation?.assignment}
                 <IconRenderer icon={confirmation?.assignment?.icon} size={48} />
+            {:else}
+                <IconRenderer icon="AlertTriangle" size={48} />
             {/if}
         </div>
-        <h2 data-testid="confirm-title">Підтвердження дії</h2>
+        <h2 data-testid="confirm-title">{confirmation?.title || "Підтвердження дії"}</h2>
         <p class="target-name" data-testid="confirm-target-name">
-            {confirmation?.card?.name || confirmation?.assignment?.name || "Дія"}
+            {confirmation?.message || confirmation?.card?.name || confirmation?.assignment?.name || "Ви впевнені?"}
         </p>
       </div>
 
       <div class="confirm-body" data-testid="confirm-body">
-        <div class="counter-display" data-testid="confirm-counter-display">
-            <span class="remaining" data-testid="confirm-remaining-count">{confirmation?.remaining}</span>
-            <span class="label">{(t.modals as any)?.pressCountLabel || "натискань залишилось"}</span>
-        </div>
+        {#if confirmation && confirmation.total > 1}
+            <div class="counter-display" data-testid="confirm-counter-display">
+                <span class="remaining" data-testid="confirm-remaining-count">{confirmation?.remaining}</span>
+                <span class="label">{(t.modals as any)?.pressCountLabel || "натискань залишилось"}</span>
+            </div>
+        {/if}
         
-        <div class="instruction" data-testid="confirm-instruction">
-            <Keyboard size={16} />
-            <span>Натисніть повторно клавішу <strong data-testid="confirm-hotkey">{confirmation?.key || confirmation?.card?.hotkey || '?'}</strong></span>
-        </div>
+        {#if confirmation?.key || confirmation?.card?.hotkey}
+            <div class="instruction" data-testid="confirm-instruction">
+                <Keyboard size={16} />
+                <span>Натисніть повторно клавішу <strong data-testid="confirm-hotkey">{confirmation?.key || confirmation?.card?.hotkey || '?'}</strong></span>
+            </div>
+        {/if}
       </div>
 
       <div class="confirm-actions" data-testid="confirm-actions">

@@ -88,12 +88,14 @@
     openContextMenu(rect.left, rect.bottom, {
         type: 'add-tab-menu',
         onAddSnippets: () => {
-            const name = prompt(t.tabs.add + " (folder name) - " + (t.tabs.typeSnippets || "Нотатки") + ":");
-            if (name) createNewTab(name, 'snippets');
+            uiState.openPrompt(t.tabs.add + " - " + (t.tabs.typeSnippets || "Нотатки"), "назва_папки", (name: string) => {
+                if (name) createNewTab(name, 'snippets');
+            });
         },
         onAddKeyboard: () => {
-            const name = prompt(t.tabs.add + " (folder name) - " + (t.tabs.typeKeyboard || "Клавіатура") + ":");
-            if (name) createNewTab(name, 'keyboard');
+            uiState.openPrompt(t.tabs.add + " - " + (t.tabs.typeKeyboard || "Клавіатура"), "назва_папки", (name: string) => {
+                if (name) createNewTab(name, 'keyboard');
+            });
         }
     } as any);
   }

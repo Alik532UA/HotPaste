@@ -44,9 +44,16 @@ let modals = $state({
         card?: Card,
         assignment?: ShortcutInfo,
         key?: string,
+        title?: string,
+        message?: string,
         total: number,
         remaining: number,
         onConfirm: () => void
+    } | null,
+    prompt: null as {
+        title: string,
+        placeholder?: string,
+        onConfirm: (val: string) => void
     } | null,
 });
 
@@ -76,6 +83,7 @@ export const uiState = {
     get activeProgramPicker() { return modals.programPicker; },
     get activeIconPicker() { return modals.iconPicker; },
     get activeActionConfirmation() { return modals.actionConfirmation; },
+    get activePrompt() { return modals.prompt; },
     
     // Actions
     showToast,
@@ -114,13 +122,31 @@ export const uiState = {
     openActionConfirmation,
     confirmActionStep,
     closeActionConfirmation,
+    openPrompt,
+    closePrompt,
     startEditingCard,
     stopEditingCard,
 };
 
 // --- Action Implementations ---
 
-function openActionConfirmation(params: { card?: Card, assignment?: ShortcutInfo, key?: string, total: number, onConfirm: () => void }): void {
+function openPrompt(title: string, placeholder: string | undefined, onConfirm: (val: string) => void): void {
+    modals.prompt = { title, placeholder, onConfirm };
+}
+
+function closePrompt(): void {
+    modals.prompt = null;
+}
+
+function openActionConfirmation(params: { 
+    card?: Card, 
+    assignment?: ShortcutInfo, 
+    key?: string, 
+    title?: string,
+    message?: string,
+    total: number, 
+    onConfirm: () => void 
+}): void {
     logService.info('ui', `Opening action confirmation for key: ${params.key}, total steps: ${params.total}`);
     modals.actionConfirmation = {
         ...params,

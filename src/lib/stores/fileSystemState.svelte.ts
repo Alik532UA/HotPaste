@@ -40,6 +40,7 @@ export const fsState = {
     refreshTabs,
     saveCard,
     deleteCard,
+    deleteCardsBatch,
     duplicateCard,
     moveCardToTab,
     moveCard,
@@ -126,14 +127,15 @@ async function reconcileTabMetadata(tab: Tab): Promise<void> {
     try {
         const config = await getFSService().readConfig(tab.path);
         
-        // Even if there are no card metadata entries, we still want to proceed to sorting
+        const getCardKey = (c: Card) => c.subfolder ? `${c.subfolder}/${c.fileName}` : c.fileName;
+
         if (config.cards && Object.keys(config.cards).length > 0) {
-            const diskFileNames = new Set(tab.cards.map(c => c.fileName));
+            const diskFileKeys = new Set(tab.cards.map(getCardKey));
             const configKeys = Object.keys(config.cards);
-            const orphanedKeys = configKeys.filter(k => !diskFileNames.has(k));
+            const orphanedKeys = configKeys.filter(k => !diskFileKeys.has(k));
 
             if (orphanedKeys.length > 0) {
-                const unrecognizedCards = tab.cards.filter(c => !config.cards![c.fileName]);
+                const unrecognizedCards = tab.cards.filter(c => !config.cards![getCardKey(c)]);
                 let modified = false;
 
                 for (const orphanKey of orphanedKeys) {
@@ -152,7 +154,8 @@ async function reconcileTabMetadata(tab: Tab): Promise<void> {
                     }
 
                     if (match) {
-                        config.cards[match.fileName] = { ...orphanConfig };
+                        const newKey = getCardKey(match);
+                        config.cards[newKey] = { ...orphanConfig };
                         delete config.cards[orphanKey];
                         
                         match.displayName = orphanConfig.displayName || null;
@@ -168,9 +171,9 @@ async function reconcileTabMetadata(tab: Tab): Promise<void> {
                     } else {
                         const ghostCard: Card = {
                             id: tab.path === '__root__' ? orphanKey : `${tab.path}/${orphanKey}`,
-                            name: orphanConfig.displayName || orphanKey,
+                            name: orphanConfig.displayName || orphanKey.split('/').pop() || orphanKey,
                             displayName: orphanConfig.displayName || null,
-                            fileName: orphanKey,
+                            fileName: orphanKey.split('/').pop() || orphanKey,
                             filePath: tab.path === '__root__' ? orphanKey : `${tab.path}/${orphanKey}`,
                             content: "ФАЙЛ НЕ ЗНАЙДЕНО",
                             extension: orphanKey.split('.').pop() || 'txt',
@@ -179,7 +182,7 @@ async function reconcileTabMetadata(tab: Tab): Promise<void> {
                             color: orphanConfig.color || null,
                             borderColor: orphanConfig.borderColor || '#ff4b4b',
                             strikethrough: orphanConfig.strikethrough || [],
-                            subfolder: null,
+                            subfolder: orphanKey.includes('/') ? orphanKey.split('/').slice(0, -1).join('/') : null,
                             size: 0,
                             lastModified: 0,
                             isMissing: true
@@ -228,13 +231,17 @@ async function saveCurrentTabConfig() {
         if (!existingConfig.cards) existingConfig.cards = {};
         if (!existingConfig.tab) existingConfig.tab = {};
 
-        existingConfig.tab.order = tab.cards.map(c => c.fileName);
+        // Use consistent keys: subfolder/filename
+        const getCardKey = (c: Card) => c.subfolder ? `${c.subfolder}/${c.fileName}` : c.fileName;
+        
+        existingConfig.tab.order = tab.cards.map(getCardKey);
 
         for (const card of tab.cards) {
-            if (!existingConfig.cards[card.fileName]) {
-                existingConfig.cards[card.fileName] = {};
+            const key = getCardKey(card);
+            if (!existingConfig.cards[key]) {
+                existingConfig.cards[key] = {};
             }
-            const cInfo = existingConfig.cards[card.fileName];
+            const cInfo = existingConfig.cards[key];
             if (card.displayName) cInfo.displayName = card.displayName; else delete cInfo.displayName;
             if (card.isCustomHotkey) cInfo.hotkey = card.hotkey; else delete cInfo.hotkey;
             if (card.icon) cInfo.icon = card.icon; else delete cInfo.icon;
@@ -242,7 +249,7 @@ async function saveCurrentTabConfig() {
             if (card.borderColor) cInfo.borderColor = card.borderColor; else delete cInfo.borderColor;
             cInfo.fingerprint = { size: card.size, lastModified: card.lastModified };
             if (card.strikethrough?.length > 0) cInfo.strikethrough = [...card.strikethrough]; else delete cInfo.strikethrough;
-            if (Object.keys(cInfo).length === 0) delete existingConfig.cards[card.fileName];
+            if (Object.keys(cInfo).length === 0) delete existingConfig.cards[key];
         }
 
         await getFSService().writeConfig(tab.path, existingConfig);
@@ -284,10 +291,28 @@ async function saveCard(card: Card, newContent: string): Promise<void> {
             }
             const fileName = finalFileName;
 
-            card.filePath = tab.path === '__root__' ? `__root__/${fileName}` : `${tab.path}/${fileName}`;
+            // Correctly construct filePath including subfolder if present
+            if (card.subfolder) {
+                card.filePath = tab.path === '__root__' ? `${card.subfolder}/${fileName}` : `${tab.path}/${card.subfolder}/${fileName}`;
+            } else {
+                card.filePath = tab.path === '__root__' ? `__root__/${fileName}` : `${tab.path}/${fileName}`;
+            }
+            
             card.fileName = fileName;
             card.displayName = displayName;
             card.name = displayName;
+        }
+
+        // Ensure directory exists if it's a subfolder
+        if (card.subfolder) {
+            const parts = card.filePath.split('/');
+            parts.pop(); // Remove filename
+            const dirPath = parts.join('/');
+            try {
+                await getFSService().createDirectory(dirPath);
+            } catch (dirErr) {
+                logService.warn('fsState', `Failed to ensure directory exists: ${dirPath}`, dirErr);
+            }
         }
 
         await getFSService().writeFile(card.filePath, newContent);
@@ -300,47 +325,109 @@ async function saveCard(card: Card, newContent: string): Promise<void> {
 
         if (isNewCard) await refreshTabs();
         uiState.showToast(`Збережено: ${card.name}`);
-    } catch (err) {
+    } catch (err: any) {
         logService.log('error', 'Failed to save card', err);
-        uiState.showToast('Помилка збереження!');
+        const errorMsg = err?.message || String(err);
+        uiState.showToast(`Помилка збереження: ${errorMsg}`);
         throw err;
     }
 }
 
 async function deleteCard(card: Card): Promise<void> {
-    if (!confirm(`Ви впевнені, що хочете видалити сніпет "${card.name}"?`)) return;
-    try {
-        await getFSService().deleteFile(card.filePath);
-        const parts = card.filePath.split('/');
-        parts.pop();
-        const tabPath = parts.join('/') || '__root__';
-        const config = await getFSService().readConfig(tabPath);
-        if (config.cards && config.cards[card.fileName]) {
-            delete config.cards[card.fileName];
-            if (config.tab?.order) config.tab.order = config.tab.order.filter(n => n !== card.fileName);
-            await getFSService().writeConfig(tabPath, config);
+    const tab = fsState.activeTab;
+    if (!tab) return;
+
+    uiState.openActionConfirmation({
+        card,
+        title: "Видалення сніпета",
+        message: `Ви впевнені, що хочете видалити "${card.name}"?`,
+        total: 1,
+        onConfirm: async () => {
+            try {
+                await getFSService().deleteFile(card.filePath);
+                
+                const config = await getFSService().readConfig(tab.path);
+                const key = card.subfolder ? `${card.subfolder}/${card.fileName}` : card.fileName;
+
+                if (config.cards && config.cards[key]) {
+                    delete config.cards[key];
+                    if (config.tab?.order) config.tab.order = config.tab.order.filter(n => n !== key);
+                    await getFSService().writeConfig(tab.path, config);
+                }
+                await refreshTabs();
+                uiState.showToast(`Видалено: ${card.name}`);
+            } catch (err) {
+                logService.log('error', 'Failed to delete card', err);
+                uiState.showToast('Помилка видалення!');
+            }
         }
-        await refreshTabs();
-        uiState.showToast(`Видалено: ${card.name}`);
-    } catch (err) {
-        logService.log('error', 'Failed to delete card', err);
-        uiState.showToast('Помилка видалення!');
-    }
+    });
+}
+
+async function deleteCardsBatch(cards: Card[]): Promise<void> {
+    const tab = fsState.activeTab;
+    if (!tab || cards.length === 0) return;
+
+    uiState.openActionConfirmation({
+        title: "Масове видалення",
+        message: `Ви впевнені, що хочете видалити ${cards.length} сніпетів? Цю дію неможливо скасувати.`,
+        total: 1,
+        onConfirm: async () => {
+            try {
+                const config = await getFSService().readConfig(tab.path);
+                let configChanged = false;
+
+                for (const card of cards) {
+                    try {
+                        await getFSService().deleteFile(card.filePath);
+                        const key = card.subfolder ? `${card.subfolder}/${card.fileName}` : card.fileName;
+                        if (config.cards && config.cards[key]) {
+                            delete config.cards[key];
+                            if (config.tab?.order) config.tab.order = config.tab.order.filter(n => n !== key);
+                            configChanged = true;
+                        }
+                    } catch (fileErr) {
+                        logService.log('error', `Failed to delete file ${card.filePath}`, fileErr);
+                    }
+                }
+
+                if (configChanged) {
+                    await getFSService().writeConfig(tab.path, config);
+                }
+
+                await refreshTabs();
+                uiState.clearSelection();
+                uiState.showToast(`Видалено ${cards.length} сніпетів`);
+            } catch (err) {
+                logService.log('error', 'Failed to batch delete cards', err);
+                uiState.showToast('Помилка масового видалення!');
+            }
+        }
+    });
 }
 
 async function duplicateCard(card: Card): Promise<void> {
+    const tab = fsState.activeTab;
+    if (!tab) return;
+
     try {
         const ext = card.extension;
         const nameWithoutExt = card.fileName.slice(0, -ext.length);
         const newFileName = `${nameWithoutExt}_copy${ext}`;
-        await getFSService().copyFile(card.filePath, newFileName);
-        const parts = card.filePath.split('/');
-        parts.pop();
-        const tabPath = parts.join('/') || '__root__';
-        const config = await getFSService().readConfig(tabPath);
-        if (config.cards && config.cards[card.fileName]) {
-            config.cards[newFileName] = JSON.parse(JSON.stringify(config.cards[card.fileName]));
-            await getFSService().writeConfig(tabPath, config);
+        
+        // Copy physical file (including directory if nested)
+        const parentDir = card.filePath.split('/').slice(0, -1).join('/');
+        const newFilePath = `${parentDir}/${newFileName}`;
+        
+        await getFSService().copyFile(card.filePath, newFileName); // copyFile adds parentDir automatically in service
+        
+        const config = await getFSService().readConfig(tab.path);
+        const oldKey = card.subfolder ? `${card.subfolder}/${card.fileName}` : card.fileName;
+        const newKey = card.subfolder ? `${card.subfolder}/${newFileName}` : newFileName;
+
+        if (config.cards && config.cards[oldKey]) {
+            config.cards[newKey] = JSON.parse(JSON.stringify(config.cards[oldKey]));
+            await getFSService().writeConfig(tab.path, config);
         }
         await refreshTabs();
         uiState.showToast(`Дубльовано: ${card.name}`);
@@ -383,18 +470,23 @@ function moveCardRelative(card: Card, delta: number): void {
 async function renamePhysicalFile(card: Card, newFileName: string): Promise<void> {
     if (!newFileName || newFileName === card.fileName) return;
     if (!newFileName.includes('.')) newFileName += card.extension;
+    
+    const tab = fsState.activeTab;
+    if (!tab) return;
+
     try {
         const oldFileName = card.fileName;
-        const parts = card.filePath.split('/');
-        parts.pop();
-        const tabPath = parts.join('/') || '__root__';
         await getFSService().renameFile(card.filePath, newFileName);
-        const config = await getFSService().readConfig(tabPath);
-        if (config.cards && config.cards[oldFileName]) {
-            config.cards[newFileName] = { ...config.cards[oldFileName] };
-            delete config.cards[oldFileName];
-            if (config.tab?.order) config.tab.order = config.tab.order.map(n => n === oldFileName ? newFileName : n);
-            await getFSService().writeConfig(tabPath, config);
+        
+        const config = await getFSService().readConfig(tab.path);
+        const oldKey = card.subfolder ? `${card.subfolder}/${oldFileName}` : oldFileName;
+        const newKey = card.subfolder ? `${card.subfolder}/${newFileName}` : newFileName;
+
+        if (config.cards && config.cards[oldKey]) {
+            config.cards[newKey] = { ...config.cards[oldKey] };
+            delete config.cards[oldKey];
+            if (config.tab?.order) config.tab.order = config.tab.order.map(n => n === oldKey ? newKey : n);
+            await getFSService().writeConfig(tab.path, config);
         }
         await refreshTabs();
         uiState.showToast(`Файл перейменовано на ${newFileName}`);
@@ -427,21 +519,28 @@ async function deleteTab(tab: Tab): Promise<void> {
         uiState.showToast('Неможливо видалити кореневу вкладку');
         return;
     }
-    if (!confirm(`Ви впевнені, що хочете видалити вкладку "${tab.name}" з усіма файлами?`)) return;
-    try {
-        await getFSService().deleteDirectory(tab.path);
-        const rootConfig = await getFSService().readConfig('__root__');
-        if (rootConfig.tab?.tabOrder) {
-            rootConfig.tab.tabOrder = rootConfig.tab.tabOrder.filter(p => p !== tab.path);
-            if (rootConfig.tabs) delete rootConfig.tabs[tab.path];
-            await getFSService().writeConfig('__root__', rootConfig);
+
+    uiState.openActionConfirmation({
+        title: "Видалення вкладки",
+        message: `Ви впевнені, що хочете видалити вкладку "${tab.name}" з усіма файлами?`,
+        total: 2, // Double confirmation for tabs for safety
+        onConfirm: async () => {
+            try {
+                await getFSService().deleteDirectory(tab.path);
+                const rootConfig = await getFSService().readConfig('__root__');
+                if (rootConfig.tab?.tabOrder) {
+                    rootConfig.tab.tabOrder = rootConfig.tab.tabOrder.filter(p => p !== tab.path);
+                    if (rootConfig.tabs) delete rootConfig.tabs[tab.path];
+                    await getFSService().writeConfig('__root__', rootConfig);
+                }
+                await refreshTabs();
+                uiState.showToast(`Вкладку "${tab.name}" видалено`);
+            } catch (err) {
+                logService.log('error', 'Failed to delete tab', err);
+                uiState.showToast('Помилка видалення вкладки!');
+            }
         }
-        await refreshTabs();
-        uiState.showToast(`Вкладку "${tab.name}" видалено`);
-    } catch (err) {
-        logService.log('error', 'Failed to delete tab', err);
-        uiState.showToast('Помилка видалення вкладки!');
-    }
+    });
 }
 
 async function renamePhysicalTab(tab: Tab, newDirName: string): Promise<void> {

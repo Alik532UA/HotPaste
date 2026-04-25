@@ -22,7 +22,7 @@
   import { fade } from "svelte/transition";
   import BaseModal from "./ui/BaseModal.svelte";
   import SegmentedToggle from "./ui/SegmentedToggle.svelte";
-  
+
   // Import SVG icons as raw strings
   import uaIcon from "../../assets/icons/origin/ua.svg?raw";
   import msIcon from "../../assets/icons/origin/ms.svg?raw";
@@ -81,16 +81,21 @@
   async function handleClearAllData() {
     if (isClearing) return;
     
-    if (confirm(t.settings.clearCacheConfirm)) {
-      isClearing = true;
-      try {
-        await dataService.clearAllData();
-        window.location.reload();
-      } catch (e) {
-        logService.error('GlobalSettings', `Failed to clear data: ${e}`);
-        isClearing = false;
+    uiState.openActionConfirmation({
+      title: "Очищення кешу",
+      message: t.settings.clearCacheConfirm,
+      total: 1,
+      onConfirm: async () => {
+        isClearing = true;
+        try {
+          await dataService.clearAllData();
+          window.location.reload();
+        } catch (e) {
+          logService.error('GlobalSettings', `Failed to clear data: ${e}`);
+          isClearing = false;
+        }
       }
-    }
+    });
   }
 
   function handleOpenHotkeyPicker() {

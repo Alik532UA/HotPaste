@@ -198,7 +198,7 @@ class LocalFileSystemService implements IFileSystemService {
 
     async createDirectory(name: string): Promise<void> {
         if (!this.rootHandle) return;
-        const parts = name.split('/');
+        const parts = name.split('/').filter(p => p !== '__root__');
         let current = this.rootHandle;
         for (const part of parts) {
             current = await current.getDirectoryHandle(part, { create: true });
@@ -294,8 +294,14 @@ class LocalFileSystemService implements IFileSystemService {
 
     private async getDirectoryHandle(path: string): Promise<FileSystemDirectoryHandle> {
         if (!this.rootHandle) throw new Error("No root handle");
-        if (path === '__root__') return this.rootHandle;
-        return this.rootHandle.getDirectoryHandle(path);
+        const parts = path.split('/').filter(p => p !== '__root__');
+        if (parts.length === 0) return this.rootHandle;
+        
+        let current: FileSystemDirectoryHandle = this.rootHandle;
+        for (const part of parts) {
+            current = await current.getDirectoryHandle(part);
+        }
+        return current;
     }
 
     private async readFileInternal(handle: FileSystemFileHandle): Promise<string> {

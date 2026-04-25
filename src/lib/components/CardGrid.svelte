@@ -184,14 +184,24 @@
       <p class="empty-tab-text" data-testid="empty-tab-text">{t.common.empty}</p>
       <p class="empty-tab-hint" data-testid="empty-tab-hint">{t.common.search}: "{appState.searchQuery}"</p>
     {:else}
-      <div class="empty-tab-icon" data-testid="empty-tab-icon"><FolderOpen size={48} /></div>
-      <p class="empty-tab-text" data-testid="empty-tab-text">{t.tabs.empty}</p>
-      <p class="empty-tab-hint" data-testid="empty-tab-hint">{t.tabs.emptyHint}</p>
+      <div class="empty-add-container">
+        <AddSnippetCard subfolder={null} />
+        <p class="empty-tab-hint">{t.tabs.emptyHint}</p>
+      </div>
     {/if}
   </div>
 {/if}
 
 <style>
+  .empty-add-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-4);
+    width: 100%;
+    max-width: 300px;
+  }
+  
   .card-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(calc(300px * var(--scale, 1)), 1fr));

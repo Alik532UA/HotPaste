@@ -15,7 +15,6 @@
   import StartMenu from "./lib/components/StartMenu.svelte";
   import Toast from "./lib/components/Toast.svelte";
   import EmptyState from "./lib/components/EmptyState.svelte";
-  import FAB from "./lib/components/FAB.svelte";
   import ContextMenu from "./lib/components/ContextMenu.svelte";
   import CardSettingsModal from "./lib/components/CardSettingsModal.svelte";
   import TabSettingsModal from "./lib/components/TabSettingsModal.svelte";
@@ -45,6 +44,7 @@
   import { checkForUpdates } from "./lib/services/versionService";
   import UpdateModal from "./lib/components/ui/UpdateModal.svelte";
   import ActionConfirmationModal from "./lib/components/ui/ActionConfirmationModal.svelte";
+  import PromptModal from "./lib/components/ui/PromptModal.svelte";
   import LogCopyButton from "./lib/components/ui/LogCopyButton.svelte";
   import {
     Sparkles,
@@ -428,10 +428,6 @@
       </GlobalErrorFallback>
     </main>
 
-    {#if !uiState.isMinimalMode && appState.activeTab?.type !== "keyboard"}
-      <FAB />
-    {/if}
-
     <Toast />
     <BatchActionBar />
   </div>
@@ -445,6 +441,7 @@
 <ProgramPickerModal />
 <IconPickerModal />
 <ActionConfirmationModal />
+<PromptModal />
 <GlobalSettingsModal bind:this={globalSettingsModal} />
 <DebugListener />
 <UpdateModal />
