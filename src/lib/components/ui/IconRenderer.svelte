@@ -51,15 +51,23 @@
     }
 
     if (rawIconName && !rawIconName.includes('/') && !rawIconName.includes(':') && rawIconName.length > 2 && rawIconName.length <= 100) {
-        // Dynamic import
         const kebabName = toKebabCase(rawIconName);
-        import(`lucide-svelte/icons/${kebabName}`)
-            .then(module => {
-                LucideIcon = module.default;
-            })
-            .catch(err => {
-                // Not a lucide icon
+        
+        // Use eager: false to load as separate chunks. 
+        // Vite knows how to resolve 'lucide-svelte/dist/icons/*.js'
+        const icons = import.meta.glob('/node_modules/lucide-svelte/dist/icons/*.js');
+        const path = `/node_modules/lucide-svelte/dist/icons/${kebabName}.js`;
+        
+        if (icons[path]) {
+            icons[path]().then((module: any) => {
+                LucideIcon = module.default || module;
+            }).catch((err) => {
+                console.error(`Failed to load icon: ${kebabName}`, err);
             });
+        } else {
+            // If the absolute path doesn't work, try to debug
+            // console.warn(`Icon path not found in glob: ${path}`);
+        }
     }
   });
 

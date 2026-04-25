@@ -45,7 +45,7 @@
   const previewCard = $derived(card ? {
     ...card,
     displayName: displayName || null,
-    name: displayName || card.fileName,
+    name: displayName || card.name,
     hotkey,
     icon,
     color: color || null,
@@ -156,7 +156,7 @@
                   id="display-name-input"
                   bind:value={displayName}
                   onkeydown={(e) => { e.stopPropagation(); handleKeydown(e); }}
-                  placeholder={card.fileName}
+                  placeholder={card.name}
                   testId="input-display-name"
                 />
               </div>

@@ -856,6 +856,11 @@ async fn open_local_shortcuts_folder(app: AppHandle) -> Result<(), String> {
     open_path(start_path.to_string_lossy().to_string()).await
 }
 
+#[tauri::command]
+fn open_devtools(window: tauri::WebviewWindow) {
+    window.open_devtools();
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -870,7 +875,7 @@ pub fn run() {
             launch_program_by_path, get_running_processes, get_system_shortcuts, 
             get_local_shortcuts, get_system_apps, get_shortcut_icon, get_shortcut_icons_batch, 
             clear_icon_cache, set_minimal_mode_tauri, hide_window, restart_hook_worker_tauri,
-            open_path, save_icon, open_local_shortcuts_folder
+            open_path, save_icon, open_local_shortcuts_folder, open_devtools
         ])
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             if let Some(window) = app.get_webview_window("main") {

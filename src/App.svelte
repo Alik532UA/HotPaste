@@ -128,6 +128,12 @@
   }
 
   function onKeydown(e: KeyboardEvent) {
+    // F12 to open devtools in production
+    if (e.key === "F12" && isTauri) {
+      import("@tauri-apps/api/core").then(({ invoke }) => {
+        invoke("open_devtools");
+      });
+    }
     handleGlobalKeydown(e);
   }
 

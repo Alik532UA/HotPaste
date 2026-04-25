@@ -2,6 +2,7 @@
   import { FolderOpen, Search as SearchIcon } from "lucide-svelte";
   import { getState, moveCard, saveCurrentTabConfig } from "../stores/appState.svelte";
   import SnippetCard from "./SnippetCard.svelte";
+  import AddSnippetCard from "./AddSnippetCard.svelte";
   import CardErrorFallback from "./ui/CardErrorFallback.svelte";
   import { uiState } from "../stores/uiState.svelte";
   import type { Card } from "../types";
@@ -167,6 +168,13 @@
           </svelte:boundary>
         </div>
       {/each}
+
+      <!-- Add button at the end of each folder group -->
+      {#if !appState.searchQuery}
+        <div class="card-wrapper">
+          <AddSnippetCard subfolder={group.name} />
+        </div>
+      {/if}
     {/each}
   </div>
 {:else if appState.isConnected}

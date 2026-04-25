@@ -160,7 +160,7 @@ async function reconcileTabMetadata(tab: Tab): Promise<void> {
                         match.color = orphanConfig.color || null;
                         match.borderColor = orphanConfig.borderColor || null;
                         match.strikethrough = orphanConfig.strikethrough || [];
-                        match.name = match.displayName || match.fileName.replace(/\.[^/.]+$/, "");
+                        match.name = match.displayName || match.fileName;
                         match.hotkey = orphanConfig.hotkey || '';
 
                         modified = true;
@@ -168,7 +168,7 @@ async function reconcileTabMetadata(tab: Tab): Promise<void> {
                     } else {
                         const ghostCard: Card = {
                             id: tab.path === '__root__' ? orphanKey : `${tab.path}/${orphanKey}`,
-                            name: orphanConfig.displayName || orphanKey.replace(/\.[^/.]+$/, ""),
+                            name: orphanConfig.displayName || orphanKey,
                             displayName: orphanConfig.displayName || null,
                             fileName: orphanKey,
                             filePath: tab.path === '__root__' ? orphanKey : `${tab.path}/${orphanKey}`,
@@ -264,31 +264,41 @@ async function saveCard(card: Card, newContent: string): Promise<void> {
             const tab = fsState.activeTab;
             if (!tab) throw new Error("No active tab");
 
-            const rawWords = newContent.trim().split(/\s+/).slice(0, 3);
-            const cleanWords = rawWords.map(w => w.replace(/[^a-zA-Z0-9а-яА-ЯіїєґІЇЄҐ]/g, '')).filter(w => w.length > 0);
-            let fileName = cleanWords.join('_') || `snippet_${Date.now()}`;
-            if (fileName.length > 30) fileName = fileName.substring(0, 30);
+            const rawWords = newContent.trim().split(/\s+/).slice(0, 5);
+            const suggestedName = rawWords.join(' ');
+            const displayName = suggestedName.length > 100 ? suggestedName.substring(0, 100) : suggestedName;
+
+            // Generate safe filename: replace special chars with underscores, limit to 64 chars
+            let safeBase = suggestedName.replace(/[^a-zA-Z0-9а-яА-ЯіїєґІЇЄҐ]/g, '_')
+                                      .replace(/_+/g, '_')
+                                      .replace(/^_|_$/g, '');
+            let fileNameBase = safeBase || `snippet_${Date.now()}`;
+            if (fileNameBase.length > 64) fileNameBase = fileNameBase.substring(0, 64);
 
             const existingFileNames = new Set(tab.cards.map(c => c.fileName.toLowerCase()));
-            let finalFileName = `${fileName}.txt`;
+            let finalFileName = `${fileNameBase}.txt`;
             let version = 1;
             while (existingFileNames.has(finalFileName.toLowerCase())) {
                 version++;
-                finalFileName = `${fileName}_v${version}.txt`;
+                finalFileName = `${fileNameBase}_v${version}.txt`;
             }
-            fileName = finalFileName;
+            const fileName = finalFileName;
 
             card.filePath = tab.path === '__root__' ? `__root__/${fileName}` : `${tab.path}/${fileName}`;
             card.fileName = fileName;
-            card.displayName = null;
-            card.name = fileName.replace(/\.[^/.]+$/, "");
+            card.displayName = displayName;
+            card.name = displayName;
         }
 
         await getFSService().writeFile(card.filePath, newContent);
         card.content = newContent;
         if (card.isNewMock) delete card.isNewMock;
 
-        if (isNewCard) refreshTabs();
+        // CRITICAL: Save metadata to _hotpaste.json BEFORE refreshing tabs, 
+        // otherwise refreshTabs will wipe out the displayName we just set.
+        await saveCurrentTabConfig();
+
+        if (isNewCard) await refreshTabs();
         uiState.showToast(`Збережено: ${card.name}`);
     } catch (err) {
         logService.log('error', 'Failed to save card', err);
@@ -586,17 +596,36 @@ function toggleStrikethrough(card: Card, lineIndex: number): void {
     debouncedSaveTabConfig();
 }
 
-function startNewCardCreation(): void {
+function startNewCardCreation(subfolder: string | null = null): void {
     const tab = fsState.activeTab;
     if (!tab) return;
     const tempId = `new-${Date.now()}`;
     const mockCard: Card = {
         id: tempId, name: "New Snippet", fileName: "", filePath: tempId, content: "", extension: "txt",
         displayName: null, hotkey: '', icon: null, color: null, borderColor: null, strikethrough: [],
-        subfolder: null,
+        subfolder: subfolder,
         size: 0, lastModified: 0, isNewMock: true
     };
-    tab.cards = [mockCard, ...tab.cards];
+    
+    if (subfolder) {
+        // Insert after the last card in this subfolder
+        const subfolderCards = tab.cards.filter(c => c.subfolder === subfolder);
+        if (subfolderCards.length > 0) {
+            const lastIdx = tab.cards.indexOf(subfolderCards[subfolderCards.length - 1]);
+            tab.cards.splice(lastIdx + 1, 0, mockCard);
+        } else {
+            tab.cards.push(mockCard);
+        }
+    } else {
+        // Insert after the last root card
+        const rootCards = tab.cards.filter(c => !c.subfolder);
+        if (rootCards.length > 0) {
+            const lastIdx = tab.cards.indexOf(rootCards[rootCards.length - 1]);
+            tab.cards.splice(lastIdx + 1, 0, mockCard);
+        } else {
+            tab.cards.unshift(mockCard);
+        }
+    }
 }
 
 async function removeOrphanedConfig(card: Card): Promise<void> {
@@ -677,7 +706,7 @@ async function resolveHotkeyConflict(selectedCard: Card): Promise<void> {
 async function updateCardSettings(card: Card, settings: Partial<Card>): Promise<void> {
     Object.assign(card, settings);
     if (settings.displayName === "") card.displayName = null;
-    card.name = card.displayName || card.fileName.replace(/\.[^/.]+$/, "");
+    card.name = card.displayName || card.fileName;
     await saveCurrentTabConfig();
     uiState.showToast(`Налаштування збережено: ${card.name}`);
 }
