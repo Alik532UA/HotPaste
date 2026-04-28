@@ -176,24 +176,43 @@ class LocalFileSystemService implements IFileSystemService {
     }
 
     async renameFile(path: string, newName: string): Promise<void> {
-        const handle = await this.getFileHandle(path);
-        const content = await this.readFileInternal(handle);
-        await this.writeFile(path.split('/').slice(0, -1).concat(newName).join('/'), content);
-        await this.deleteFile(path);
+        try {
+            const content = await this.readFile(path);
+            const parentDir = path.split('/').slice(0, -1).join('/') || '__root__';
+            const newPath = parentDir === '__root__' ? newName : `${parentDir}/${newName}`;
+            
+            await this.writeFile(newPath, content);
+            await this.deleteFile(path);
+        } catch (err) {
+            logService.error('FileSystem', `Failed to rename file: ${path} to ${newName}`, err);
+            throw err;
+        }
     }
 
     async copyFile(path: string, newName: string): Promise<void> {
-        const content = await this.readFile(path);
-        const newPath = path.split('/').slice(0, -1).concat(newName).join('/');
-        await this.writeFile(newPath, content);
+        try {
+            const content = await this.readFile(path);
+            const parentDir = path.split('/').slice(0, -1).join('/') || '__root__';
+            const newPath = parentDir === '__root__' ? newName : `${parentDir}/${newName}`;
+            await this.writeFile(newPath, content);
+        } catch (err) {
+            logService.error('FileSystem', `Failed to copy file: ${path}`, err);
+            throw err;
+        }
     }
 
     async moveFile(path: string, targetTabPath: string): Promise<void> {
-        const content = await this.readFile(path);
-        const fileName = path.split('/').pop()!;
-        const newPath = targetTabPath === '__root__' ? `__root__/${fileName}` : `${targetTabPath}/${fileName}`;
-        await this.writeFile(newPath, content);
-        await this.deleteFile(path);
+        try {
+            const content = await this.readFile(path);
+            const fileName = path.split('/').pop()!;
+            const newPath = targetTabPath === '__root__' ? fileName : `${targetTabPath}/${fileName}`;
+            
+            await this.writeFile(newPath, content);
+            await this.deleteFile(path);
+        } catch (err) {
+            logService.error('FileSystem', `Failed to move file to tab: ${path} -> ${targetTabPath}`, err);
+            throw err;
+        }
     }
 
     async createDirectory(name: string): Promise<void> {

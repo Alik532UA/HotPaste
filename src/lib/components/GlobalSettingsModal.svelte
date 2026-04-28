@@ -73,7 +73,6 @@
     { id: "Arsenal", label: "Arsenal", fontFamily: "Arsenal", originIcon: ICONS.UA },
     { id: "Namu Pro", label: "Namu", fontFamily: "Namu Pro", originIcon: ICONS.UA },
     { id: "IBM Plex Mono", label: "IBM Plex", fontFamily: "IBM Plex Mono", originIcon: ICONS.USA },
-    { id: "Fira Code", label: "Fira Code", fontFamily: "Fira Code", originIcon: ICONS.UA },
     { id: "Cascadia Mono", label: "Cascadia", fontFamily: "Cascadia Mono", originIcon: ICONS.MS },
     { id: "Source Code Pro", label: "Source Code", fontFamily: "Source Code Pro", originIcon: ICONS.USA },
   ];

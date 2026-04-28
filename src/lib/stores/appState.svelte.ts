@@ -149,6 +149,7 @@ export const saveCard = fsState.saveCard;
 export const deleteCard = fsState.deleteCard;
 export const duplicateCard = fsState.duplicateCard;
 export const moveCardToTab = fsState.moveCardToTab;
+export const moveCardToFolder = fsState.moveCardToFolder;
 export const moveCard = fsState.moveCard;
 export const moveCardRelative = fsState.moveCardRelative;
 export const renamePhysicalFile = fsState.renamePhysicalFile;

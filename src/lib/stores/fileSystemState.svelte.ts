@@ -43,6 +43,7 @@ export const fsState = {
     deleteCardsBatch,
     duplicateCard,
     moveCardToTab,
+    moveCardToFolder,
     moveCard,
     moveCardRelative,
     renamePhysicalFile,
@@ -438,13 +439,73 @@ async function duplicateCard(card: Card): Promise<void> {
 }
 
 async function moveCardToTab(card: Card, targetTabPath: string): Promise<void> {
+    const sourceTab = fsState.activeTab;
+    if (!sourceTab || sourceTab.path === targetTabPath) return;
+
     try {
+        // 1. Move the physical file
         await getFSService().moveFile(card.filePath, targetTabPath);
+        
+        // 2. Transfer metadata from source to target
+        const sourceConfig = await getFSService().readConfig(sourceTab.path);
+        const targetConfig = await getFSService().readConfig(targetTabPath);
+        const sourceKey = card.subfolder ? `${card.subfolder}/${card.fileName}` : card.fileName;
+        const targetKey = card.fileName; // Moves to root of target tab
+
+        if (sourceConfig.cards && sourceConfig.cards[sourceKey]) {
+            if (!targetConfig.cards) targetConfig.cards = {};
+            targetConfig.cards[targetKey] = { ...sourceConfig.cards[sourceKey] };
+            delete sourceConfig.cards[sourceKey];
+            
+            if (sourceConfig.tab?.order) sourceConfig.tab.order = sourceConfig.tab.order.filter((n: string) => n !== sourceKey);
+            
+            await getFSService().writeConfig(sourceTab.path, sourceConfig);
+            await getFSService().writeConfig(targetTabPath, targetConfig);
+        }
+
         await refreshTabs();
-        uiState.showToast(`Переміщено в іншу вкладку`);
+        uiState.showToast(`Переміщено у вкладку "${targetTabPath}"`);
     } catch (err) {
-        logService.log('error', 'Failed to move card', err);
+        logService.log('error', 'Failed to move card to tab', err);
         uiState.showToast('Помилка переміщення!');
+    }
+}
+
+async function moveCardToFolder(card: Card, targetSubfolder: string | null): Promise<void> {
+    const tab = fsState.activeTab;
+    if (!tab || card.subfolder === targetSubfolder) return;
+
+    try {
+        // 1. Determine new path
+        let newFilePath = targetSubfolder === null 
+            ? (tab.path === '__root__' ? card.fileName : `${tab.path}/${card.fileName}`)
+            : (tab.path === '__root__' ? `${targetSubfolder}/${card.fileName}` : `${tab.path}/${targetSubfolder}/${card.fileName}`);
+
+        // 2. Physical move
+        // Note: fs.rename in Tauri handles local moves efficiently
+        await getFSService().renameFile(card.filePath, newFilePath);
+        
+        // 3. Update metadata keys
+        const config = await getFSService().readConfig(tab.path);
+        const oldKey = card.subfolder ? `${card.subfolder}/${card.fileName}` : card.fileName;
+        const newKey = targetSubfolder ? `${targetSubfolder}/${card.fileName}` : card.fileName;
+
+        if (config.cards && config.cards[oldKey]) {
+            const metadata = { ...config.cards[oldKey] };
+            delete config.cards[oldKey];
+            config.cards[newKey] = metadata;
+            
+            if (config.tab?.order) {
+                config.tab.order = config.tab.order.map((n: string) => n === oldKey ? newKey : n);
+            }
+            await getFSService().writeConfig(tab.path, config);
+        }
+
+        await refreshTabs();
+        uiState.showToast(targetSubfolder ? `Переміщено в папку "${targetSubfolder}"` : `Переміщено в корінь`);
+    } catch (err) {
+        logService.log('error', 'Failed to move card to folder', err);
+        uiState.showToast('Помилка переміщення у папку!');
     }
 }
 

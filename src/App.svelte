@@ -157,7 +157,7 @@
     const ff = buildStack(configState.config.fontFamily, ['Inter', 'system-ui', 'sans-serif']);
     const fm_md = buildStack(configState.config.fontMd, ['Arsenal', 'Inter', 'system-ui', 'sans-serif']);
     const fm_txt = buildStack(configState.config.fontTxt, ['IBM Plex Mono', 'Cascadia Mono', 'Source Code Pro', 'monospace']);
-    const fm_hk = buildStack(configState.config.fontHotkey, ['Fira Code', 'Cascadia Mono', 'Source Code Pro', 'monospace']);
+    const fm_hk = buildStack(configState.config.fontHotkey, ['Cascadia Mono', 'Source Code Pro', 'monospace']);
 
     document.documentElement.style.setProperty('--font-family', ff);
     document.documentElement.style.setProperty('--font-md', fm_md);

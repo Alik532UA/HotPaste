@@ -11,9 +11,10 @@
     setSearchQuery,
     toggleSelectionMode,
     saveTabOrder,
+    moveCardToTab,
   } from "../stores/appState.svelte";
   import { uiState } from "../stores/uiState.svelte";
-  import { Plus, Search, X, CheckSquare } from "lucide-svelte";
+  import { Plus, Search, X, CheckSquare, ChevronDown } from "lucide-svelte";
   import * as icons from "lucide-svelte";
   import SearchInput from "./ui/SearchInput.svelte";
   import type { ComponentType } from "svelte";
@@ -41,22 +42,25 @@
     return `--tab-color: ${tab.color}`;
   }
 
-  function selectTabWithLog(index: number) {
-    logService.log('ui', `TabBar: selectTab called for index ${index}`);
-    selectTab(index);
+  /** Drag and Drop logic for tabs and cards */
+  function handleMove(fromData: any, toData: any) {
+    if (typeof fromData === 'number' && typeof toData === 'number') {
+        // Tab reordering
+        if (appState.tabs[toData].path === "__root__") return;
+        moveTab(fromData, toData);
+    }
   }
 
-  function handleMove(fromIndex: number, toIndex: number) {
-    if (appState.tabs[toIndex].path === "__root__") return;
-    moveTab(fromIndex, toIndex);
-  }
-
-  /** Drag and Drop logic using shared actions */
-  function handleDrop(fromIndex: number, toIndex: number) {
-    logService.log('dnd', `TabBar: handleDrop from ${fromIndex} to ${toIndex}`);
-    // Movement already happened during dragenter/onMove.
-    // Just force save the final state immediately.
-    saveTabOrder();
+  function handleDrop(fromData: any, toData: any) {
+    if (typeof fromData === 'number' && typeof toData === 'number') {
+        // Tab reordering complete
+        logService.log('dnd', `TabBar: handleDrop from ${fromData} to ${toData}`);
+        saveTabOrder();
+    } else if (typeof fromData === 'object' && fromData.id && typeof toData === 'string') {
+        // Card dropped on a tab
+        logService.log('dnd', `TabBar: Moving card ${fromData.name} to tab ${toData}`);
+        moveCardToTab(fromData, toData);
+    }
   }
 
   /** Context Menu for Tab */
@@ -117,8 +121,9 @@
           onclick={() => handleTabClick(i, tab)}
           oncontextmenu={(e) => handleContextMenu(e, tab)}
           style={getTabStyle(tab)}
-          use:draggable={{ index: i, type: 'tab' }}
-          use:dropzone={{ index: i, type: 'tab', onMove: handleMove, onDrop: handleDrop }}
+          use:draggable={{ data: i, type: 'tab' }}
+          use:dropzone={{ type: 'tab', data: i, onMove: handleMove, onDrop: handleDrop }}
+          use:dropzone={tab.type === 'snippets' ? { type: 'card', data: tab.path, onDrop: handleDrop } : null as any}
           animate:flip={{ duration: 250 }}
           data-testid={`tab-button-${tab.path}`}
           data-tab-path={tab.path}
@@ -133,7 +138,7 @@
 
           <span class="tab-name" data-testid={`tab-name-${tab.path}`}>{tab.name}</span>
           {#if tab.subfolders.length > 0}
-            <icons.ChevronDown size={14} class="tab-chevron" data-testid={`tab-chevron-${tab.path}`} />
+            <ChevronDown size={14} class="tab-chevron" data-testid={`tab-chevron-${tab.path}`} />
           {/if}
           <span class="tab-count" data-testid={`tab-count-${tab.path}`}>{tab.cards.length}</span>
         </button>

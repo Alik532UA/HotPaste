@@ -177,7 +177,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   fontFamily: 'e-Ukraine',
   fontMd: 'Arsenal',
   fontTxt: 'IBM Plex Mono',
-  fontHotkey: 'Fira Code',
+  fontHotkey: 'Cascadia Mono',
 };
 
 /** Config filename used in each tab directory */

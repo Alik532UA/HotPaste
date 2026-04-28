@@ -1,59 +1,38 @@
 /**
- * Simple HTML5 Drag and Drop actions for Svelte with Live Update support
+ * Advanced Drag and Drop actions for Svelte with multi-type and data support.
  */
 import { logService } from '../services/logService.svelte';
 
-// Shared state for live dragging
-let currentDraggedIndex: number | null = null;
+// Shared state for live dragging tracking
+let currentDraggedData: any = null;
 let currentDraggedType: string | null = null;
 
-// Prevent default browser behavior for drag and drop globally
-// This is CRITICAL for Tauri/WebView2 to allow dropping anywhere
-if (typeof window !== 'undefined') {
-    const preventDefault = (e: DragEvent) => {
-        // We must prevent default to allow DND to work
-        e.preventDefault();
-        if (e.dataTransfer) {
-            e.dataTransfer.dropEffect = 'move';
-        }
-    };
-
-    window.addEventListener('dragover', preventDefault, false);
-    window.addEventListener('dragenter', preventDefault, false);
-    
-    window.addEventListener('drop', (e) => {
-        // Only prevent default if it's our internal DND to not break file uploads if needed
-        if (e.dataTransfer?.types.includes('application/hotpaste-index') || 
-            e.dataTransfer?.types.includes('text/plain')) {
-            e.preventDefault();
-        }
-        currentDraggedIndex = null;
-        currentDraggedType = null;
-    }, false);
-}
-
-export function draggable(node: HTMLElement, options: { index: number, type: string }) {
-    let index = options.index;
-    let type = options.type;
+/**
+ * Draggable action: makes an element draggable and attaches data.
+ */
+export function draggable(node: HTMLElement, options: { data: any, type: string, handle?: string }) {
+    let { data, type, handle } = options;
 
     node.setAttribute('draggable', 'true');
 
     function handleMouseDown(e: MouseEvent) {
         const target = e.target as HTMLElement;
-        // Stop Tauri from stealing the drag if we are on a handle or a card
-        // We use stopImmediatePropagation to be even more forceful
-        if (target.closest('.drag-handle') || node.classList.contains('tab') || node.classList.contains('card-wrapper')) {
-            e.stopPropagation();
+        // If handle is specified, only allow dragging from that handle
+        if (handle && !target.closest(handle)) {
+            // But allow it if it's a tab or some other specific element
+            if (!node.classList.contains('tab')) {
+                return;
+            }
         }
+        e.stopPropagation();
     }
 
     function handleDragStart(e: DragEvent) {
         if (!e.dataTransfer) return;
 
         const target = e.target as HTMLElement;
-        logService.log('dnd', `DragStart: index ${index}, type: ${type}`);
+        logService.log('dnd', `DragStart: type=${type}`, data);
         
-        // Stop event from bubbling to Tauri's window drag logic
         e.stopPropagation();
 
         if (target.closest('input') || target.closest('textarea')) {
@@ -61,43 +40,30 @@ export function draggable(node: HTMLElement, options: { index: number, type: str
             return;
         }
 
-        // Only allow dragging from handle for cards, or anywhere for tabs
-        if (type === 'card' && !target.closest('.drag-handle')) {
-            if (!node.classList.contains('card-wrapper')) {
-                e.preventDefault();
-                return;
-            }
-        }
+        // Apply visual style
+        node.classList.add('dragging');
 
-        // REQUIRED for Webview2/Tauri to show the correct cursor
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.dropEffect = 'move';
         
-        const data = index.toString();
-        // Always set text/plain for maximum compatibility
-        e.dataTransfer.setData('text/plain', data);
+        // Store data in multiple formats
+        const stringData = typeof data === 'string' ? data : JSON.stringify(data);
+        e.dataTransfer.setData('text/plain', stringData);
+        e.dataTransfer.setData(`application/hotpaste-${type}`, stringData);
         
-        // Custom types for our internal logic
-        const mimeType = `application/hotpaste-index-${type}`;
-        e.dataTransfer.setData(mimeType, data);
-        e.dataTransfer.setData('application/hotpaste-index', data); 
-        
-        currentDraggedIndex = index;
+        currentDraggedData = data;
         currentDraggedType = type;
         
-        node.classList.add('dragging');
-        
-        // Visual feedback
+        // Visual trick for ghost image
         setTimeout(() => {
             if (node) node.style.opacity = '0.3';
         }, 0);
     }
 
-    function handleDragEnd(e: DragEvent) {
-        logService.log('dnd', `DragEnd: index ${index}`);
+    function handleDragEnd() {
         node.classList.remove('dragging');
         node.style.opacity = '';
-        currentDraggedIndex = null;
+        currentDraggedData = null;
         currentDraggedType = null;
     }
 
@@ -106,9 +72,10 @@ export function draggable(node: HTMLElement, options: { index: number, type: str
     node.addEventListener('dragend', handleDragEnd);
 
     return {
-        update(newOptions: { index: number, type: string }) {
-            index = newOptions.index;
+        update(newOptions: { data: any, type: string, handle?: string }) {
+            data = newOptions.data;
             type = newOptions.type;
+            handle = newOptions.handle;
         },
         destroy() {
             node.removeEventListener('mousedown', handleMouseDown, { capture: true });
@@ -119,22 +86,19 @@ export function draggable(node: HTMLElement, options: { index: number, type: str
 }
 
 export interface DropzoneOptions {
-    index: number;
-    type: string;
-    onMove?: (fromIndex: number, toIndex: number) => void;
-    onDrop: (fromIndex: number, toIndex: number) => void;
+    type: string; // The type of draggable this zone accepts
+    data?: any;   // Context data for this dropzone (e.g., target folder or tab)
+    onMove?: (fromData: any, toData: any) => void;
+    onDrop: (fromData: any, toData: any) => void;
 }
 
+/**
+ * Dropzone action: handles drag enter/over/drop for specific types.
+ */
 export function dropzone(node: HTMLElement, options: DropzoneOptions) {
-    let toIndex = options.index;
-    let type = options.type;
-    let onDrop = options.onDrop;
-    let onMove = options.onMove;
-
-    const mimeType = `application/hotpaste-index-${type}`;
+    let { type, data: toData, onDrop, onMove } = options;
 
     function handleDragOver(e: DragEvent) {
-        // Always prevent default in dragover to allow drop in Tauri
         e.preventDefault();
         if (e.dataTransfer) {
             e.dataTransfer.dropEffect = 'move';
@@ -143,21 +107,18 @@ export function dropzone(node: HTMLElement, options: DropzoneOptions) {
     }
 
     function handleDragEnter(e: DragEvent) {
-        // We must preventDefault here too
         e.preventDefault();
         
-        // Filter by type if we have dataTransfer types
-        const types = e.dataTransfer?.types || [];
-        const isOurType = types.includes(mimeType) || types.includes('application/hotpaste-index');
-        
-        if (!isOurType && !types.includes('text/plain')) return;
+        // Check if the dragged item matches the accepted type
+        if (currentDraggedType !== type) return;
         
         node.classList.add('drag-over');
 
-        // LIVE UPDATE
-        if (onMove && currentDraggedIndex !== null && currentDraggedIndex !== toIndex && currentDraggedType === type) {
-            onMove(currentDraggedIndex, toIndex);
-            currentDraggedIndex = toIndex;
+        // Optional Live Reordering (only if types match and data differs)
+        if (onMove && currentDraggedData !== null && currentDraggedData !== toData) {
+            // For live update, we usually only do this for the SAME context (e.g. reordering within same folder)
+            // But let's pass it up to the handler to decide.
+            onMove(currentDraggedData, toData);
         }
     }
 
@@ -167,24 +128,30 @@ export function dropzone(node: HTMLElement, options: DropzoneOptions) {
 
     function handleDrop(e: DragEvent) {
         node.classList.remove('drag-over');
+        if (currentDraggedType !== type) return;
+
+        const rawData = e.dataTransfer?.getData(`application/hotpaste-${type}`) || 
+                        e.dataTransfer?.getData('text/plain');
         
-        const data = e.dataTransfer?.getData(mimeType) || 
-                     e.dataTransfer?.getData('application/hotpaste-index') || 
-                     e.dataTransfer?.getData('text/plain');
-        
-        if (!data) return;
+        if (!rawData) return;
         
         e.preventDefault();
         e.stopPropagation();
 
-        const fromIndex = parseInt(data, 10);
-        logService.log('dnd', `Drop event: from ${fromIndex} to ${toIndex} (type: ${type})`);
-        
-        if (!isNaN(fromIndex) && fromIndex !== toIndex) {
-            onDrop(fromIndex, toIndex);
+        let fromData = currentDraggedData;
+        if (fromData === null) {
+            try {
+                fromData = JSON.parse(rawData);
+            } catch {
+                fromData = rawData;
+            }
         }
+
+        logService.log('dnd', `Drop: type=${type}`, { from: fromData, to: toData });
         
-        currentDraggedIndex = null;
+        onDrop(fromData, toData);
+        
+        currentDraggedData = null;
         currentDraggedType = null;
     }
 
@@ -195,8 +162,8 @@ export function dropzone(node: HTMLElement, options: DropzoneOptions) {
 
     return {
         update(newOptions: DropzoneOptions) {
-            toIndex = newOptions.index;
             type = newOptions.type;
+            toData = newOptions.data;
             onDrop = newOptions.onDrop;
             onMove = newOptions.onMove;
         },

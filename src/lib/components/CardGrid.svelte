@@ -1,6 +1,6 @@
 <script lang="ts">
   import { FolderOpen, Search as SearchIcon } from "lucide-svelte";
-  import { getState, moveCard, saveCurrentTabConfig } from "../stores/appState.svelte";
+  import { getState, moveCard, moveCardToFolder, saveCurrentTabConfig } from "../stores/appState.svelte";
   import SnippetCard from "./SnippetCard.svelte";
   import AddSnippetCard from "./AddSnippetCard.svelte";
   import CardErrorFallback from "./ui/CardErrorFallback.svelte";
@@ -49,14 +49,35 @@
     return result;
   });
 
-  function handleMove(fromIndex: number, toIndex: number) {
-    moveCard(fromIndex, toIndex);
+  /** Get global index of a card in the full tab list */
+  function getGlobalIndex(card: Card): number {
+    return appState.activeCards.findIndex(c => c.id === card.id);
   }
 
-  function handleDrop(fromIndex: number, toIndex: number) {
-    // Movement already happened during dragenter/onMove.
-    // Just force save the final state immediately.
-    saveCurrentTabConfig();
+  function handleMove(fromCard: Card, toCard: Card) {
+    if (!fromCard || !toCard || fromCard.id === toCard.id) return;
+    
+    const fromIdx = getGlobalIndex(fromCard);
+    const toIdx = getGlobalIndex(toCard);
+    
+    if (fromIdx !== -1 && toIdx !== -1) {
+        moveCard(fromIdx, toIdx);
+    }
+  }
+
+  function handleDrop(fromData: any, target: Card | string) {
+    // Check if it's a card fromData
+    if (typeof fromData === 'object' && fromData.id) {
+        if (typeof target === 'string') {
+            // Dropped on a folder header
+            const folderName = target === 'Root' ? null : target;
+            logService.info('dnd', `Moving card ${fromData.name} to folder: ${folderName || 'root'}`);
+            moveCardToFolder(fromData, folderName);
+        } else {
+            // Dropped on another card (already moved by handleMove)
+            saveCurrentTabConfig();
+        }
+    }
   }
 
   function handleGridKeydown(e: KeyboardEvent) {
@@ -142,22 +163,24 @@
   >
     {#each groupedCards as group}
       {#if group.name && groupedCards.length > 1}
-        <div class="folder-header">
+        <div 
+            class="folder-header"
+            use:dropzone={{ type: 'card', data: group.name, onDrop: handleDrop }}
+        >
           <FolderOpen size={16} />
           <span>{group.name}</span>
           <div class="header-line"></div>
         </div>
       {/if}
 
-      {#each group.cards as card, index (card.id)}
+      {#each group.cards as card (card.id)}
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div
           class="card-wrapper"
-          use:draggable={{ index, type: 'card' }}
-          use:dropzone={{ index, type: 'card', onMove: handleMove, onDrop: handleDrop }}
+          use:draggable={{ data: card, type: 'card', handle: '.drag-handle' }}
+          use:dropzone={{ data: card, type: 'card', onMove: handleMove, onDrop: handleDrop }}
           animate:flip={{ duration: 300 }}
           data-testid="card-wrapper"
-          data-index={index}
         >
           <svelte:boundary>
             <SnippetCard {card} />
