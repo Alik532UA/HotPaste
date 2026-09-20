@@ -1069,6 +1069,21 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_process::init())
+        /*
+         * Плагін оновлення реєструється ЗАВЖДИ, а налаштований — не завжди.
+         *
+         * Адреси й відкритий ключ приходять із `tauri.conf.release.json`, який
+         * накладається лише в релізній збірці. У збірці з дерева розробника
+         * їх немає, і `check()` віддає помилку — це нормальний стан, а не
+         * поломка: фронтенд ловить її й тихо переходить на свій старий шлях
+         * (`app-version.json`), тобто просто каже, що версія нова, і не
+         * вдає, ніби вміє її поставити.
+         *
+         * Реєструвати умовно було б гірше: різниця між збірками стала б
+         * різницею в НАБОРІ КОМАНД, і виклик із фронтенда падав би з «unknown
+         * command», що читається як зламаний застосунок.
+         */
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_log::Builder::new().build())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_shell::init())

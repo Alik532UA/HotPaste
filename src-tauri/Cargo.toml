@@ -1,6 +1,6 @@
 [package]
 name = "hotpaste"
-version = "0.1.72"
+version = "0.1.73"
 description = "A Tauri App"
 authors = ["you"]
 license = ""
@@ -47,3 +47,17 @@ windows-sys = { version = "0.59", features = ["Win32_UI_WindowsAndMessaging", "W
 tauri-plugin-process = "2"
 tauri-plugin-clipboard-manager = "2"
 tauri-plugin-dialog = "2"
+
+# ОНОВЛЕННЯ ВСТАНОВЛЕНОГО ЗАСТОСУНКУ.
+#
+# Доти каналу доставки не було ЖОДНОГО: фронтенд лежить усередині exe, а
+# `deploy.yml` публікує лише веб-версію. Тобто будь-яка правка інтерфейсу
+# доїжджала до людини рівно тоді, коли вона сама здогадалася перевстановити
+# застосунок. Наявний `versionService.applyUpdateAndDeepClean()` при цьому
+# кликав `relaunch()` — тобто перезапускав ТУ САМУ версію, ще й стерши
+# налаштування.
+#
+# Налаштування плагіна (адреси й відкритий ключ) живуть НЕ тут, а в
+# `tauri.conf.release.json` — див. пояснення в тому файлі.
+[target."cfg(not(any(target_os = \"android\", target_os = \"ios\")))".dependencies]
+tauri-plugin-updater = "2"

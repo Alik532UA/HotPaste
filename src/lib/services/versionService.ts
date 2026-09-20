@@ -1,15 +1,17 @@
 import { versionStore } from "../stores/versionStore.svelte";
 import { storage } from "./storage";
-import { sessionStore } from "./sessionStore";
-import { relaunch } from "@tauri-apps/plugin-process"; // Tauri V2 API
 import { logService } from "./logService.svelte";
 import { isTauri as isTauriRuntime } from '../utils/runtime';
+import { checkDesktopUpdate } from "./desktopUpdate";
 
 const VERSION_URL = "./app-version.json";
 const LOCAL_V_KEY = "hp_version_current";
 const REFUSED_V_KEY = "hp_version_refused";
 const REFUSED_AT_KEY = "hp_version_refused_at";
 const COOLDOWN = 5 * 24 * 60 * 60 * 1000; // 5 днів
+
+/** Куди вести, коли сказати про версію можемо, а поставити її — ні. */
+const RELEASES_URL = "https://github.com/Alik532UA/HotPaste/releases/latest";
 
 /** Порівняння версій (повертає true, якщо v1 > v2) */
 function isNewer(v1: string, v2: string): boolean {
@@ -22,8 +24,40 @@ function isNewer(v1: string, v2: string): boolean {
     return false;
 }
 
-/** Перевірка наявності оновлень (викликається при старті App) */
+/**
+ * Перевірка оновлень. Викликається при старті застосунку.
+ *
+ * ПОРЯДОК ВАЖЛИВИЙ. Спершу питаємо підписаний канал (`desktopUpdate`): лише
+ * він уміє ПОСТАВИТИ нову версію. Якщо каналу в цій збірці немає або він не
+ * відповів — переходимо на читання `app-version.json`, яке вміє тільки
+ * сказати, що версія вийшла.
+ *
+ * Плутати «оновлення немає» з «перевірити не вдалося» не можна: перше
+ * закінчує роботу, друге мусить вести до запасного шляху. Доти цієї різниці не
+ * існувало, бо не існувало й першого шляху.
+ */
 export async function checkForUpdates() {
+    const desktop = await checkDesktopUpdate();
+
+    if (desktop.kind === 'ready') {
+        versionStore.setVersion(desktop.version);
+        versionStore.setInstaller(desktop.install);
+        versionStore.setUpdate(true);
+        return;
+    }
+
+    // Канал відповів «немає» — це відповідь, і запасний шлях тут зайвий.
+    if (desktop.kind === 'none') {
+        versionStore.setInstaller(null);
+        return;
+    }
+
+    versionStore.setInstaller(null);
+    await checkVersionFile();
+}
+
+/** Запасний шлях: читання `app-version.json`. Уміє лише повідомити. */
+async function checkVersionFile() {
     try {
         const res = await fetch(`${VERSION_URL}?t=${Date.now()}`, { cache: "no-store" });
         const { version: serverV } = await res.json();
@@ -60,36 +94,77 @@ export async function checkForUpdates() {
     } catch (e) { logService.error('Version', `Update check failed: ${e}`); }
 }
 
-/** Процес глибокого очищення та перезапуску */
+/**
+ * Застосувати оновлення.
+ *
+ * ## Що тут було зламане, і це не одна річ
+ *
+ * 1. У ЗАСТОСУНКУ функція кликала `relaunch()`. Фронтенд лежить усередині exe,
+ *    тож перезапуск давав ТУ САМУ версію. Людина натискала «Оновити»,
+ *    застосунок перезапускався, версія не мінялася. Єдиний випадок, коли
+ *    щось змінювалося, — коли exe вже перевстановили руками.
+ *
+ * 2. `storage.clear()` СТИРАВ УСІ ЛОКАЛЬНІ ДАНІ застосунку: тему, гарячі
+ *    клавіші, призначення клавіш меню, обрану теку. Це робилося на кожному
+ *    оновленні, і у вікні з написом «Ваші підключені папки та файли не
+ *    постраждають» — що правда лише буквально: самі файли цілі, а все, що
+ *    людина налаштувала, зникало.
+ *
+ * Тепер стирається рівно те, заради чого функцію писали: кеш оболонки. Він
+ * справді може суперечити новій збірці. Налаштування — ні.
+ *
+ * ## Чому фільтр кешів двома ознаками
+ *
+ * `k.includes('hotpaste')` не збігався з жодним справжнім іменем: кеші тут
+ * називає воркер, і зве він їх `workbox-precache-v2-https://…/HotPaste/` —
+ * з великими літерами, а порівняння чутливе до регістру. Тобто «глибоке
+ * очищення» не чистило нічого. Ознака нашого кеша — власний `scope` усередині
+ * імені; префікс лишається для кешів, які застосунок назве сам.
+ */
 export async function applyUpdateAndDeepClean() {
     try {
-        // 1. Очищення браузерного кешу (Service Workers + Cache API) - тільки для цього додатку
+        // Підписаний канал уміє поставити нову версію — це інша дія, і все
+        // нижче до неї не стосується.
+        const install = versionStore.installer;
+        if (install) {
+            await install();
+            return;
+        }
+
         if ("caches" in window) {
+            const scope = new URL('./', window.location.href).href;
             const keys = await caches.keys();
-            const ourKeys = keys.filter(k => k.includes('hotpaste'));
+            const ourKeys = keys.filter(
+                (k) => k.startsWith('hotpaste-') || k.includes(scope)
+            );
             await Promise.all(ourKeys.map(k => caches.delete(k)));
         }
 
-        // 2. Очищення Web Storage (localStorage, sessionStorage, IndexedDB)
-        storage.clear();
-        sessionStore.clear();
+        // Реєстрація воркера — лише СВОЯ. `getRegistration()` без аргументів
+        // віддає ту, що керує цією сторінкою; `getRegistrations()` віддав би
+        // реєстрації всього origin, тобто сусідніх проєктів на GitHub Pages.
+        if ("serviceWorker" in navigator) {
+            const registration = await navigator.serviceWorker.getRegistration();
+            await registration?.unregister();
+        }
 
-        // 3. Записуємо нову версію ПІСЛЯ очищення
         storage.set(LOCAL_V_KEY, versionStore.serverVersion);
 
-        // 4. Перезапуск
-        // @ts-ignore
-        const isTauri = isTauriRuntime();
-
-        if (isTauri) {
-            await relaunch();
-        } else {
-            // У браузері просто оновлюємо сторінку
-            window.location.reload();
+        if (isTauriRuntime()) {
+            /*
+             * Сюди потрапляє збірка застосунку БЕЗ підписаного каналу — тобто
+             * зібрана з дерева розробника. Перезапуск тут нічого не оновить,
+             * тому й не робиться: чесніше відкрити сторінку завантаження.
+             */
+            const { open } = await import('@tauri-apps/plugin-shell');
+            await open(RELEASES_URL);
+            versionStore.setUpdate(false);
+            return;
         }
+
+        window.location.reload();
     } catch (e) {
-        logService.error('VersionService', `Relaunch failed: ${e}`);
-        // Fallback: якщо щось пішло не так (наприклад, у браузері reload заблоковано)
+        logService.error('VersionService', `Update failed: ${e}`);
         versionStore.setManualRestart(true);
     }
 }

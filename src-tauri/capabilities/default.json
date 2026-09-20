@@ -49,6 +49,7 @@
       ]
     },
     "process:default",
+    "updater:default",
     "clipboard-manager:default",
     "clipboard-manager:allow-read-text",
     "dialog:default"

@@ -1,0 +1,103 @@
+name: Release desktop app
+
+# ЗАПУСК ЛИШЕ ЗА ТЕГОМ.
+#
+# Не на кожен пуш у `main`: збірка Rust на Windows триває хвилини, а випуск —
+# це рішення людини, а не наслідок коміту. `workflow_dispatch` лишається для
+# повторного випуску того самого тегу, коли впав крок публікації.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+# `cancel-in-progress: false` навмисно: скасований посеред публікації прогін
+# лишає реліз із половиною файлів, і оновлення в людей починає качати те, чого
+# немає.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    timeout-minutes: 40
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # КЛЮЧ ПЕРЕВІРЯЄТЬСЯ ПЕРШИМ, ДО ЗБІРКИ.
+      #
+      # Без нього `tauri build` із `createUpdaterArtifacts` однаково впаде — але
+      # через двадцять хвилин і з повідомленням про підпис, у якому не видно, що
+      # робити. Тут відмова настає за секунду й називає обидва секрети.
+      #
+      # Друга половина перевірки важливіша за першу: відкритий ключ у
+      # `tauri.conf.release.json` лежить у репозиторії, і поки там заглушка,
+      # зібраний застосунок НЕ ЗМОЖЕ прийняти жодного оновлення. Помітити це
+      # можна було б лише на живій машині через місяць.
+      - name: Ключі підпису на місці
+        shell: bash
+        env:
+          SIGNING_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          if [ -z "$SIGNING_KEY" ]; then
+            echo "::error title=Немає ключа підпису::Секрет TAURI_SIGNING_PRIVATE_KEY не заданий. Згенеруйте пару: npm run tauri signer generate -- -w ~/.tauri/hotpaste.key — і покладіть ПРИВАТНУ частину в секрети репозиторію разом із TAURI_SIGNING_PRIVATE_KEY_PASSWORD."
+            exit 1
+          fi
+          if grep -q 'ЗАМІНІТЬ_ЦЕ_НА_ВІДКРИТИЙ_КЛЮЧ' src-tauri/tauri.conf.release.json; then
+            echo "::error title=Відкритий ключ не підставлений::У src-tauri/tauri.conf.release.json лишилася заглушка. Вставте туди ВІДКРИТУ частину пари — інакше застосунок зібереться, опублікується й не прийме жодного оновлення."
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      # Кеш збірки Rust. Без нього кожен випуск компілює всі залежності з нуля —
+      # це і є ті двадцять хвилин.
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - run: npm ci
+
+      # Гейти перед випуском — ті самі, що в деплої. Випускати збірку, яка не
+      # проходить перевірки, гірше за невипущену: відкотити встановлений
+      # застосунок людина не може.
+      - name: Типи
+        run: npm run check
+
+      - name: Юніт-перевірки
+        if: ${{ !cancelled() }}
+        run: npm test -- --run
+
+      # `--config` НАКЛАДАЄТЬСЯ на основний конфіг, а не замінює його.
+      #
+      # Саме тому налаштування оновлення живуть окремим файлом: у дереві
+      # розробника їх немає, тож локальна збірка не вимагає ключа підпису й не
+      # обіцяє оновлень, яких нікуди слати.
+      #
+      # `--bin HotPaste`: у `Cargo.toml` два бінарники з одного `main.rs`, і
+      # типовий (`default-run`) — це dev-збірка.
+      - name: Збірка застосунку й публікація
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'HotPaste ${{ github.ref_name }}'
+          releaseBody: 'Встановлений застосунок оновиться сам. Для першої установки завантажте `.exe` нижче.'
+          releaseDraft: false
+          prerelease: false
+          # `latest.json` — це і є те, що читає встановлений застосунок.
+          # Без нього реліз виглядає повним, а оновлення не приходить нікому.
+          includeUpdaterJson: true
+          args: --config src-tauri/tauri.conf.release.json --bundles nsis -- --bin HotPaste

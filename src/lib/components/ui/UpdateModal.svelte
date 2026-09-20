@@ -1,7 +1,10 @@
 <script lang="ts">
     import { versionStore } from "../../stores/versionStore.svelte";
     import { applyUpdateAndDeepClean, skipUpdate } from "../../services/versionService";
+    import { isTauri as isTauriRuntime } from "../../utils/runtime";
     import { RefreshCw, X, AlertOctagon, Power } from "lucide-svelte";
+
+    const isTauri = isTauriRuntime();
 </script>
 
 {#if versionStore.isUpdateAvailable}
@@ -27,18 +30,37 @@
                 </div>
                 <h2 data-testid="update-title">Доступна нова версія!</h2>
                 <p data-testid="update-version-info">Версія <b data-testid="update-server-version">{versionStore.serverVersion}</b> готова до встановлення.</p>
-                
+
+                <!--
+                    ДВА РІЗНІ СТАНИ, А НЕ ОДНА КНОПКА НА ВСІ ВИПАДКИ.
+
+                    Доти кнопка називалася «Оновити» завжди, а у вікні
+                    застосунку робила `relaunch()` — тобто перезапускала ту
+                    саму версію. Тепер підпис іде за тим, що справді станеться:
+                    `installer` є лише там, де є підписаний канал оновлення.
+                -->
                 <div class="warning-box" data-testid="update-warning-box">
-                    Це оновлення повністю очистить веб-кеш інтерфейсу для стабільної роботи. 
-                    Ваші підключені папки та файли <b>не постраждають</b>.
+                    {#if versionStore.installer}
+                        Застосунок завантажить оновлення й перезапуститься сам.
+                        Ваші налаштування та підключені теки <b>лишаться на місці</b>.
+                    {:else}
+                        Оновиться оболонка інтерфейсу. Ваші налаштування, підключені
+                        теки та файли <b>не постраждають</b>.
+                    {/if}
                 </div>
 
                 <div class="actions" data-testid="update-actions">
                     <button class="btn-primary" onclick={applyUpdateAndDeepClean} data-testid="btn-update-apply">
                         <RefreshCw size={18} />
-                        Оновити та очистити кеш
+                        {#if versionStore.installer}
+                            Завантажити та встановити
+                        {:else if isTauri}
+                            Відкрити сторінку завантаження
+                        {:else}
+                            Оновити
+                        {/if}
                     </button>
-                    
+
                     <button class="btn-ghost" onclick={skipUpdate} data-testid="btn-update-skip">
                         <X size={18} />
                         Скасувати (на 5 днів)
