@@ -7,6 +7,7 @@
   import { uiState } from "../stores/uiState.svelte";
   import type { Card } from "../types";
   import { draggable, dropzone } from "../utils/dnd";
+  import { logService } from "../services/logService.svelte";
   import { t } from "../i18n";
   import { flip } from "svelte/animate";
 
