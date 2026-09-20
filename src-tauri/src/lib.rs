@@ -196,94 +196,245 @@ unsafe extern "system" fn low_level_keyboard_proc_worker(
     CallNextHookEx(std::ptr::null_mut(), n_code, w_param, l_param)
 }
 
+/// Схеми, за якими дозволено відкривати посилання.
+///
+/// ПЕРЕЛІК, А НЕ ЗАБОРОНЕНИЙ СПИСОК. `ShellExecute` на `foo:bar` віддає рядок
+/// зареєстрованому обробникові схеми `foo:`, а обробники в системі бувають
+/// різні — саме так працював Follina (`ms-msdt:`). Заборонений список тут
+/// застаріває від кожного оновлення Windows, перелік — ні.
+///
+/// Розширювати цей масив можна й треба: якщо ярлик перестав запускатися, у
+/// журналі буде рядок із назвою схеми й посиланням сюди. Це свідоме рішення, а
+/// не мовчазна відмова.
+#[cfg(target_os = "windows")]
+const ALLOWED_URI_SCHEMES: &[&str] = &[
+    "http",
+    "https",
+    "mailto",
+    "tel",
+    "ms-settings",
+    "ms-windows-store",
+];
+
+/// Запустити ярлик: шлях до файлу, AUMID застосунку зі Store або посилання.
+///
+/// ЩО ЗВІДСИ ПРИБРАНО Й ЧОМУ. Раніше передостаннім кроком стояло ось це:
+///
+/// ```ignore
+/// if path.contains(' ') {
+///     Command::new("cmd").args(["/C", &path]).spawn();
+/// }
+/// ```
+///
+/// Тобто будь-який рядок із пробілом, який не виявився наявним файлом,
+/// виконувався оболонкою. Оболонка розбирає `&`, `|`, `>`, `%VAR%` і лапки, тож
+/// це не «запуск програми з аргументами», а виконання довільної команди — і
+/// дотягнутися до нього можна було з вебвʼю через `invoke`. У застосунку без
+/// CSP, який показує вміст чужих файлів, це означає: будь-який XSS стає
+/// виконанням команди.
+///
+/// Запуск з аргументами лишився — але через `ShellExecute`, який приймає файл і
+/// параметри ОКРЕМИМИ значеннями й нічого в них не розбирає. Форма: шлях у
+/// лапках, далі аргументи (`"C:\Tools\app.exe" --flag`). Те, що не розкладається
+/// у «наявний файл + аргументи», не запускається взагалі й повертає помилку з
+/// поясненням, а не тишу.
 #[tauri::command]
 async fn launch_program_by_path(path: String) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
         use std::path::Path;
-        println!("launch_program_by_path: {}", path);
 
-        // 1. If it looks like an AppID/AUMID (contains '!'), launch via shell:AppsFolder
-        // We do this EARLY to prevent Windows from interpreting 'www.' prefixes as URLs in later steps.
-        if path.contains('!') {
-            let app_path = if path.starts_with("shell:") {
-                path
+        let trimmed = path.trim();
+        if trimmed.is_empty() {
+            return Err("порожній шлях".into());
+        }
+
+        // 1. AUMID застосунку зі Store. Перевіряється ПЕРШИМ: інакше Windows
+        // тлумачить префікс `www.` у такому рядку як адресу.
+        if trimmed.contains('!') {
+            let app_path = if trimmed.starts_with("shell:") {
+                trimmed.to_string()
             } else {
-                format!("shell:AppsFolder\\{}", path)
+                format!("shell:AppsFolder\\{}", trimmed)
             };
-            return launch_via_shell_execute(&app_path);
+            return launch_via_shell_execute(&app_path, None);
         }
 
-        // 2. Detect URI protocol (e.g., ms-settings:, http:)
-        let is_uri = path.contains(':')
-            && !path.contains('\\')
-            && !path.contains('/')
-            && !path.contains(' ');
-
-        // 3. Check if it's a direct file path that exists
-        let path_exists = Path::new(&path).exists();
-
-        if is_uri || path_exists {
-            return launch_via_shell_execute(&path);
+        // 2. Наявний файл або тека — найчастіший випадок, і найдешевший для
+        // перевірки: існування питаємо у файлової системи, а не за виглядом
+        // рядка.
+        if Path::new(trimmed).exists() {
+            return launch_via_shell_execute(trimmed, None);
         }
 
-        // 4. If it has spaces and doesn't exist, it's likely a command with arguments (e.g., shutdown /s)
-        if path.contains(' ') {
-            let _ = Command::new("cmd")
-                .args(["/C", &path])
-                .creation_flags(CREATE_NO_WINDOW)
-                .spawn();
-            return Ok(());
+        // 3. Шлях у лапках плюс аргументи.
+        if let Some((file, args)) = split_quoted_command(trimmed) {
+            if !Path::new(&file).exists() {
+                return Err(format!(
+                    "у лапках указано «{}», але такого файлу немає",
+                    file
+                ));
+            }
+            return launch_via_shell_execute(&file, args.as_deref());
         }
 
-        // 5. Try raw ShellExecute (handles 'control', 'calc', 'notepad', etc.)
-        if launch_via_shell_execute(&path).is_ok() {
-            return Ok(());
+        // 4. Посилання зі схеми з переліку.
+        if let Some(scheme) = uri_scheme(trimmed) {
+            if ALLOWED_URI_SCHEMES.contains(&scheme.as_str()) {
+                return launch_via_shell_execute(trimmed, None);
+            }
+            return Err(format!(
+                "схема «{}:» не в переліку дозволених. Якщо вона потрібна — \
+                 додайте її до ALLOWED_URI_SCHEMES у src-tauri/src/lib.rs",
+                scheme
+            ));
         }
 
-        // 6. Try opening via explorer directly (handles shell aliases like Documents, Downloads, etc.)
-        if Command::new("explorer")
-            .arg(&path)
-            .creation_flags(CREATE_NO_WINDOW)
-            .spawn()
-            .is_ok() 
-        {
-            return Ok(());
+        // 5. Коротке імʼя без роздільників: `notepad`, `calc`, `control`.
+        // Такі розв'язує сам `ShellExecute` через App Paths і PATH.
+        if !trimmed.contains(' ') && !trimmed.contains('\\') && !trimmed.contains('/') {
+            if launch_via_shell_execute(trimmed, None).is_ok() {
+                return Ok(());
+            }
+            // Останній здогад — той самий рядок як AUMID.
+            return launch_via_shell_execute(&format!("shell:AppsFolder\\{}", trimmed), None);
         }
 
-        // 7. Last resort fallback to AppID (AUMID) and try shell:AppsFolder
-        let final_path = if path.starts_with("shell:") {
-            path
-        } else {
-            format!("shell:AppsFolder\\{}", path)
-        };
-
-        return launch_via_shell_execute(&final_path);
+        // 6. Решта — відмова З ПОЯСНЕННЯМ.
+        //
+        // Доти саме сюди потрапляли команди з аргументами, і виконувала їх
+        // оболонка. Тиша була б гіршою за відмову: людина не дізналася б, що
+        // ярлик перестав працювати й чому.
+        Err(format!(
+            "«{}» не є ні наявним файлом, ні посиланням із дозволеної схеми. \
+             Щоб запустити програму з аргументами, візьміть шлях до неї в лапки: \
+             \"C:\\Tools\\app.exe\" --flag",
+            trimmed
+        ))
     }
     #[cfg(not(target_os = "windows"))]
-    Ok(())
+    {
+        let _ = path;
+        Ok(())
+    }
 }
 
+/// Схема посилання (`ms-settings:display` → `ms-settings`), якщо рядок на неї
+/// схожий.
+///
+/// Літера диска — НЕ схема: `C:\Users` дає `c`, і без цієї умови кожен
+/// абсолютний шлях Windows читався б як посилання.
 #[cfg(target_os = "windows")]
-fn launch_via_shell_execute(path: &str) -> Result<(), String> {
+fn uri_scheme(value: &str) -> Option<String> {
+    let colon = value.find(':')?;
+    let scheme = &value[..colon];
+
+    if scheme.len() < 2 {
+        return None;
+    }
+    if !scheme
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '+' || c == '-' || c == '.')
+    {
+        return None;
+    }
+    Some(scheme.to_ascii_lowercase())
+}
+
+/// Розкласти `"C:\Tools\app.exe" --flag` на файл і рядок аргументів.
+///
+/// Лапки обовʼязкові саме тому, що без них розкладання неоднозначне: шляхи
+/// Windows самі містять пробіли, і вгадувати, де закінчується імʼя файлу,
+/// означало б інколи запускати не те.
+#[cfg(target_os = "windows")]
+fn split_quoted_command(value: &str) -> Option<(String, Option<String>)> {
+    let rest = value.strip_prefix('"')?;
+    let end = rest.find('"')?;
+    let file = rest[..end].to_string();
+    let args = rest[end + 1..].trim();
+
+    if file.is_empty() {
+        return None;
+    }
+    Some((file, if args.is_empty() { None } else { Some(args.to_string()) }))
+}
+
+/// Запустити ярлик із теки `Документи/HotPaste/start`.
+///
+/// ЦІЄЇ КОМАНДИ НЕ ІСНУВАЛО, хоч фронтенд кликав її для кожного місцевого
+/// ярлика (`StartMenuState.launchKey`, гілка `type === 'local'`). Невідома
+/// команда відповідає помилкою, помилка потрапляла в `catch` і лягала в
+/// журнал — тобто ціла категорія ярликів не запускалася ніколи, і виглядало це
+/// як «нічого не сталося».
+///
+/// Окрема команда, а не виклик `launch_program_by_path`: місцевий ярлик за
+/// визначенням лежить у СВОЇЙ теці, і перевірити це дешевше, ніж довіряти
+/// рядку з вебвʼю. `canonicalize` тут обовʼязковий — без нього
+/// `start\..\..\..\Windows\System32\cmd.exe` пройшов би перевірку префікса.
+#[tauri::command]
+async fn launch_start_program(app: AppHandle, name: String) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        let root = app
+            .path()
+            .document_dir()
+            .map_err(|e| e.to_string())?
+            .join("HotPaste")
+            .join("start");
+
+        let root = std::fs::canonicalize(&root)
+            .map_err(|_| "теки Документи/HotPaste/start немає".to_string())?;
+        let target = std::fs::canonicalize(&name)
+            .map_err(|_| format!("ярлика «{}» немає", name))?;
+
+        if !target.starts_with(&root) {
+            return Err(format!(
+                "«{}» лежить поза текою Документи/HotPaste/start",
+                name
+            ));
+        }
+
+        launch_via_shell_execute(&target.to_string_lossy(), None)
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = (app, name);
+        Ok(())
+    }
+}
+
+/// `ShellExecuteW` з ОКРЕМИМ рядком параметрів.
+///
+/// Саме окремим, і це головне в цій функції. Оболонка (`cmd /C`) розбирає в
+/// переданому рядку `&`, `|`, `>`, `%VAR%` і лапки — тобто один рядок може
+/// означати кілька команд. `ShellExecuteW` нічого з цим не робить: `file` іде
+/// до системи як імʼя файлу, `params` — до запущеної програми як її
+/// командний рядок. Тому «запустити з аргументами» тут можливо, а «виконати
+/// довільну команду» — ні.
+#[cfg(target_os = "windows")]
+fn launch_via_shell_execute(file: &str, params: Option<&str>) -> Result<(), String> {
     use std::os::windows::ffi::OsStrExt;
     use windows_sys::Win32::UI::Shell::ShellExecuteW;
 
-    let wide_path: Vec<u16> = std::ffi::OsStr::new(path)
-        .encode_wide()
-        .chain(Some(0))
-        .collect();
-    let wide_open: Vec<u16> = std::ffi::OsStr::new("open")
-        .encode_wide()
-        .chain(Some(0))
-        .collect();
+    let to_wide = |value: &str| -> Vec<u16> {
+        std::ffi::OsStr::new(value)
+            .encode_wide()
+            .chain(Some(0))
+            .collect()
+    };
+
+    let wide_file = to_wide(file);
+    let wide_open = to_wide("open");
+    let wide_params = params.map(to_wide);
 
     unsafe {
         let h_instance = ShellExecuteW(
             std::ptr::null_mut(),
             wide_open.as_ptr(),
-            wide_path.as_ptr(),
-            std::ptr::null(),
+            wide_file.as_ptr(),
+            wide_params
+                .as_ref()
+                .map_or(std::ptr::null(), |p| p.as_ptr()),
             std::ptr::null(),
             SW_SHOWNORMAL,
         );
@@ -872,8 +1023,9 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, Some(vec!["--minimized"])))
         .invoke_handler(tauri::generate_handler![
-            launch_program_by_path, get_running_processes, get_system_shortcuts, 
-            get_local_shortcuts, get_system_apps, get_shortcut_icon, get_shortcut_icons_batch, 
+            launch_program_by_path, launch_start_program, get_running_processes,
+            get_system_shortcuts,
+            get_local_shortcuts, get_system_apps, get_shortcut_icon, get_shortcut_icons_batch,
             clear_icon_cache, set_minimal_mode_tauri, hide_window, restart_hook_worker_tauri,
             open_path, save_icon, open_local_shortcuts_folder, open_devtools
         ])

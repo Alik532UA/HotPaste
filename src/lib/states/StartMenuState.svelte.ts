@@ -4,6 +4,7 @@ import { storage } from '../services/storage';
 import type { ShortcutInfo } from '../types';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-shell';
+import { uiState } from '../stores/uiState.svelte';
 
 const fs = new TauriFileSystemService();
 
@@ -206,22 +207,23 @@ class StartMenuState {
 
         try {
             // Strictly define what goes to shell.open (standard web protocols ONLY)
-            const isWebUrl = shortcut.path.startsWith('http://') || 
-                             shortcut.path.startsWith('https://') || 
-                             shortcut.path.startsWith('mailto:') || 
+            const isWebUrl = shortcut.path.startsWith('http://') ||
+                             shortcut.path.startsWith('https://') ||
+                             shortcut.path.startsWith('mailto:') ||
                              shortcut.path.startsWith('tel:');
-            
+
             // Detect if it's any other URI/protocol (e.g. ms-settings:)
-            const isOtherUri = !isWebUrl && shortcut.path.includes(':') && 
-                               !shortcut.path.includes('\\') && 
-                               !shortcut.path.includes('/') && 
+            const isOtherUri = !isWebUrl && shortcut.path.includes(':') &&
+                               !shortcut.path.includes('\\') &&
+                               !shortcut.path.includes('/') &&
                                !shortcut.path.includes(' ');
 
             if (isWebUrl) {
                 await open(shortcut.path);
             } else if (isOtherUri) {
-                // For custom protocols like ms-settings:, always use our Rust handler
-                // which is not subject to Tauri shell plugin security regex.
+                // Схеми на кшталт ms-settings: йдуть у наш обробник, бо перелік
+                // дозволених схем живе там (ALLOWED_URI_SCHEMES у lib.rs), а не
+                // в регулярці плагіна shell.
                 await invoke('launch_program_by_path', { path: shortcut.path });
             } else if (shortcut.type === 'local') {
                 await invoke('launch_start_program', { name: shortcut.path });
@@ -231,7 +233,22 @@ class StartMenuState {
             }
             logService.log('startMenu', `Launched: ${shortcut.name}`);
         } catch (err) {
+            /*
+             * ВІДМОВА ПОКАЗУЄТЬСЯ ЛЮДИНІ, а не лише лягає в журнал.
+             *
+             * Доти цей `catch` лише писав рядок, і це було терпимо, поки
+             * запустити можна було майже все. Тепер обробник свідомо відмовляє
+             * у двох випадках — схема не з переліку, і рядок, який не є ні
+             * наявним файлом, ні посиланням, — і обидва означають «ярлик, який
+             * раніше працював, більше не працює». Мовчазна відмова тут
+             * виглядала б як зламаний застосунок.
+             *
+             * Текст відмови приходить із Rust і називає причину; ярлик —
+             * звідси, бо там його назви немає.
+             */
+            const reason = typeof err === 'string' ? err : String((err as Error)?.message ?? err);
             logService.error('startMenu', `Failed to launch ${shortcut.name}`, err);
+            uiState.showToast(`«${shortcut.name}»: ${reason}`);
         }
     }
 }
