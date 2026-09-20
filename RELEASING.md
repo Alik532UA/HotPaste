@@ -30,6 +30,10 @@ Releases, звіряє підпис і ставить нову версію. Щ�
 npm run tauri signer generate -- -w "$HOME/.tauri/hotpaste.key"
 ```
 
+> Команда інтерактивна — вона двічі спитає пароль. Запускайте її самі в
+> терміналі: ключ підпису не має проходити через чужі руки, зокрема через
+> журнал помічника.
+
 Команда попросить пароль і надрукує дві речі:
 
 - **приватний ключ** — у файлі `~/.tauri/hotpaste.key`. Він ніколи не потрапляє
@@ -50,13 +54,28 @@ npm run tauri signer generate -- -w "$HOME/.tauri/hotpaste.key"
 
 ### 3. Покласти ПРИВАТНИЙ ключ у секрети
 
-**Settings → Secrets and variables → Actions → New repository secret**, два
-секрети:
+Двома командами, без клацання в браузері. Перша читає файл, друга спитає
+пароль і не покаже його на екрані:
 
-| Ім'я | Значення |
-|---|---|
-| `TAURI_SIGNING_PRIVATE_KEY` | увесь вміст файлу `~/.tauri/hotpaste.key` |
-| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | пароль, який ви ввели при генерації |
+```bash
+gh secret set TAURI_SIGNING_PRIVATE_KEY -R Alik532UA/HotPaste < "$HOME/.tauri/hotpaste.key"
+```
+
+```bash
+read -rs -p "Пароль ключа: " KEY_PW && printf '%s' "$KEY_PW" | gh secret set TAURI_SIGNING_PRIVATE_KEY_PASSWORD -R Alik532UA/HotPaste && unset KEY_PW && echo OK
+```
+
+> Друга команда працює в Git Bash. Якщо ви в PowerShell — простіше зробити
+> цей один секрет у браузері: **Settings → Secrets and variables → Actions →
+> New repository secret**, ім'я `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`.
+
+Перевірити:
+
+```bash
+gh secret list -R Alik532UA/HotPaste
+```
+
+Має бути рівно два рядки.
 
 ---
 
