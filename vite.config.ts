@@ -1,7 +1,73 @@
+import { createHash } from 'node:crypto'
 import { defineConfig } from 'vite'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
 import { VitePWA } from 'vite-plugin-pwa'
 import pkg from './package.json'
+
+/**
+ * ПОЛІТИКА БЕЗПЕКИ ВМІСТУ — одна на обидві оболонки.
+ *
+ * Доти її не було НІДЕ: у `tauri.conf.json` стоїть `csp: null`, а в `index.html`
+ * жодного мета-тега. Для сайту це звичайна дірка; для застосунку, який показує
+ * вміст чужих файлів і вміє запускати програми, це означало, що один
+ * пропущений рядок у санітизації розмталки перетворюється на виконання коду з
+ * повним доступом до IPC.
+ *
+ * ## Чому мета-тег, а не `csp` у конфігу Tauri
+ *
+ * Бо оболонок дві, а збірка одна. `csp` у `tauri.conf.json` діє лише у вікні
+ * застосунку — сайт на GitHub Pages лишився б без політики, а задати заголовок
+ * там нікому. Мета-тег діє в обох.
+ *
+ * Це не теорія: так само зроблено в сусідньому `AudioRemote`, де сторінка
+ * взагалі приходить із мережі й несе власну політику, а `csp` у конфігу
+ * дорівнює `null`.
+ *
+ * ## Чому `ipc:` і `http://ipc.localhost`
+ *
+ * У Tauri 2 виклик команди — це ЗВИЧАЙНИЙ мережевий запит на ці адреси, тобто
+ * він підпадає під `connect-src`. Забути їх — і все виглядає справним: вікно
+ * відкривається, сторінка малюється, кнопки на місці й не роблять нічого, а в
+ * консолі лежить порушення політики.
+ *
+ * ## Чому хеш рахується зі ЗБІРКИ, а не вписаний рядком
+ *
+ * Вписаний хеш розходиться з файлом при першому ж редагуванні, і скрипт після
+ * цього блокується МОВЧКИ: сторінка малюється, просто тема не встигає
+ * виставитися до першого кадру. Тут він обчислюється з того самого тексту, що
+ * потрапить у `dist/`.
+ *
+ * Текст нормалізується до LF: розбір HTML замінює CRLF і одиночний CR на LF ще
+ * до появи DOM, і хешує браузер уже нормалізований вузол. Файл, збережений із
+ * CRLF, дав би хеш, що не збігається з жодним скриптом на сторінці.
+ */
+function withContentSecurityPolicy(html: string): string {
+  const inline = [...html.matchAll(/<script(?![^>]*\ssrc=)[^>]*>([\s\S]*?)<\/script>/g)]
+  const hashes = inline.map((match) => {
+    const body = match[1].replace(/\r\n?/g, '\n')
+    return `'sha256-${createHash('sha256').update(body).digest('base64')}'`
+  })
+
+  const policy = [
+    "default-src 'self'",
+    `script-src 'self' ${hashes.join(' ')}`.trim(),
+    // Svelte вставляє стилі компонентів інлайном, а шрифти Google приходять
+    // таблицею стилів. Хеші тут неможливі: вміст складає бандлер у рантаймі.
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    // Українські шрифти лежать поруч; Inter/Arsenal/IBM Plex Mono — у Google.
+    "font-src 'self' https://fonts.gstatic.com",
+    // Іконки програм приходять із Rust рядком base64.
+    "img-src 'self' data: blob:",
+    "connect-src 'self' ipc: http://ipc.localhost",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'"
+  ].join('; ')
+
+  const meta = `<meta http-equiv="Content-Security-Policy" content="${policy}" />`
+  return html.replace('<meta charset="UTF-8" />', `<meta charset="UTF-8" />\n    ${meta}`)
+}
 
 // https://vite.dev/config/
 export default defineConfig(() => ({
@@ -22,7 +88,7 @@ export default defineConfig(() => ({
           if (isDev) {
             return html.replace('<title>HotPaste', '<title>HotPaste-dev');
           }
-          return html;
+          return withContentSecurityPolicy(html);
         }
       };
     })(),
