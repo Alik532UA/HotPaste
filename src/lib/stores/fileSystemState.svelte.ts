@@ -25,18 +25,30 @@ let isConnected = $state(false);
 let rootName = $state('');
 let configSaveTimeout: ReturnType<typeof setTimeout> | null = null;
 
+/**
+ * Тека з минулого сеансу, якій бракує лише дозволу.
+ *
+ * Порожньо — пам'ятати нема чого. Непорожньо — на екрані має бути кнопка
+ * «відновити», бо `requestPermission()` без жесту людини браузер відхиляє
+ * завжди: мовчки відновити доступ тут неможливо в принципі.
+ */
+let pendingRootName = $state('');
+
 // --- Getters ---
 
 export const fsState = {
     get tabs() { return tabs; },
     get isConnected() { return isConnected; },
     get rootName() { return rootName; },
+    get pendingRootName() { return pendingRootName; },
     get activeTab() { return tabs[uiState.activeTabIndex] ?? null; },
     get activeCards() { return this.activeTab?.cards ?? []; },
     
     // Actions
     connectDirectory,
     connectDefaultProject,
+    restoreDirectory,
+    resumeSavedDirectory,
     refreshTabs,
     saveCard,
     deleteCard,
@@ -74,8 +86,47 @@ async function connectDirectory(): Promise<void> {
     const granted = await getFSService().requestAccess();
     if (!granted) return;
 
+    pendingRootName = '';
     isConnected = true;
     rootName = getFSService().getRootName();
+    await refreshTabs();
+}
+
+/**
+ * Відновити теку з минулого сеансу — БЕЗ діалогу, при старті.
+ *
+ * Доти цього не було зовсім: дескриптор теки жив лише в пам'яті сторінки, тож
+ * будь-яке перезавантаження зустрічало людину порожнім екраном і системним
+ * діалогом. Для встановленого як застосунок HotPaste це означало, що кожне
+ * відкриття починалося з вибору теки.
+ *
+ * Мовчки вдається не завжди, і це не збій: браузер питає дозволу окремо, а
+ * `requestPermission()` поза жестом людини відхиляється ЗАВЖДИ. Тому другий
+ * стан тут не «не вийшло», а «потрібне натискання» — і саме його показує
+ * екран.
+ */
+async function restoreDirectory(): Promise<void> {
+    const state = await getFSService().tryRestoreAccess();
+
+    if (state === 'granted') {
+        isConnected = true;
+        rootName = getFSService().getRootName();
+        pendingRootName = '';
+        await refreshTabs();
+        return;
+    }
+
+    pendingRootName = state === 'needs-gesture' ? getFSService().pendingRootName() : '';
+}
+
+/** Другий етап відновлення. Кликати ЛИШЕ з обробника натискання. */
+async function resumeSavedDirectory(): Promise<void> {
+    const granted = await getFSService().restoreAccessWithGesture();
+    if (!granted) return;
+
+    isConnected = true;
+    rootName = getFSService().getRootName();
+    pendingRootName = '';
     await refreshTabs();
 }
 

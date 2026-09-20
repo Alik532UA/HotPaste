@@ -144,6 +144,8 @@ export const setMinimalMode = uiState.setMinimalMode;
 // File System Actions
 export const connectDirectory = fsState.connectDirectory;
 export const connectDefaultProject = fsState.connectDefaultProject;
+export const restoreDirectory = fsState.restoreDirectory;
+export const resumeSavedDirectory = fsState.resumeSavedDirectory;
 export const refreshTabs = fsState.refreshTabs;
 export const saveCard = fsState.saveCard;
 export const deleteCard = fsState.deleteCard;

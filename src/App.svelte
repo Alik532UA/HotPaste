@@ -9,6 +9,7 @@
     refreshTabs,
     setCardView,
     setCardDensity,
+    restoreDirectory,
   } from "./lib/stores/appState.svelte";
   import TabBar from "./lib/components/TabBar.svelte";
   import CardGrid from "./lib/components/CardGrid.svelte";
@@ -217,7 +218,16 @@
 
     background.init();
     initUrlSync();
-    
+
+    /*
+     * Тека з минулого сеансу — без діалогу.
+     *
+     * Доти дескриптор жив лише в пам'яті сторінки, тож перезавантаження
+     * зустрічало людину порожнім екраном і системним вибором теки. У Tauri
+     * виклик нічого не змінює: там тека застосунку постійна.
+     */
+    void restoreDirectory();
+
     // Check for updates on startup
     checkForUpdates();
   });

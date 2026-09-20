@@ -9,6 +9,11 @@ import { HotPasteConfigSchema } from '../schemas/config';
 import { TauriFileSystemService } from './tauriFileSystem';
 import { logService } from './logService.svelte';
 import { isTauri as isTauriRuntime } from '../utils/runtime';
+import {
+    clearDirectoryHandle,
+    loadDirectoryHandle,
+    saveDirectoryHandle
+} from './directoryHandleStore';
 
 export interface IFileSystemService {
     requestAccess(): Promise<boolean>;
@@ -29,7 +34,24 @@ export interface IFileSystemService {
     writeConfig(tabPath: string, config: HotPasteConfig): Promise<void>;
     setProjectRoot(path: string | null): Promise<boolean>;
     openExplorer(path: string): Promise<void>;
+    /**
+     * Спробувати відновити теку з минулого сеансу БЕЗ діалогу.
+     *
+     * Три відповіді, а не дві, і третя — головна:
+     *  * `granted` — доступ є, можна читати;
+     *  * `needs-gesture` — тека пам'ятається, але браузер хоче дозвіл, а
+     *    `requestPermission()` без жесту людини відхиляється завжди. Тобто
+     *    мовчки тут зробити вже нічого не можна, потрібна кнопка;
+     *  * `none` — пам'ятати нема чого.
+     */
+    tryRestoreAccess(): Promise<RestoreState>;
+    /** Другий етап відновлення. Кликати ЛИШЕ з обробника натискання. */
+    restoreAccessWithGesture(): Promise<boolean>;
+    /** Назва теки з минулого сеансу — для підпису кнопки відновлення. */
+    pendingRootName(): string;
 }
+
+export type RestoreState = 'granted' | 'needs-gesture' | 'none';
 
 const SUPPORTED_EXTENSIONS = ['.txt', '.md'];
 
@@ -48,11 +70,76 @@ class LocalFileSystemService implements IFileSystemService {
         logService.warn('FileSystem', 'Open explorer not supported in browser');
     }
 
+    /**
+     * Дескриптор, відновлений зі сховища, якому ще бракує дозволу.
+     *
+     * Тримається окремо від `rootHandle` навмисно: `rootHandle` означає
+     * «читати можна», і покласти сюди дескриптор без дозволу означало б, що
+     * перше ж читання впаде з `NotAllowedError` десь усередині застосунку.
+     */
+    private pendingHandle: FileSystemDirectoryHandle | null = null;
+
+    pendingRootName(): string {
+        return this.pendingHandle?.name ?? '';
+    }
+
+    async tryRestoreAccess(): Promise<RestoreState> {
+        const handle = await loadDirectoryHandle();
+        if (!handle) return 'none';
+
+        try {
+            const state = await (handle as any).queryPermission({ mode: 'readwrite' });
+            if (state === 'granted') {
+                this.rootHandle = handle;
+                this.pendingHandle = null;
+                return 'granted';
+            }
+            if (state === 'prompt') {
+                this.pendingHandle = handle;
+                return 'needs-gesture';
+            }
+            /*
+             * `denied` — людина колись відмовила саме цій теці. Кнопка
+             * відновлення тут не спрацює ніколи, тож пам'ятати її шкідливо:
+             * вона показувала б обіцянку, яку не можна виконати.
+             */
+            await clearDirectoryHandle();
+            return 'none';
+        } catch (error) {
+            // Теку перейменували, видалили або носій від'єднали — дескриптор
+            // став непридатним, і другої спроби не буде.
+            logService.warn('FileSystem', `Saved directory unusable: ${error}`);
+            await clearDirectoryHandle();
+            return 'none';
+        }
+    }
+
+    async restoreAccessWithGesture(): Promise<boolean> {
+        const handle = this.pendingHandle;
+        if (!handle) return false;
+
+        try {
+            const state = await (handle as any).requestPermission({ mode: 'readwrite' });
+            if (state !== 'granted') return false;
+            this.rootHandle = handle;
+            this.pendingHandle = null;
+            return true;
+        } catch (error) {
+            logService.error('FileSystem', `Restore denied: ${error}`);
+            return false;
+        }
+    }
+
     async requestAccess(): Promise<boolean> {
         try {
             this.rootHandle = await (window as any).showDirectoryPicker({
                 mode: 'readwrite'
             });
+            this.pendingHandle = null;
+            // Запам'ятовуємо ОДРАЗУ: діалог — єдина мить, коли дескриптор
+            // точно є, і пропустити її означає знову питати після кожного
+            // перезавантаження.
+            await saveDirectoryHandle(this.rootHandle!);
             return true;
         } catch (err) {
             logService.error('FileSystem', `Directory access denied: ${err}`);

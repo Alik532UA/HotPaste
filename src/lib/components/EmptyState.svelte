@@ -1,7 +1,8 @@
 <script lang="ts">
     import { ClipboardCheck, Play, FolderOpen } from "lucide-svelte";
     import HeroIcon from "./ui/HeroIcon.svelte";
-    import { connectDirectory, connectDefaultProject } from "../stores/appState.svelte";
+    import { connectDirectory, connectDefaultProject, resumeSavedDirectory } from "../stores/appState.svelte";
+    import { fsState } from "../stores/fileSystemState.svelte";
     import { t } from "../i18n";
     import { isTauri as isTauriRuntime } from '../utils/runtime';
 
@@ -26,6 +27,17 @@
 
     async function handleStart() {
         await connectDefaultProject();
+    }
+
+    /**
+     * Другий етап відновлення теки — і саме тому він в обробнику НАТИСКАННЯ.
+     *
+     * `requestPermission()` поза жестом людини браузер відхиляє завжди, тож
+     * винести цей виклик у `onMount` чи в ефект неможливо: він там не
+     * спрацює жодного разу, а виглядатиме як робочий код.
+     */
+    async function handleResume() {
+        await resumeSavedDirectory();
     }
 </script>
 
@@ -88,8 +100,30 @@
                     {t.app.changeDir}
                 </button>
             {:else}
+                <!--
+                    ТЕКА З МИНУЛОГО СЕАНСУ — окремою, головною кнопкою.
+
+                    Вона з'являється тоді, коли дескриптор відновлено зі
+                    сховища, а дозволу бракує. Мовчки взяти його неможливо:
+                    `requestPermission()` поза жестом людини браузер відхиляє
+                    завжди. Тому це не «не вийшло», а «одне натискання» — і
+                    воно мусить бути названим, інакше людина знову піде через
+                    системний вибір теки й нічого не зрозуміє.
+                -->
+                {#if fsState.pendingRootName}
+                    <button
+                        class="connect-btn primary"
+                        onclick={handleResume}
+                        data-testid="btn-resume-directory"
+                    >
+                        <FolderOpen size={20} />
+                        Відкрити «{fsState.pendingRootName}»
+                    </button>
+                {/if}
                 <button
-                    class="connect-btn primary"
+                    class="connect-btn"
+                    class:primary={!fsState.pendingRootName}
+                    class:secondary={!!fsState.pendingRootName}
                     class:hovering={isHoveringConnect}
                     onclick={handleConnect}
                     onmouseenter={() => (isHoveringConnect = true)}
@@ -98,7 +132,7 @@
                     data-testid="btn-connect-directory"
                 >
                     <FolderOpen size={20} />
-                    {t.app.connectBtn}
+                    {fsState.pendingRootName ? t.app.changeDir : t.app.connectBtn}
                 </button>
             {/if}
         </div>

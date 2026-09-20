@@ -3,7 +3,7 @@
  * Uses @tauri-apps/plugin-fs and @tauri-apps/api/path.
  */
 
-import type { IFileSystemService } from './fileSystem';
+import type { IFileSystemService, RestoreState } from './fileSystem';
 import type { Tab, Card, HotPasteConfig } from '../types';
 import { CONFIG_FILENAME } from '../types';
 import { HotPasteConfigSchema } from '../schemas/config';
@@ -95,6 +95,24 @@ export class TauriFileSystemService implements IFileSystemService {
 
     hasAccess(): boolean {
         return true;
+    }
+
+    /*
+     * Відновлювати нічого: тека застосунку — це завжди
+     * `Документи/HotPaste`, і дозволу на неї браузер не питає. Три методи
+     * нижче існують заради спільного інтерфейсу з браузерною версією, де
+     * дескриптор теки живе в IndexedDB й потребує дозволу окремо.
+     */
+    async tryRestoreAccess(): Promise<RestoreState> {
+        return 'granted';
+    }
+
+    async restoreAccessWithGesture(): Promise<boolean> {
+        return true;
+    }
+
+    pendingRootName(): string {
+        return '';
     }
 
     getRootName(): string {
