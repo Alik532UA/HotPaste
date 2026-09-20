@@ -22,7 +22,16 @@
           document.documentElement.setAttribute('data-theme', theme);
         } catch (e) {}
       })();
-      if (window.__TAURI__) {
+      // `__TAURI_INTERNALS__`, а НЕ `__TAURI__`. Другий — це глобальний JS
+      // API, який існує лише при `withGlobalTauri`, а прапорець прибрано: він
+      // віддає сторінці весь API одним об'єктом, доступним будь-якому
+      // сторонньому скрипту без імпорту. `__TAURI_INTERNALS__` є завжди.
+      //
+      // Тут вираз повторюється замість `isTauri()` з `lib/utils/runtime.ts`
+      // навмисно: це інлайн у голові документа, до будь-якого модуля, і сенс
+      // його в тому, щоб клас стояв ДО першого кадру. Інваріант у
+      // `src/runtime.test.ts` стежить, щоб ця копія лишалася єдиною.
+      if (window.__TAURI_INTERNALS__) {
         document.documentElement.classList.add('is-tauri');
       }
     </script>

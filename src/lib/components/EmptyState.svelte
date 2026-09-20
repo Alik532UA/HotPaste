@@ -3,6 +3,7 @@
     import HeroIcon from "./ui/HeroIcon.svelte";
     import { connectDirectory, connectDefaultProject } from "../stores/appState.svelte";
     import { t } from "../i18n";
+    import { isTauri as isTauriRuntime } from '../utils/runtime';
 
     interface Props {
         onConnect?: () => void | Promise<void>;
@@ -13,7 +14,7 @@
     let isHoveringStart = $state(false);
     let isHoveringConnect = $state(false);
 
-    const isTauri = typeof window !== 'undefined' && (!!(window as any).__TAURI_INTERNALS__ || !!(window as any).__TAURI__);
+    const isTauri = isTauriRuntime();
 
     async function handleConnect() {
         if (onConnect) {

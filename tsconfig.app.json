@@ -5,7 +5,17 @@
     "target": "ES2022",
     "useDefineForClassFields": true,
     "module": "ESNext",
-    "types": ["svelte", "vite/client"],
+    /*
+     * `node` тут потрібен інваріантам, які читають ВЛАСНІ джерела:
+     * `src/runtime.test.ts` відкриває `index.html` і можливості Tauri через
+     * `node:fs`. Без цього типу `svelte-check` падає на самому імпорті —
+     * тобто гейт, поставлений заради безпеки, валив би перевірку типів, і
+     * найдешевшим виходом виглядало б прибрати гейт.
+     *
+     * Тип не розширює те, що їде у вебв'ю: `vite` однаково не збирає
+     * `*.test.ts`, а `node:*` у браузерному коді впав би на першому імпорті.
+     */
+    "types": ["svelte", "vite/client", "node"],
     "noEmit": true,
     /**
      * Typecheck JS in `.svelte` and `.js` files by default.

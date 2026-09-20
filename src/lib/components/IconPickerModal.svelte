@@ -6,11 +6,12 @@
   import SearchInput from "./ui/SearchInput.svelte";
   import { t } from "../i18n";
   import { iconService } from "../services/iconService.svelte";
+  import { isTauri as isTauriRuntime } from '../utils/runtime';
 
   const appState = getState();
   const picker = $derived(appState.activeIconPicker);
 
-  const isTauri = typeof window !== "undefined" && (!!(window as any).__TAURI_INTERNALS__ || !!(window as any).__TAURI__);
+  const isTauri = isTauriRuntime();
 
   let searchQuery = $state("");
   let activeTab = $state<"lucide" | "emoji">("lucide");

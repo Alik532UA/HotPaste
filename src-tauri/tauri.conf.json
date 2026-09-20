@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "HotPaste",
-  "version": "0.1.70",
+  "version": "0.1.71",
   "identifier": "com.hotpaste.app",
   "build": {
     "frontendDist": "../dist",
@@ -28,7 +28,6 @@
         "dragDropEnabled": false
       }
     ],
-    "withGlobalTauri": true,
     "security": {
       "csp": null
     }

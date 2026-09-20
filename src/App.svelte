@@ -46,6 +46,7 @@
   import ActionConfirmationModal from "./lib/components/ui/ActionConfirmationModal.svelte";
   import PromptModal from "./lib/components/ui/PromptModal.svelte";
   import LogCopyButton from "./lib/components/ui/LogCopyButton.svelte";
+  import { isTauri as isTauriRuntime } from './lib/utils/runtime';
   import {
     Sparkles,
     Waves,
@@ -80,10 +81,7 @@
   });
 
   // Determine if running in Tauri environment
-  const isTauri = !!(
-    typeof window !== "undefined" &&
-    ((window as any).__TAURI_INTERNALS__ || (window as any).__TAURI__)
-  );
+  const isTauri = isTauriRuntime();
 
   /** Scale dragging logic */
   let isDraggingScale = $state(false);

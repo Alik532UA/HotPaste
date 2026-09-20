@@ -3,13 +3,14 @@ import { documentDir, join, extname } from '@tauri-apps/api/path';
 import { open } from '@tauri-apps/plugin-dialog';
 import { getFSService } from '../stores/fileSystemState.svelte';
 import { logService } from './logService.svelte';
+import { isTauri as isTauriRuntime } from '../utils/runtime';
 
 class IconService {
     iconCache = $state<Record<string, string>>({});
 
     async pickAndSaveIcon(): Promise<string | null> {
         // Check if we're in Tauri
-        const isTauri = typeof window !== "undefined" && (!!(window as any).__TAURI_INTERNALS__ || !!(window as any).__TAURI__);
+        const isTauri = isTauriRuntime();
         if (!isTauri) {
             // Browser fallback
             return new Promise((resolve) => {
@@ -65,7 +66,7 @@ class IconService {
             return base64DataUrl;
         }
 
-        const isTauri = typeof window !== "undefined" && (!!(window as any).__TAURI_INTERNALS__ || !!(window as any).__TAURI__);
+        const isTauri = isTauriRuntime();
         
         try {
             // Extract base64 and determine extension from mime type
@@ -122,7 +123,7 @@ class IconService {
 
         if (this.iconCache[relPath]) return this.iconCache[relPath];
 
-        const isTauri = typeof window !== "undefined" && (!!(window as any).__TAURI_INTERNALS__ || !!(window as any).__TAURI__);
+        const isTauri = isTauriRuntime();
 
         try {
             let blob: Blob;

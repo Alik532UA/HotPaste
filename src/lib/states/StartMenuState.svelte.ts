@@ -5,6 +5,7 @@ import type { ShortcutInfo } from '../types';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-shell';
 import { uiState } from '../stores/uiState.svelte';
+import { isTauri as isTauriRuntime } from '../utils/runtime';
 
 const fs = new TauriFileSystemService();
 
@@ -52,7 +53,7 @@ class StartMenuState {
 
     async refreshShortcuts() {
         // @ts-ignore
-        const isTauri = !!(typeof window !== 'undefined' && (window.__TAURI_INTERNALS__ || window.__TAURI__));
+        const isTauri = isTauriRuntime();
         if (!isTauri) return;
 
         try {

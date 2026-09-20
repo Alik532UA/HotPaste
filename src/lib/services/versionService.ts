@@ -3,6 +3,7 @@ import { storage } from "./storage";
 import { sessionStore } from "./sessionStore";
 import { relaunch } from "@tauri-apps/plugin-process"; // Tauri V2 API
 import { logService } from "./logService.svelte";
+import { isTauri as isTauriRuntime } from '../utils/runtime';
 
 const VERSION_URL = "./app-version.json";
 const LOCAL_V_KEY = "hp_version_current";
@@ -78,7 +79,7 @@ export async function applyUpdateAndDeepClean() {
 
         // 4. Перезапуск
         // @ts-ignore
-        const isTauri = !!(typeof window !== "undefined" && (window.__TAURI_INTERNALS__ || window.__TAURI__));
+        const isTauri = isTauriRuntime();
 
         if (isTauri) {
             await relaunch();

@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "enables the default permissions",
+  "description": "Дозволи вікна: межа між сторінкою й машиною. Кожен рядок нижче — це те, що зможе зробити БУДЬ-ЯКИЙ скрипт, який опиниться у вебв'ю, а не лише наш код. Звідси прибрано три речі, і всі три були ширші за потребу. (1) `shell:allow-execute` з командою `explorer` і аргументом-валідатором `.+` — це «запустити explorer із будь-чим», а explorer радо запускає передане, якщо це програма. (2) Власна область `shell:allow-open` із регулярками `^[a-zA-Z]:\\\\.+` і `^/.+` — тобто дозвіл віддати оболонці будь-який локальний шлях повз `fs:scope`; замість неї стоїть `shell:default`, який дозволяє рівно http(s), mailto і tel, і саме їх застосунок і відкриває. (3) Схема `file:` — нею користувався запасний шлях «показати теку». Потреба, заради якої ці три існували, вузька: показати теку вкладки, а вона завжди в `Документи/HotPaste`. Тепер це робить команда `reveal_in_project`, і межу перевіряє файлова система через `canonicalize`, а не регулярка. Схеми посилань на кшталт `ms-settings:` живуть у переліку `ALLOWED_URI_SCHEMES` у `src/lib.rs`.",
   "windows": [
     "main"
   ],
@@ -14,29 +14,7 @@
     "fs:default",
     "autostart:default",
     "log:default",
-    {
-      "identifier": "shell:allow-open",
-      "allow": [
-        {
-          "schemes": [
-            "https",
-            "http",
-            "mailto",
-            "tel",
-            "file"
-          ]
-        },
-        {
-          "regex": "^(https?|file|mailto|tel|ms-settings):.+"
-        },
-        {
-          "regex": "^[a-zA-Z]:\\\\.+"
-        },
-        {
-          "regex": "^/.+"
-        }
-      ]
-    },
+    "shell:default",
     "fs:allow-read-text-file",
     "fs:allow-write-text-file",
     "fs:allow-read-dir",
@@ -73,20 +51,6 @@
     "process:default",
     "clipboard-manager:default",
     "clipboard-manager:allow-read-text",
-    "dialog:default",
-    {
-      "identifier": "shell:allow-execute",
-      "allow": [
-        {
-          "name": "explorer",
-          "cmd": "explorer",
-          "args": [
-            {
-              "validator": ".+"
-            }
-          ]
-        }
-      ]
-    }
+    "dialog:default"
   ]
 }

@@ -11,6 +11,7 @@
   import { uiState } from "../stores/uiState.svelte";
   import { fade, scale, fly } from "svelte/transition";
   import { untrack } from "svelte";
+  import { isTauri as isTauriRuntime } from '../utils/runtime';
 
   const context = $derived(uiState.activeProgramPicker);
   let searchQuery = $state("");
@@ -26,7 +27,7 @@
   let isLoading = $state(false);
   let icons = $state<Record<string, string>>({});
 
-  const isTauri = typeof window !== "undefined" && !!(window as any).__TAURI_INTERNALS__;
+  const isTauri = isTauriRuntime();
 
   async function openLocalFolder() {
     try {

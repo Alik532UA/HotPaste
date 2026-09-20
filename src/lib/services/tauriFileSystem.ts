@@ -9,7 +9,7 @@ import { CONFIG_FILENAME } from '../types';
 import { HotPasteConfigSchema } from '../schemas/config';
 import * as fs from '@tauri-apps/plugin-fs';
 import * as path from '@tauri-apps/api/path';
-import { open as openShell, Command } from '@tauri-apps/plugin-shell';
+import { invoke } from '@tauri-apps/api/core';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { logService } from './logService.svelte';
 
@@ -104,29 +104,32 @@ export class TauriFileSystemService implements IFileSystemService {
         return 'Documents/HotPaste';
     }
 
+    /**
+     * Показати теку вкладки у провіднику.
+     *
+     * ЧЕРЕЗ КОМАНДУ `reveal_in_project`, а не через плагін оболонки. Доти тут
+     * було два шляхи, і кожен вимагав дозволу, ширшого за потребу:
+     *
+     *  * `Command.create('explorer', [fullPath])` — у можливостях це
+     *    `shell:allow-execute` з аргументом `.+`, тобто «запустити explorer із
+     *    будь-чим». `explorer` радо запускає передане, якщо це програма;
+     *  * запасний `open('file:///…')` — схема `file:` в `shell:allow-open`,
+     *    тобто те саме коротшим шляхом.
+     *
+     * Потреба ж вузька: показати теку, яка завжди лежить у
+     * `Документи/HotPaste`. Тепер межу перевіряє Rust за файловою системою, а
+     * обидва широкі дозволи прибрані з можливостей.
+     *
+     * Запасного шляху немає навмисно: обидва колишні вели в те саме місце
+     * тією самою командою, тож другий не лікував нічого — він лише робив
+     * відмову тихішою.
+     */
     async openExplorer(pathStr: string): Promise<void> {
         try {
             const fullPath = await this.resolvePath(pathStr);
-            // Use 'explorer' command which is allowed in shell:allow-execute
-            // This is more reliable on Windows than openShell with file:///
-            await Command.create('explorer', [fullPath]).execute();
+            await invoke('reveal_in_project', { path: fullPath });
         } catch (err) {
-            logService.error('TauriFS', `Failed to open explorer via command: ${err}`);
-            // Fallback to openShell if explorer command fails
-            try {
-                const fullPath = await this.resolvePath(pathStr);
-                let fileUrl = fullPath;
-                if (!fullPath.startsWith('file://')) {
-                    if (fullPath.includes(':')) {
-                        fileUrl = `file:///${fullPath.replace(/\\/g, '/')}`;
-                    } else {
-                        fileUrl = `file://${fullPath}`;
-                    }
-                }
-                await openShell(fileUrl);
-            } catch (openErr) {
-                logService.error('TauriFS', `Fallback openShell also failed: ${openErr}`);
-            }
+            logService.error('TauriFS', `Failed to reveal in explorer: ${err}`);
         }
     }
 

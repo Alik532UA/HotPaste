@@ -8,6 +8,7 @@ import { CONFIG_FILENAME } from '../types';
 import { HotPasteConfigSchema } from '../schemas/config';
 import { TauriFileSystemService } from './tauriFileSystem';
 import { logService } from './logService.svelte';
+import { isTauri as isTauriRuntime } from '../utils/runtime';
 
 export interface IFileSystemService {
     requestAccess(): Promise<boolean>;
@@ -338,7 +339,7 @@ class LocalFileSystemService implements IFileSystemService {
 export function createFileSystemService(): IFileSystemService {
     // Determine if running in Tauri environment
     // @ts-ignore
-    const isTauri = typeof window !== "undefined" && (window.__TAURI_INTERNALS__ || window.__TAURI__);
+    const isTauri = isTauriRuntime();
     
     if (isTauri) {
         return new TauriFileSystemService();

@@ -11,6 +11,7 @@ import { readText } from '@tauri-apps/plugin-clipboard-manager';
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import type { Card } from '../types';
+import { isTauri as isTauriRuntime } from '../utils/runtime';
 
 /** 
  * Centralized hotkey and global event state handler.
@@ -29,7 +30,7 @@ async function quickPasteFromClipboard() {
         
         // Determine if running in Tauri environment
         // @ts-ignore
-        const isTauri = !!(typeof window !== "undefined" && (window.__TAURI_INTERNALS__ || window.__TAURI__));
+        const isTauri = isTauriRuntime();
 
         if (isTauri) {
             text = await readText();
