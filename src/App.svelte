@@ -43,6 +43,7 @@
   import { fsState } from "./lib/stores/fileSystemState.svelte";
   import { checkForUpdates } from "./lib/services/versionService";
   import UpdateModal from "./lib/components/ui/UpdateModal.svelte";
+  import ReloadPrompt from "./lib/components/ui/ReloadPrompt.svelte";
   import ActionConfirmationModal from "./lib/components/ui/ActionConfirmationModal.svelte";
   import PromptModal from "./lib/components/ui/PromptModal.svelte";
   import LogCopyButton from "./lib/components/ui/LogCopyButton.svelte";
@@ -443,6 +444,7 @@
 <GlobalSettingsModal bind:this={globalSettingsModal} />
 <DebugListener />
 <UpdateModal />
+<ReloadPrompt />
 
 {#if uiState.activeContextMenu}
   <ContextMenu />

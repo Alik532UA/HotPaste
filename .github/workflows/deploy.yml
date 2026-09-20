@@ -2,17 +2,27 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: ["main"]
+  # Ті самі гейти ДО мержу, без публікації: кроки публікації нижче відсікаються
+  # умовою на подію.
+  pull_request:
+    branches: ["main"]
   workflow_dispatch:
 permissions:
   contents: read
   pages: write
   id-token: write
+
+# `cancel-in-progress: false` навмисно. Пуш пачкою комітів разом із `true`
+# скасовує всі проміжні прогони, лишаючи останній: прогін, який УПЕРШЕ виконав
+# би щойно доданий гейт, не завершується ніколи. Гейт при цьому виглядає
+# робочим — він просто не виконувався жодного разу.
 concurrency:
   group: pages
   cancel-in-progress: false
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -23,11 +33,40 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - run: npm run check
-      - run: npm test -- --run
-      - run: npm run build
+
+      - name: Типи
+        run: npm run check
+
+      # `!cancelled()` на кожному гейті: інакше перше падіння ховає решту, і
+      # замість повного списку проблем приходить по одній за прогін.
+      - name: Юніт-перевірки
+        if: ${{ !cancelled() }}
+        run: npm test -- --run
+
+      - name: Збірка
+        id: build
+        if: ${{ !cancelled() }}
+        run: npm run build
+
+      # ЄДИНИЙ ГЕЙТ, ЯКИЙ БАЧИТЬ ТЕ, ЧОГО НЕМАЄ В `src/`.
+      #
+      # Маніфест і service worker генерує плагін зі свого конфігу: джерела
+      # можуть виглядати правильно, а у збірці бути безумовний `skipWaiting()`
+      # (новий воркер забирає відкриту вкладку, а `ReloadPrompt` стає мертвим
+      # кодом), іконка, якої у збірці немає, або адреси, розійдені з `base`.
+      # Жодне з цього не дає видимого симптому на відкритій сторінці.
+      - name: Гейт над збіркою
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: npm run check:build
+
+      - name: Збірка не змінює відстежувані файли
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: git diff --exit-code
+
       - uses: actions/upload-pages-artifact@v3
+        if: ${{ github.event_name != 'pull_request' && steps.build.outcome == 'success' }}
         with:
           path: dist
       - id: deployment
+        if: ${{ github.event_name != 'pull_request' && steps.build.outcome == 'success' }}
         uses: actions/deploy-pages@v4
