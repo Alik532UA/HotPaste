@@ -1,0 +1,74 @@
+name: Нативна частина
+
+# ЧОМУ ОКРЕМИЙ WORKFLOW.
+#
+# Нативну частину доти не збирало ніщо, крім машини автора: `deploy.yml` качає
+# лише веб-версію, а `release.yml` запускається за тегом. Між двома випусками
+# `src-tauri/` міг лежати зламаним місяцями — і дізналися б про це рівно тоді,
+# коли треба випустити, тобто в найгірший момент.
+#
+# Тут же живуть і єдині перевірки на Rust у проєкті. Найгостріше місце
+# застосунку — розбір рядка, що прийшов із вебвʼю, перед запуском програми —
+# доти не перевірялося нічим.
+#
+# Окремо, бо runner windows і компіляція Rust довга: вішати це на кожну правку
+# інтерфейсу означало б платити хвилинами за деплой, який `src-tauri/` не
+# торкається. Звідси фільтр за шляхами.
+on:
+  push:
+    paths:
+      - 'src-tauri/**'
+      - '.github/workflows/shell.yml'
+  pull_request:
+    paths:
+      - 'src-tauri/**'
+      - '.github/workflows/shell.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: shell-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      # МЕЖА «РЯДОК ІЗ ВЕБВʼЮ → ЗАПУСК ПРОГРАМИ» — перший гейт, а не останній.
+      #
+      # `uri_scheme` і `split_quoted_command` вирішують, чи перетвориться XSS
+      # у застосунку на виконання довільного коду. Помилка в них не падає й не
+      # світиться в журналі — вона просто пропускає те, що мала відкинути.
+      - name: Перевірки на Rust
+        working-directory: src-tauri
+        run: cargo test --lib
+
+      - name: Збірка нативної частини
+        if: ${{ !cancelled() }}
+        working-directory: src-tauri
+        run: cargo build --locked
+
+      # Попередження тут — помилка: інакше вони накопичуються, і наступний
+      # читач перестає їх читати. Два відомі винятки названі поіменно в коді
+      # (`collapsible_match` у гаку, `zombie_processes` у запуску гака), і
+      # кожен із причиною.
+      - name: Ідіоми Rust
+        if: ${{ !cancelled() }}
+        working-directory: src-tauri
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Формат Rust
+        if: ${{ !cancelled() }}
+        working-directory: src-tauri
+        run: cargo fmt --check
