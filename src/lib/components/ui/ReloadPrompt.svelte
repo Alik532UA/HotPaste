@@ -3,6 +3,7 @@
     import { useRegisterSW } from 'virtual:pwa-register/svelte';
     import { isTauri } from '../../utils/runtime';
     import { logService } from '../../services/logService.svelte';
+    import { CHECK_EVERY_MS, createUpdateSchedule } from '../../services/updateCheck';
     import { RefreshCw, X } from 'lucide-svelte';
 
     /**
@@ -41,12 +42,8 @@
      * спільного проміжку одне переключення вікна дає два запити поспіль.
      */
 
-    const CHECK_EVERY_MS = 30 * 60 * 1000;
-    const MIN_GAP_MS = 60 * 1000;
-
     let timer: ReturnType<typeof setInterval> | null = null;
     let unwatch: (() => void) | null = null;
-    let lastCheckAt = 0;
 
     const { needRefresh, updateServiceWorker } = useRegisterSW({
         // Єдина умова: у вікні застосунку воркера не реєструємо взагалі.
@@ -54,20 +51,26 @@
         onRegisteredSW(_url, registration) {
             if (!registration) return;
 
-            const tick = () => {
-                if (navigator.onLine === false) return;
-                const now = Date.now();
-                if (lastCheckAt !== 0 && now - lastCheckAt < MIN_GAP_MS) return;
-                lastCheckAt = now;
+            /*
+             * Сам РОЗКЛАД живе в `updateCheck.ts`, і винесений він не заради
+             * охайності: доти три змінні й умова проміжку сиділи тут, у
+             * замиканні, тобто перевірити їх можна було лише змонтувавши
+             * компонент і зареєструвавши справжній воркер. Правило «повернення
+             * до вікна піднімає ДВІ події» неочевидне рівно настільки, щоб його
+             * спростили при наступній правці — а ламається воно тихо.
+             */
+            const schedule = createUpdateSchedule({
+                now: () => Date.now(),
+                online: () => navigator.onLine !== false,
                 // Мережа впала — це не подія для людини: пропозиція просто не
                 // з'явиться, а наступний тік спробує знову.
-                void registration.update().catch(() => {});
-            };
+                update: () => void registration.update().catch(() => {})
+            });
 
-            timer = setInterval(tick, CHECK_EVERY_MS);
+            timer = setInterval(() => schedule.tick(), CHECK_EVERY_MS);
 
             const onReturn = () => {
-                if (document.visibilityState === 'visible') tick();
+                if (document.visibilityState === 'visible') schedule.tick();
             };
             document.addEventListener('visibilitychange', onReturn);
             window.addEventListener('focus', onReturn);

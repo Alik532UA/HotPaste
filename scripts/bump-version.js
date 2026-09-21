@@ -27,12 +27,51 @@ try {
         cargo = cargo.replace(/^version = ".*"/m, `version = "${version}"`);
         fs.writeFileSync(cargoPath, cargo);
         
-        // СИНХРОНІЗАЦІЯ Cargo.lock: Запускаємо cargo update для оновлення версії в lock-файлі
+        /*
+         * СИНХРОНІЗАЦІЯ Cargo.lock — і чому тут тепер ДВА шляхи.
+         *
+         * Доти був один: `cargo update --workspace`, а невдача ловилася в
+         * `catch` і давала попередження «можливо, Rust не встановлено». Рівно
+         * це й ставалося на машині, де `cargo` не в системному PATH (а в
+         * Windows після `rustup` він саме там і не з'являється в усіх
+         * оболонках). Попередження в потоці виводу хука ніхто не читає.
+         *
+         * Наслідок був не косметичний: `Cargo.toml` їхав на нову версію, а
+         * `Cargo.lock` лишався на старій. Збірка з `--locked` — та, що стоїть
+         * у `shell.yml` і в будь-якому відтворюваному релізі — після цього
+         * ПАДАЄ з «cannot update the lock file because --locked was passed».
+         * Тобто кожен коміт, зроблений без cargo в PATH, ламав релізну збірку,
+         * і побачити це можна було лише в CI.
+         *
+         * Запасний шлях не потребує cargo взагалі: версія самого пакета в
+         * lock-файлі — це один рядок під `name = "hotpaste"`, і залежностей
+         * він не стосується. Переписати його текстом безпечно рівно тому, що
+         * дерево залежностей при бампі власної версії не міняється.
+         */
+        const cargoLockPath = "src-tauri/Cargo.lock";
+        let locked = false;
         try {
             console.log("📦 Синхронізація Cargo.lock...");
             execSync("cd src-tauri && cargo update --workspace", { stdio: "inherit" });
-        } catch (e) {
-            console.warn("⚠️ Не вдалося оновити Cargo.lock автоматично. Можливо, Rust не встановлено.");
+            locked = true;
+        } catch {
+            console.warn("⚠️ cargo недоступний — правлю Cargo.lock текстом.");
+        }
+
+        if (!locked && fs.existsSync(cargoLockPath)) {
+            const lock = fs.readFileSync(cargoLockPath, "utf8");
+            const patched = lock.replace(
+                /(name = "hotpaste"\r?\nversion = )"[^"]*"/,
+                `$1"${version}"`
+            );
+            if (patched === lock) {
+                // Форма файлу змінилася — мовчати не можна: саме мовчання й
+                // зробило попередню поломку невидимою.
+                console.error("❌ У Cargo.lock не знайдено версії пакета hotpaste.");
+                process.exit(1);
+            }
+            fs.writeFileSync(cargoLockPath, patched);
+            console.log("✅ Cargo.lock синхронізовано без cargo.");
         }
     }
 
