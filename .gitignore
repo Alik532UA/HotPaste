@@ -27,3 +27,6 @@ dist-ssr
 test-prompts
 .private/
 .read_for_AI/
+# Playwright
+test-results
+playwright-report
