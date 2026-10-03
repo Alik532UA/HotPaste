@@ -25,15 +25,17 @@ export interface ReportContext {
 	nowIso: string;
 }
 
-const ORDER: Record<Vote, number> = { fail: 0, weird: 1, ok: 2 };
+const ORDER: Record<Vote, number> = { ok: 0, fail: 1, unclear: 2, skip: 3, weird: 2 };
 
 export function buildReport(marks: Marks, ctx: ReportContext): string {
 	const uk = ctx.lang === 'uk';
 
 	const label: Record<Vote, string> = {
+		ok: uk ? 'ПРАЦЮЄ' : 'WORKS',
 		fail: uk ? 'НЕ ПРАЦЮЄ' : 'BROKEN',
-		weird: uk ? 'ПРАЦЮЄ, АЛЕ ДИВНО' : 'WORKS, BUT ODD',
-		ok: uk ? 'ПРАЦЮЄ' : 'WORKS'
+		unclear: uk ? 'НЕ ЗРОЗУМІЛО' : 'UNCLEAR',
+		skip: uk ? 'ПРОПУЩЕНО' : 'SKIPPED',
+		weird: uk ? 'НЕ ЗРОЗУМІЛО' : 'UNCLEAR'
 	};
 
 	const staleNote = uk ? 'позначено на версії' : 'marked on version';

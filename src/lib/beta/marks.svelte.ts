@@ -11,7 +11,7 @@ import { ALL_CHECKS, BETA_TABS, type BetaTab } from './checks';
  * підписується й не рахується в «зроблено на цій».
  */
 
-export type Vote = 'fail' | 'weird' | 'ok';
+export type Vote = 'ok' | 'fail' | 'unclear' | 'skip' | 'weird';
 
 export interface Mark {
 	vote: Vote;
@@ -25,7 +25,7 @@ export const VERSION: string = __APP_VERSION__;
 
 const STORAGE_KEY = 'beta_marks';
 
-const VOTES: readonly string[] = ['fail', 'weird', 'ok'];
+const VOTES: readonly string[] = ['ok', 'fail', 'unclear', 'skip', 'weird'];
 
 const isMark = (value: unknown): value is Mark => {
 	if (typeof value !== 'object' || value === null) return false;
@@ -48,7 +48,10 @@ export function trusted(raw: unknown, known: ReadonlySet<string> = KNOWN): Marks
 	if (typeof raw !== 'object' || raw === null) return {};
 	const out: Marks = {};
 	for (const [id, value] of Object.entries(raw as Record<string, unknown>)) {
-		if (known.has(id) && isMark(value)) out[id] = value;
+		if (known.has(id) && isMark(value)) {
+			const vote = (value.vote === 'weird' ? 'unclear' : value.vote) as Vote;
+			out[id] = { vote, version: value.version };
+		}
 	}
 	return out;
 }

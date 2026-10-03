@@ -32,6 +32,24 @@
 	let copied = $state(false);
 	let fallback = $state('');
 
+	function selectTab(item: BetaTab) {
+		tab = item;
+		if (typeof window !== 'undefined') {
+			const url = new URL(window.location.href);
+			url.searchParams.set('tab', item.id);
+			window.history.replaceState(window.history.state, '', url.href);
+		}
+	}
+
+	$effect(() => {
+		if (typeof window === 'undefined') return;
+		const param = new URL(window.location.href).searchParams.get('tab');
+		if (param) {
+			const found = BETA_TABS.find((candidate) => candidate.id === param);
+			if (found) tab = found;
+		}
+	});
+
 	const uk = $derived(language.current === 'uk');
 	const say = (u: string, e: string) => (uk ? u : e);
 
@@ -82,9 +100,11 @@
 
 	const voteName = (vote: Vote) =>
 		({
+			ok: say('Працює', 'Works'),
 			fail: say('Не працює', 'Broken'),
-			weird: say('Дивно', 'Odd'),
-			ok: say('Працює', 'Works')
+			unclear: say('Не зрозуміло', 'Unclear'),
+			skip: say('Пропустити', 'Skip'),
+			weird: say('Не зрозуміло', 'Unclear')
 		})[vote];
 
 	async function copyReport() {
@@ -170,7 +190,7 @@
 				class="beta__tab"
 				class:beta__tab--on={item.id === tab.id}
 				aria-pressed={item.id === tab.id}
-				onclick={() => (tab = item)}
+				onclick={() => selectTab(item)}
 				data-testid="beta-tab-{item.id}-btn"
 			>
 				{uk ? item.title.uk : item.title.en}
@@ -211,7 +231,7 @@
 						{@const tid = tidOf(check.id)}
 						{@const mark = betaMarks.fresh(check.id)}
 						<li
-							class="beta__item"
+							class="beta__item beta__item--{mark?.vote ?? 'none'}"
 							class:beta__item--marked={mark !== null}
 							data-testid="beta-check-{tid}-item"
 						>
@@ -242,7 +262,7 @@
 							{/if}
 
 							<div class="beta__votes">
-								{#each ['fail', 'weird', 'ok'] as const as vote (vote)}
+								{#each ['ok', 'fail', 'unclear', 'skip'] as const as vote (vote)}
 									<button
 										type="button"
 										class="beta__vote beta__vote--{vote}"
@@ -417,10 +437,15 @@
 	}
 
 	.beta__item {
+		--vote-ok: #22c55e;
+		--vote-fail: #ef4444;
+		--vote-unclear: #eab308;
+		--vote-skip: #3b82f6;
 		padding: 0.7rem;
-		border: 1px solid var(--border-color, currentColor);
+		border: 2px solid var(--border-color, currentColor);
 		border-left-width: 4px;
 		border-radius: 10px;
+		transition: border-color 0.15s ease;
 	}
 
 	/*
@@ -430,6 +455,22 @@
 	 */
 	.beta__item--marked {
 		border-left-width: 10px;
+	}
+
+	.beta__item--ok {
+		border-color: var(--vote-ok);
+	}
+
+	.beta__item--fail {
+		border-color: var(--vote-fail);
+	}
+
+	.beta__item--unclear {
+		border-color: var(--vote-unclear);
+	}
+
+	.beta__item--skip {
+		border-color: var(--vote-skip);
 	}
 
 	.beta__category {
@@ -470,8 +511,33 @@
 		margin-top: 0.5rem;
 	}
 
+	.beta__vote {
+		--vote-color: currentColor;
+		border-color: color-mix(in srgb, var(--vote-color) 35%, var(--border-color, currentColor));
+		background: color-mix(in srgb, var(--vote-color) 8%, var(--bg-secondary, transparent));
+		transition: border-color 0.15s, background-color 0.15s;
+	}
+
+	.beta__vote--ok {
+		--vote-color: #22c55e;
+	}
+
+	.beta__vote--fail {
+		--vote-color: #ef4444;
+	}
+
+	.beta__vote--unclear {
+		--vote-color: #eab308;
+	}
+
+	.beta__vote--skip {
+		--vote-color: #3b82f6;
+	}
+
 	.beta__vote--on {
-		border-width: 3px;
+		border-width: 4px;
+		border-color: var(--vote-color);
+		background: color-mix(in srgb, var(--vote-color) 18%, var(--bg-secondary, transparent));
 		font-weight: 700;
 	}
 
