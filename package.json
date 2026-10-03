@@ -1,7 +1,7 @@
 {
   "name": "hotpaste",
   "private": true,
-  "version": "0.1.83",
+  "version": "0.1.84",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -17,7 +17,8 @@
     "test": "vitest",
     "prepare": "husky install",
     "check:build": "node scripts/check-build.mjs",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "audit:ci": "node scripts/check-audit.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
