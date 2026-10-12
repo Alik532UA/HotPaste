@@ -1,17 +1,14 @@
+import { storage } from "./storage";
+
 /**
  * Debug mode state for HotPaste.
  * 3-state: true (forced on), false (forced off), null (default: dev=true, prod=false).
  */
-const KEY = "hotpaste_debug_mode";
+const KEY = "debug_mode";
 
 function readSaved(): boolean | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const val = window.localStorage.getItem(KEY);
-    return val === "1" ? true : val === "0" ? false : null;
-  } catch {
-    return null;
-  }
+  const val = storage.get(KEY);
+  return val === "1" ? true : val === "0" ? false : null;
 }
 
 class DebugMode {
@@ -24,11 +21,7 @@ class DebugMode {
 
   set(value: boolean): void {
     this.saved = value;
-    try {
-      window.localStorage.setItem(KEY, value ? "1" : "0");
-    } catch {
-      // ignore quota/storage error
-    }
+    storage.set(KEY, value ? "1" : "0");
   }
 
   toggle(): boolean {

@@ -15,7 +15,7 @@ interface LogEntry {
 }
 
 const MAX_LOGS = 1000;
-const SESSION_STORAGE_KEY = "hotpaste_logs";
+const SESSION_STORAGE_KEY = "logs";
 let logs = $state<LogEntry[]>([]);
 let errorCount = $state(0);
 

@@ -1,37 +1,77 @@
 const PREFIX = "hotpaste_";
 
+const toKey = (key: string): string =>
+  key.startsWith(PREFIX) ? key : PREFIX + key;
+
+function getSession(): Storage | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.sessionStorage;
+  } catch {
+    return null;
+  }
+}
+
 export const sessionStore = {
   get(key: string): string | null {
-    if (typeof window === "undefined") return null;
-    return sessionStorage.getItem(PREFIX + key);
-  },
-  set(key: string, value: string): void {
-    if (typeof window === "undefined") return;
-    sessionStorage.setItem(PREFIX + key, value);
-  },
-  remove(key: string): void {
-    if (typeof window === "undefined") return;
-    sessionStorage.removeItem(PREFIX + key);
-  },
-  clear(): void {
-    if (typeof window === "undefined") return;
-    const keysToRemove: string[] = [];
-    for (let i = 0; i < sessionStorage.length; i++) {
-      const key = sessionStorage.key(i);
-      if (key?.startsWith(PREFIX)) keysToRemove.push(key);
-    }
-    keysToRemove.forEach((k) => sessionStorage.removeItem(k));
-  },
-  getJSON<T>(key: string): T | null {
-    const raw = this.get(key);
-    if (raw === null) return null;
+    const s = getSession();
+    if (!s) return null;
     try {
-      return JSON.parse(raw) as T;
+      return s.getItem(toKey(key));
     } catch {
       return null;
     }
   },
-  setJSON(key: string, value: unknown): void {
-    this.set(key, JSON.stringify(value));
+  set(key: string, value: string): boolean {
+    const s = getSession();
+    if (!s) return false;
+    try {
+      s.setItem(toKey(key), value);
+      return true;
+    } catch {
+      return false;
+    }
+  },
+  remove(key: string): void {
+    const s = getSession();
+    if (!s) return;
+    try {
+      s.removeItem(toKey(key));
+    } catch {
+      // ignore
+    }
+  },
+  clear(): number {
+    const s = getSession();
+    if (!s) return 0;
+    try {
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < s.length; i++) {
+        const k = s.key(i);
+        if (k?.startsWith(PREFIX)) keysToRemove.push(k);
+      }
+      keysToRemove.forEach((k) => s.removeItem(k));
+      return keysToRemove.length;
+    } catch {
+      return 0;
+    }
+  },
+  getJSON<T>(key: string, isValid?: (val: unknown) => val is T): T | null {
+    const raw = this.get(key);
+    if (raw === null) return null;
+    try {
+      const parsed = JSON.parse(raw);
+      if (isValid && !isValid(parsed)) return null;
+      return parsed as T;
+    } catch {
+      return null;
+    }
+  },
+  setJSON(key: string, value: unknown): boolean {
+    try {
+      return this.set(key, JSON.stringify(value));
+    } catch {
+      return false;
+    }
   },
 };
