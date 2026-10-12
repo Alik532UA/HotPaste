@@ -1,102 +1,76 @@
 <script lang="ts">
     import { Copy, Check } from 'lucide-svelte';
     import { logService } from '../../services/logService.svelte';
+    import { debugMode } from '../../services/debugMode.svelte';
     import { fade, scale } from 'svelte/transition';
 
     /**
-     * FAB component to copy debug logs.
+     * Service badge / Log Copy button for HotPaste (DEBUGGING-v10 § 2).
      * Visibility:
-     * - In DEV: Always visible.
-     * - In PROD: Hidden by default, unless forceShow is true OR there are errors.
+     * - In DEV: Always visible (carrying version number).
+     * - In PROD: Hidden by default, visible on ?debug=1, debugMode (localStorage), or 55x KeyV.
      */
-    let { forceShow = false } = $props<{ forceShow?: boolean }>();
-
     let copied = $state(false);
-    let errorCount = $derived(logService.errorCount);
-    
-    // Visibility logic: only visible in DEV AND when there are errors (or forced)
-    let isVisible = $derived((import.meta.env.DEV && errorCount > 0) || forceShow);
+    let fallbackReport = $state<string | null>(null);
+    let copyTimer: ReturnType<typeof setTimeout> | undefined;
 
-    /** Fetch version with cache busting */
-    async function getAppVersion(): Promise<string> {
-        try {
-            const res = await fetch(`./app-version.json?t=${Date.now()}`, { cache: "no-store" });
-            const data = await res.json();
-            return data.version || logService.appVersion;
-        } catch (e) {
-            return logService.appVersion;
-        }
-    }
+    const errorCount = $derived(logService.errorCount);
+    const appVersion = $derived(logService.appVersion);
+
+    const urlDebug = $derived(
+        typeof window !== 'undefined' &&
+        new URLSearchParams(window.location.search).get('debug') === '1'
+    );
+    const isVisible = $derived(urlDebug || debugMode.enabled);
 
     async function handleCopy() {
-        if (copied) return;
-
+        const report = logService.getReport();
         try {
-            const version = await getAppVersion();
-            const header = [
-                '--- REPORT from Copy LOG button ---',
-                `DATE: ${new Date().toLocaleString()}`,
-                `URL: ${window.location.href}`,
-                `DEVICE: ${navigator.userAgent}`,
-                `VERSION: ${version}`,
-                '---'
-            ].join('\n');
-
-            const logs = logService.getRecentLogsText();
-            const report = `${header}\n${logs}`;
-
-            // Robust copy to clipboard
             if (navigator.clipboard && window.isSecureContext) {
                 await navigator.clipboard.writeText(report);
             } else {
-                const textArea = document.createElement("textarea");
-                textArea.value = report;
-                textArea.style.position = "fixed";
-                textArea.style.left = "-9999px";
-                textArea.style.top = "-9999px";
-                document.body.appendChild(textArea);
-                textArea.focus();
-                textArea.select();
-                try {
-                    document.execCommand('copy');
-                } catch (err) {
-                    console.error('Fallback copy failed', err);
-                }
-                textArea.remove();
+                throw new Error('Clipboard API unavailable in this context');
             }
-
+            fallbackReport = null;
             copied = true;
-            setTimeout(() => (copied = false), 1000);
+            if (copyTimer) clearTimeout(copyTimer);
+            copyTimer = setTimeout(() => (copied = false), 1500);
         } catch (err) {
-            logService.error('LogCopyButton', `Failed to copy logs: ${err}`);
+            logService.warn('LogCopyButton', 'Failed to copy logs to clipboard', err);
+            fallbackReport = report;
         }
     }
 </script>
 
+{#if fallbackReport}
+    <textarea
+        class="log-fallback"
+        readonly
+        value={fallbackReport}
+        aria-label="Debug report fallback"
+        data-testid="debug-log-fallback-input"
+    ></textarea>
+{/if}
+
 {#if isVisible}
     <button 
+        type="button"
         class="log-copy-fab" 
         class:has-error={errorCount > 0} 
         class:is-copied={copied}
         onclick={handleCopy}
         transition:fade={{ duration: 200 }}
-        aria-label="Copy Logs"
-        title={errorCount > 0 ? `${errorCount} errors found in logs` : "Copy debug logs"}
-        data-testid="log-copy-fab"
+        aria-label="Copy debug report — {appVersion}"
+        data-testid="app-version-value"
     >
-        <div class="icon-wrapper">
-            {#if copied}
-                <div in:scale={{ duration: 200, start: 0.5 }}>
-                    <Check class="fab-icon" strokeWidth={3} />
-                </div>
-            {:else if errorCount > 0}
-                <span class="error-count" in:scale={{ duration: 200, start: 0.5 }}>
-                    {errorCount > 99 ? '!!' : errorCount}
-                </span>
-            {:else}
-                <Copy class="fab-icon" />
-            {/if}
-        </div>
+        {#if copied}
+            <Check class="fab-icon" size={14} />
+        {:else if errorCount > 0}
+            <span class="error-count">{errorCount > 99 ? '99+' : errorCount}</span>
+        {:else}
+            <Copy class="fab-icon" size={12} />
+        {/if}
+        <span class="version">{appVersion}</span>
     </button>
 {/if}
 
@@ -105,94 +79,85 @@
         position: fixed;
         bottom: 24px;
         left: 24px;
-        width: 32px;
-        height: 32px;
-        border-radius: 50%;
-        background: var(--color-surface-2);
-        color: var(--color-text-secondary);
-        border: 1.5px solid var(--color-border);
+        min-height: 32px;
+        padding: 0 10px;
+        border-radius: 16px;
+        background: var(--color-surface-2, #242424);
+        color: var(--color-text-secondary, #cccccc);
+        border: 1.5px solid var(--color-border, #444444);
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
         display: flex;
         align-items: center;
         justify-content: center;
+        gap: 6px;
         cursor: pointer;
         z-index: 9999;
         transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        padding: 0;
+        font-family: inherit;
         outline: none;
     }
 
     .log-copy-fab:hover {
-        transform: scale(1.1);
-        background: var(--color-surface-3);
-        color: var(--color-text-primary);
-        border-color: var(--color-text-muted);
-    }
-
-    .log-copy-fab:active {
-        transform: scale(0.9);
+        transform: scale(1.05);
+        background: var(--color-surface-3, #333333);
+        color: var(--color-text-primary, #ffffff);
     }
 
     .log-copy-fab.has-error {
-        background: var(--color-danger, #ff4b4b);
-        border-color: rgba(255, 255, 255, 0.3);
-        color: white;
-        box-shadow: 0 0 10px rgba(255, 75, 75, 0.4);
+        background: #c92a2a;
+        border-color: #7f1d1d;
+        color: #ffffff;
     }
 
     .log-copy-fab.is-copied {
-        background: var(--color-success, #22c55e);
-        border-color: rgba(255, 255, 255, 0.3);
-        color: white;
-    }
-
-    .icon-wrapper {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 100%;
-        height: 100%;
-    }
-
-    :global(.fab-icon) {
-        width: 16px;
-        height: 16px;
+        background: #237a35;
+        border-color: #1b5e20;
+        color: #ffffff;
     }
 
     .error-count {
-        font-family: var(--font-mono, monospace);
-        font-weight: 900;
+        font-family: monospace;
+        font-weight: 800;
+        font-size: 10px;
+        padding: 2px 5px;
+        border-radius: 8px;
+        background: #7f1d1d;
+        color: white;
+    }
+
+    .version {
+        font-family: monospace;
         font-size: 11px;
-        letter-spacing: -0.5px;
+        line-height: 1;
+        white-space: nowrap;
     }
 
-    /* Animation for error state */
-    .log-copy-fab.has-error:not(.is-copied) {
-        animation: pulse-red 2s infinite;
+    .log-fallback {
+        position: fixed;
+        bottom: 76px;
+        left: 24px;
+        width: min(38rem, calc(100vw - 48px));
+        height: min(40dvh, 20rem);
+        z-index: 9999;
+        padding: 8px;
+        font-family: monospace;
+        font-size: 0.75rem;
+        background: #1e1e1e;
+        color: #ffffff;
+        border: 2px solid #ef4444;
+        border-radius: 8px;
+        resize: none;
     }
 
-    @keyframes pulse-red {
-        0% { box-shadow: 0 0 0 0 rgba(255, 75, 75, 0.5); }
-        70% { box-shadow: 0 0 0 6px rgba(255, 75, 75, 0); }
-        100% { box-shadow: 0 0 0 0 rgba(255, 75, 75, 0); }
-    }
-
-    /* Mobile adjustments */
-    @media (max-width: 600px) {
+    @media (hover: none) {
         .log-copy-fab {
-            bottom: 16px;
-            left: 16px;
-            width: 24px;
-            height: 24px;
+            min-height: 44px;
+            padding: 0 14px;
+            border-radius: 22px;
         }
 
-        :global(.fab-icon) {
-            width: 12px;
-            height: 12px;
-        }
-
-        .error-count {
-            font-size: 9px;
+        .version {
+            font-size: 12px;
         }
     }
 </style>

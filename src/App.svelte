@@ -48,7 +48,17 @@
   import ActionConfirmationModal from "./lib/components/ui/ActionConfirmationModal.svelte";
   import PromptModal from "./lib/components/ui/PromptModal.svelte";
   import LogCopyButton from "./lib/components/ui/LogCopyButton.svelte";
+  import { createKeySequence } from "./lib/services/keySequence";
+  import { debugMode } from "./lib/services/debugMode.svelte";
   import { isTauri as isTauriRuntime } from './lib/utils/runtime';
+
+  const versionSequence = createKeySequence({
+    code: 'KeyV',
+    threshold: () => debugMode.pressesToToggle,
+    onComplete: () => {
+      debugMode.toggle();
+    }
+  });
   import {
     Sparkles,
     Waves,
@@ -128,6 +138,7 @@
   }
 
   function onKeydown(e: KeyboardEvent) {
+    versionSequence.handle(e);
     // F12 to open devtools in production
     if (e.key === "F12" && isTauri) {
       import("@tauri-apps/api/core").then(({ invoke }) => {

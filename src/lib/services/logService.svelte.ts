@@ -14,10 +14,29 @@ interface LogEntry {
     data?: unknown[];
 }
 
-const MAX_LOGS = 500;
+const MAX_LOGS = 1000;
 const SESSION_STORAGE_KEY = 'hotpaste_logs';
 let logs = $state<LogEntry[]>([]);
 let errorCount = $state(0);
+
+const EMAIL_REGEX = /[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+/g;
+const SENSITIVE_PARAM = /^(token|access_token|code|state|key|api_?key|password|email)$/i;
+
+export function maskText(str: string): string {
+    return str.replace(EMAIL_REGEX, '***@***.***');
+}
+
+export function scrubUrl(raw: string): string {
+    try {
+        const url = new URL(raw);
+        for (const name of [...url.searchParams.keys()]) {
+            if (SENSITIVE_PARAM.test(name)) url.searchParams.set(name, 'REDACTED');
+        }
+        return url.toString();
+    } catch {
+        return maskText(raw);
+    }
+}
 
 // Initialize from sessionStorage
 if (typeof window !== 'undefined') {
@@ -101,7 +120,7 @@ export const logService = {
             timestamp: new Date(),
             level,
             category: category.toUpperCase(),
-            message,
+            message: maskText(message),
             data: data.length > 0 ? data : undefined
         };
 
@@ -160,6 +179,21 @@ export const logService = {
             }, 2) : '';
             return `[${e.timestamp.toISOString()}] [${e.level.toUpperCase()}] [${e.category}] ${e.message} ${dataStr}`;
         }).join('\n');
+    },
+
+    getReport(): string {
+        const inBrowser = typeof window !== 'undefined';
+        const header = [
+            '--- LOG REPORT ---',
+            `DATE: ${new Date().toISOString()}`,
+            `VERSION: ${this.appVersion}`,
+            `URL: ${inBrowser ? scrubUrl(window.location.href) : 'SSR'}`,
+            `DEVICE: ${inBrowser ? navigator.userAgent : 'SSR'}`,
+            `ONLINE: ${inBrowser ? navigator.onLine : 'n/a'}`,
+            `ERRORS: ${errorCount}`,
+            '---'
+        ].join('\n');
+        return `${header}\n${this.getRecentLogsText()}`;
     },
 
     clear() {
