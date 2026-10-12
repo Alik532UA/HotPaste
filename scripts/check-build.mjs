@@ -48,6 +48,7 @@ const read = (file) => readFileSync(join(DIST, file), 'utf8');
 // ─── Service worker ──────────────────────────────────────────────────────────
 
 check('воркер зібраний', existsSync(join(DIST, 'sw.js')), 'файл sw.js у dist/ відсутній');
+check('чеклист поза sitemap (десктоп профіль BETA-CHECKLIST § 5.5)', !existsSync(join(DIST, 'sitemap.xml')), 'sitemap.xml не мусить генеруватися');
 
 const sw = read('sw.js');
 

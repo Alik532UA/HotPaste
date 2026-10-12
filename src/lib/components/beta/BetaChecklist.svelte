@@ -321,6 +321,7 @@
 					'The clipboard refused: the report is below, copy it by hand.'
 				)}
 			</p>
+			<!-- Fallback textarea (BETA-CHECKLIST § 6.2 beta-report-textarea) -->
 			<textarea
 				class="beta__fallback"
 				readonly

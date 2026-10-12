@@ -61,7 +61,7 @@
         onclick={handleCopy}
         transition:fade={{ duration: 200 }}
         aria-label="Copy debug report — {appVersion}"
-        data-testid="app-version-value"
+        data-testid="log-copy-fab"
     >
         {#if copied}
             <Check class="fab-icon" size={14} />
