@@ -16,41 +16,60 @@
   --color-text-primary: #ffffff;
   --color-text-secondary: #b0b3b8;
   --color-text-muted: #6b6f7a;
-  
+
   --color-accent: #7b61ff;
   --color-accent-rgb: 123, 97, 255;
   --color-accent-hover: #6344ff;
   --color-accent-gradient: linear-gradient(135deg, #7b61ff 0%, #6344ff 100%);
 
   /* Additional Accents */
-  --color-accent-cyan: #bb86fc; 
+  --color-accent-cyan: #bb86fc;
   --color-accent-violet: #dcc1ff;
-  
+
   --color-border: rgba(255, 255, 255, 0.12);
   --color-border-hover: rgba(255, 255, 255, 0.25);
-  
+
   --color-card-bg: #2a2d35;
   --color-card-border: rgba(255, 255, 255, 0.1);
-  
+
   /* Solid Surfaces for better visibility */
   --color-surface-1: rgba(255, 255, 255, 0.07);
   --color-surface-2: rgba(255, 255, 255, 0.12);
   --color-surface-3: rgba(255, 255, 255, 0.18);
-  
+
   --color-danger: #ef4444;
   --color-success: #22c55e;
   --color-warning: #f59e0b;
   --color-info: #3b82f6;
 
   /* Color Palette for Cards */
-  --palette-1: #1e293b; --palette-2: #334155; --palette-3: #18181b; --palette-4: #27272a; --palette-5: #1c1917; --palette-6: #292524; --palette-7: #450a0a;
-  --palette-8: #7f1d1d; --palette-9: #431407; --palette-10: #7c2d12; --palette-11: #451a03; --palette-12: #78350f; --palette-13: #064e3b; --palette-14: #065f46;
-  --palette-15: #134e4a; --palette-16: #115e59; --palette-17: #1e3a8a; --palette-18: #1e40af; --palette-19: #312e81; --palette-20: #3730a3; --palette-21: #4c1d95; --palette-22: #701a75;
+  --palette-1: #1e293b;
+  --palette-2: #334155;
+  --palette-3: #18181b;
+  --palette-4: #27272a;
+  --palette-5: #1c1917;
+  --palette-6: #292524;
+  --palette-7: #450a0a;
+  --palette-8: #7f1d1d;
+  --palette-9: #431407;
+  --palette-10: #7c2d12;
+  --palette-11: #451a03;
+  --palette-12: #78350f;
+  --palette-13: #064e3b;
+  --palette-14: #065f46;
+  --palette-15: #134e4a;
+  --palette-16: #115e59;
+  --palette-17: #1e3a8a;
+  --palette-18: #1e40af;
+  --palette-19: #312e81;
+  --palette-20: #3730a3;
+  --palette-21: #4c1d95;
+  --palette-22: #701a75;
 
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5);
-  
+
   --backdrop-filter: blur(12px);
   --glass-bg: rgba(255, 255, 255, 0.05);
   --glass-border: rgba(255, 255, 255, 0.1);
@@ -66,7 +85,7 @@
   --color-text-primary: #1c1e21;
   --color-text-secondary: #606770;
   --color-text-muted: #8d949e;
-  
+
   --color-accent: #e95420;
   --color-accent-rgb: 233, 84, 32;
   --color-accent-hover: #c74316;
@@ -75,32 +94,51 @@
   /* Additional Accents */
   --color-accent-cyan: #0891b2;
   --color-accent-violet: #7c3aed;
-  
+
   --color-border: #dcdfe4;
   --color-border-hover: #bec3c9;
-  
+
   --color-card-bg: #ffffff;
   --color-card-border: #dcdfe4;
-  
+
   /* Solid Surfaces for light theme */
   --color-surface-1: #ebedf0;
   --color-surface-2: #e4e6eb;
   --color-surface-3: #dadde1;
-  
+
   --color-danger: #dc2626;
   --color-success: #16a34a;
   --color-warning: #d97706;
   --color-info: #2563eb;
 
   /* Color Palette for Cards */
-  --palette-1: #cbd5e1; --palette-2: #94a3b8; --palette-3: #d4d4d8; --palette-4: #a1a1aa; --palette-5: #d6d3d1; --palette-6: #a8a29e; --palette-7: #fee2e2;
-  --palette-8: #f87171; --palette-9: #ffedd5; --palette-10: #fb923c; --palette-11: #fef3c7; --palette-12: #fbbf24; --palette-13: #d1fae5; --palette-14: #34d399;
-  --palette-15: #ccfbf1; --palette-16: #2dd4bf; --palette-17: #dbeafe; --palette-18: #60a5fa; --palette-19: #e0e7ff; --palette-20: #818cf8; --palette-21: #f3e8ff; --palette-22: #fae8ff;
+  --palette-1: #cbd5e1;
+  --palette-2: #94a3b8;
+  --palette-3: #d4d4d8;
+  --palette-4: #a1a1aa;
+  --palette-5: #d6d3d1;
+  --palette-6: #a8a29e;
+  --palette-7: #fee2e2;
+  --palette-8: #f87171;
+  --palette-9: #ffedd5;
+  --palette-10: #fb923c;
+  --palette-11: #fef3c7;
+  --palette-12: #fbbf24;
+  --palette-13: #d1fae5;
+  --palette-14: #34d399;
+  --palette-15: #ccfbf1;
+  --palette-16: #2dd4bf;
+  --palette-17: #dbeafe;
+  --palette-18: #60a5fa;
+  --palette-19: #e0e7ff;
+  --palette-20: #818cf8;
+  --palette-21: #f3e8ff;
+  --palette-22: #fae8ff;
 
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.1);
   --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.15);
   --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.2);
-  
+
   --backdrop-filter: blur(8px);
   --glass-bg: rgba(255, 255, 255, 0.8);
   --glass-border: rgba(0, 0, 0, 0.05);
@@ -111,46 +149,73 @@
    ============================================= */
 
 [data-theme="orange"] {
-  --color-bg-primary: linear-gradient(135deg, #5e2750, #e95420); /* Darker purple */
+  --color-bg-primary: linear-gradient(
+    135deg,
+    #5e2750,
+    #e95420
+  ); /* Darker purple */
   --color-bg-secondary: rgba(0, 0, 0, 0.2);
   --color-text-primary: #ffffff;
   --color-text-secondary: #f0f0f0;
   --color-text-muted: rgba(255, 255, 255, 0.6);
-  
+
   --color-accent: #ffffff;
   --color-accent-rgb: 255, 255, 255;
   --color-accent-hover: #f1f1f1;
-  --color-accent-gradient: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.1) 100%);
+  --color-accent-gradient: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.2) 0%,
+    rgba(255, 255, 255, 0.1) 100%
+  );
 
   /* Additional Accents */
-  --color-accent-cyan: #ffce00; 
+  --color-accent-cyan: #ffce00;
   --color-accent-violet: #ffffff;
-  
+
   --color-border: rgba(255, 255, 255, 0.3);
   --color-border-hover: rgba(255, 255, 255, 0.5);
-  
+
   --color-card-bg: rgba(0, 0, 0, 0.25);
   --color-card-border: rgba(255, 255, 255, 0.2);
-  
+
   /* Surfaces that stand out on gradients */
   --color-surface-1: rgba(255, 255, 255, 0.12);
   --color-surface-2: rgba(255, 255, 255, 0.2);
   --color-surface-3: rgba(255, 255, 255, 0.3);
-  
+
   --color-danger: #ff4d4d;
   --color-success: #2ecc71;
   --color-warning: #f1c40f;
   --color-info: #3498db;
 
   /* Color Palette for Cards */
-  --palette-1: #4c1d95; --palette-2: #5b21b6; --palette-3: #7e22ce; --palette-4: #9333ea; --palette-5: #a21caf; --palette-6: #c026d3; --palette-7: #be185d;
-  --palette-8: #db2777; --palette-9: #e11d48; --palette-10: #f43f5e; --palette-11: #ea580c; --palette-12: #f97316; --palette-13: #d97706; --palette-14: #f59e0b;
-  --palette-15: #ca8a04; --palette-16: #eab308; --palette-17: #65a30d; --palette-18: #84cc16; --palette-19: #16a34a; --palette-20: #22c55e; --palette-21: #2dd4bf; --palette-22: #22d3ee;
+  --palette-1: #4c1d95;
+  --palette-2: #5b21b6;
+  --palette-3: #7e22ce;
+  --palette-4: #9333ea;
+  --palette-5: #a21caf;
+  --palette-6: #c026d3;
+  --palette-7: #be185d;
+  --palette-8: #db2777;
+  --palette-9: #e11d48;
+  --palette-10: #f43f5e;
+  --palette-11: #ea580c;
+  --palette-12: #f97316;
+  --palette-13: #d97706;
+  --palette-14: #f59e0b;
+  --palette-15: #ca8a04;
+  --palette-16: #eab308;
+  --palette-17: #65a30d;
+  --palette-18: #84cc16;
+  --palette-19: #16a34a;
+  --palette-20: #22c55e;
+  --palette-21: #2dd4bf;
+  --palette-22: #22d3ee;
 
   --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 8px 25px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 15px 40px rgba(0, 0, 0, 0.5);
-  
+
   --backdrop-filter: blur(16px);
   --glass-bg: rgba(255, 255, 255, 0.15);
   --glass-border: rgba(255, 255, 255, 0.25);
@@ -166,7 +231,7 @@
   --color-text-primary: #1a1c1e;
   --color-text-secondary: #4a4d50;
   --color-text-muted: #7a7d80;
-  
+
   --color-accent: #059669;
   --color-accent-rgb: 5, 150, 105;
   --color-accent-hover: #047857;
@@ -175,31 +240,51 @@
   /* Additional Accents */
   --color-accent-cyan: #059669;
   --color-accent-violet: #10b981;
-  
+
   --color-border: #c6e7d0;
   --color-border-hover: #a6d7b0;
-  
+
   --color-card-bg: #ffffff;
   --color-card-border: #c6e7d0;
-  
+
   --color-surface-1: #f0fff4;
   --color-surface-2: #dcffe4;
   --color-surface-3: #c6f6d5;
-  
+
   --color-danger: #b91c1c;
   --color-success: #059669;
   --color-warning: #b45309;
   --color-info: #0891b2;
 
   /* Color Palette for Cards */
-  --palette-1: #064e3b; --palette-2: #065f46; --palette-3: #047857; --palette-4: #059669; --palette-5: #10b981; --palette-6: #34d399; --palette-7: #6ee7b7;
-  --palette-8: #a7f3d0; --palette-9: #134e4a; --palette-10: #115e59; --palette-11: #0f766e; --palette-12: #0d9488; --palette-13: #14b8a6; --palette-14: #2dd4bf;
-  --palette-15: #5eead4; --palette-16: #99f6e4; --palette-17: #1e3a8a; --palette-18: #1e40af; --palette-19: #2563eb; --palette-20: #3b82f6; --palette-21: #60a5fa; --palette-22: #93c5fd; --palette-23: #bfdbfe;
+  --palette-1: #064e3b;
+  --palette-2: #065f46;
+  --palette-3: #047857;
+  --palette-4: #059669;
+  --palette-5: #10b981;
+  --palette-6: #34d399;
+  --palette-7: #6ee7b7;
+  --palette-8: #a7f3d0;
+  --palette-9: #134e4a;
+  --palette-10: #115e59;
+  --palette-11: #0f766e;
+  --palette-12: #0d9488;
+  --palette-13: #14b8a6;
+  --palette-14: #2dd4bf;
+  --palette-15: #5eead4;
+  --palette-16: #99f6e4;
+  --palette-17: #1e3a8a;
+  --palette-18: #1e40af;
+  --palette-19: #2563eb;
+  --palette-20: #3b82f6;
+  --palette-21: #60a5fa;
+  --palette-22: #93c5fd;
+  --palette-23: #bfdbfe;
 
   --shadow-sm: 0 2px 8px rgba(5, 150, 105, 0.15);
   --shadow-md: 0 8px 24px rgba(5, 150, 105, 0.2);
   --shadow-lg: 0 12px 32px rgba(5, 150, 105, 0.25);
-  
+
   --backdrop-filter: blur(8px);
   --glass-bg: rgba(255, 255, 255, 0.8);
   --glass-border: rgba(5, 150, 105, 0.1);

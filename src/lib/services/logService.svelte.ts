@@ -2,205 +2,229 @@
  * Advanced Log Service — Central log collection with levels and buffering.
  */
 
-import { sessionStore } from './sessionStore';
+import { sessionStore } from "./sessionStore";
 
-export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+export type LogLevel = "debug" | "info" | "warn" | "error";
 
 interface LogEntry {
-    timestamp: Date;
-    level: LogLevel;
-    category: string;
-    message: string;
-    data?: unknown[];
+  timestamp: Date;
+  level: LogLevel;
+  category: string;
+  message: string;
+  data?: unknown[];
 }
 
 const MAX_LOGS = 1000;
-const SESSION_STORAGE_KEY = 'hotpaste_logs';
+const SESSION_STORAGE_KEY = "hotpaste_logs";
 let logs = $state<LogEntry[]>([]);
 let errorCount = $state(0);
 
 const EMAIL_REGEX = /[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+/g;
-const SENSITIVE_PARAM = /^(token|access_token|code|state|key|api_?key|password|email)$/i;
+const SENSITIVE_PARAM =
+  /^(token|access_token|code|state|key|api_?key|password|email)$/i;
 
 export function maskText(str: string): string {
-    return str.replace(EMAIL_REGEX, '***@***.***');
+  return str.replace(EMAIL_REGEX, "***@***.***");
 }
 
 export function scrubUrl(raw: string): string {
-    try {
-        const url = new URL(raw);
-        for (const name of [...url.searchParams.keys()]) {
-            if (SENSITIVE_PARAM.test(name)) url.searchParams.set(name, 'REDACTED');
-        }
-        return url.toString();
-    } catch {
-        return maskText(raw);
+  try {
+    const url = new URL(raw);
+    for (const name of [...url.searchParams.keys()]) {
+      if (SENSITIVE_PARAM.test(name)) url.searchParams.set(name, "REDACTED");
     }
+    return url.toString();
+  } catch {
+    return maskText(raw);
+  }
 }
 
 // Initialize from sessionStorage
-if (typeof window !== 'undefined') {
-    try {
-        const stored = sessionStore.get(SESSION_STORAGE_KEY);
-        if (stored) {
-            const parsed = JSON.parse(stored);
-            if (Array.isArray(parsed.logs)) {
-                logs = parsed.logs.map((log: any) => ({
-                    ...log,
-                    timestamp: new Date(log.timestamp)
-                }));
-            }
-            if (typeof parsed.errorCount === 'number') {
-                errorCount = parsed.errorCount;
-            }
-        }
-    } catch (e) {
-        console.error('Failed to parse logs from sessionStorage', e);
+if (typeof window !== "undefined") {
+  try {
+    const stored = sessionStore.get(SESSION_STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed.logs)) {
+        logs = parsed.logs.map((log: any) => ({
+          ...log,
+          timestamp: new Date(log.timestamp),
+        }));
+      }
+      if (typeof parsed.errorCount === "number") {
+        errorCount = parsed.errorCount;
+      }
     }
+  } catch (e) {
+    console.error("Failed to parse logs from sessionStorage", e);
+  }
 }
 
 /** Log visibility config */
 export const logConfig: Record<string, boolean> = {
-    app: true,
-    appstate: true,
-    filesystem: false,
-    ui: true,
-    hotkeys: false,
-    fsstate: false,
-    hotkeystate: false,
-    startmenu: true,
-    icons: false,
-    dnd: false,
-    header: false,
+  app: true,
+  appstate: true,
+  filesystem: false,
+  ui: true,
+  hotkeys: false,
+  fsstate: false,
+  hotkeystate: false,
+  startmenu: true,
+  icons: false,
+  dnd: false,
+  header: false,
 };
 
 const levelStyles: Record<LogLevel, string> = {
-    debug: 'color: #888; font-weight: normal;',
-    info: 'color: #00d2ff; font-weight: bold;',
-    warn: 'color: #ffcc00; font-weight: bold;',
-    error: 'color: #ff4b4b; font-weight: bold;'
+  debug: "color: #888; font-weight: normal;",
+  info: "color: #00d2ff; font-weight: bold;",
+  warn: "color: #ffcc00; font-weight: bold;",
+  error: "color: #ff4b4b; font-weight: bold;",
 };
 
 export const logService = {
-    appVersion: typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'unknown',
-    get entries() { return logs; },
-    get errorCount() { return errorCount; },
+  appVersion:
+    typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "unknown",
+  get entries() {
+    return logs;
+  },
+  get errorCount() {
+    return errorCount;
+  },
 
-    debug(category: string, message: string, ...data: unknown[]) {
-        this.add('debug', category, message, data);
-    },
+  debug(category: string, message: string, ...data: unknown[]) {
+    this.add("debug", category, message, data);
+  },
 
-    info(category: string, message: string, ...data: unknown[]) {
-        this.add('info', category, message, data);
-    },
+  info(category: string, message: string, ...data: unknown[]) {
+    this.add("info", category, message, data);
+  },
 
-    warn(category: string, message: string, ...data: unknown[]) {
-        this.add('warn', category, message, data);
-    },
+  warn(category: string, message: string, ...data: unknown[]) {
+    this.add("warn", category, message, data);
+  },
 
-    error(category: string, message: string, ...data: unknown[]) {
-        this.add('error', category, message, data);
-    },
+  error(category: string, message: string, ...data: unknown[]) {
+    this.add("error", category, message, data);
+  },
 
-    /** Generic log method for backward compatibility or custom levels */
-    log(levelOrCategory: string, message: string, ...data: unknown[]) {
-        const level: LogLevel = ['debug', 'info', 'warn', 'error'].includes(levelOrCategory) 
-            ? (levelOrCategory as LogLevel) 
-            : 'info';
-        
-        const category = level === (levelOrCategory as any) ? 'APP' : levelOrCategory;
-        this.add(level, category, message, data);
-    },
+  /** Generic log method for backward compatibility or custom levels */
+  log(levelOrCategory: string, message: string, ...data: unknown[]) {
+    const level: LogLevel = ["debug", "info", "warn", "error"].includes(
+      levelOrCategory,
+    )
+      ? (levelOrCategory as LogLevel)
+      : "info";
 
-    add(level: LogLevel, category: string, message: string, data: unknown[]) {
-        const cat = category.toLowerCase();
-        if (cat in logConfig && !logConfig[cat] && level !== 'error') return;
+    const category =
+      level === (levelOrCategory as any) ? "APP" : levelOrCategory;
+    this.add(level, category, message, data);
+  },
 
-        const entry: LogEntry = {
-            timestamp: new Date(),
-            level,
-            category: category.toUpperCase(),
-            message: maskText(message),
-            data: data.length > 0 ? data : undefined
-        };
+  add(level: LogLevel, category: string, message: string, data: unknown[]) {
+    const cat = category.toLowerCase();
+    if (cat in logConfig && !logConfig[cat] && level !== "error") return;
 
-        // Add to reactive buffer
-        logs.push(entry);
-        if (logs.length > MAX_LOGS) logs.shift();
+    const entry: LogEntry = {
+      timestamp: new Date(),
+      level,
+      category: category.toUpperCase(),
+      message: maskText(message),
+      data: data.length > 0 ? data : undefined,
+    };
 
-        if (level === 'error') {
-            errorCount++;
-        }
+    // Add to reactive buffer
+    logs.push(entry);
+    if (logs.length > MAX_LOGS) logs.shift();
 
-        // Save to sessionStorage
-        if (typeof window !== 'undefined') {
-            try {
-                sessionStore.set(SESSION_STORAGE_KEY, JSON.stringify({ logs, errorCount }));
-            } catch (e) {
-                // Ignore storage quota errors
-            }
-        }
+    if (level === "error") {
+      errorCount++;
+    }
 
-        // Console output
-        const timeStr = entry.timestamp.toLocaleTimeString();
-        if (import.meta.env.DEV || level === 'error') {
-            console.log(
-                `%c[${timeStr}] [${entry.level.toUpperCase()}] [${entry.category}] %c${message}`,
-                levelStyles[level],
-                'color: inherit; font-weight: normal;',
-                ...(data.length > 0 ? data : [])
-            );
-        }
+    // Save to sessionStorage
+    if (typeof window !== "undefined") {
+      try {
+        sessionStore.set(
+          SESSION_STORAGE_KEY,
+          JSON.stringify({ logs, errorCount }),
+        );
+      } catch (e) {
+        // Ignore storage quota errors
+      }
+    }
 
-        // Expose to window for manual export
-        if (typeof window !== 'undefined') {
-            (window as any).__logs = logs;
-        }
-    },
+    // Console output
+    const timeStr = entry.timestamp.toLocaleTimeString();
+    if (import.meta.env.DEV || level === "error") {
+      console.log(
+        `%c[${timeStr}] [${entry.level.toUpperCase()}] [${entry.category}] %c${message}`,
+        levelStyles[level],
+        "color: inherit; font-weight: normal;",
+        ...(data.length > 0 ? data : []),
+      );
+    }
 
-    getRecentLogsText(): string {
-        return logs.map(e => {
-            const dataStr = e.data ? JSON.stringify(e.data, (_, v) => {
+    // Expose to window for manual export
+    if (typeof window !== "undefined") {
+      (window as any).__logs = logs;
+    }
+  },
+
+  getRecentLogsText(): string {
+    return logs
+      .map((e) => {
+        const dataStr = e.data
+          ? JSON.stringify(
+              e.data,
+              (_, v) => {
                 if (v instanceof Error) {
-                    const errObj: any = { 
-                        message: v.message, 
-                        stack: v.stack, 
-                        name: v.name 
-                    };
-                    // Safely copy other properties
-                    for (const key in v) {
-                        if (key !== 'message' && key !== 'stack' && key !== 'name') {
-                            errObj[key] = (v as any)[key];
-                        }
+                  const errObj: any = {
+                    message: v.message,
+                    stack: v.stack,
+                    name: v.name,
+                  };
+                  // Safely copy other properties
+                  for (const key in v) {
+                    if (
+                      key !== "message" &&
+                      key !== "stack" &&
+                      key !== "name"
+                    ) {
+                      errObj[key] = (v as any)[key];
                     }
-                    return errObj;
+                  }
+                  return errObj;
                 }
                 return v;
-            }, 2) : '';
-            return `[${e.timestamp.toISOString()}] [${e.level.toUpperCase()}] [${e.category}] ${e.message} ${dataStr}`;
-        }).join('\n');
-    },
+              },
+              2,
+            )
+          : "";
+        return `[${e.timestamp.toISOString()}] [${e.level.toUpperCase()}] [${e.category}] ${e.message} ${dataStr}`;
+      })
+      .join("\n");
+  },
 
-    getReport(): string {
-        const inBrowser = typeof window !== 'undefined';
-        const header = [
-            '--- LOG REPORT ---',
-            `DATE: ${new Date().toISOString()}`,
-            `VERSION: ${this.appVersion}`,
-            `URL: ${inBrowser ? scrubUrl(window.location.href) : 'SSR'}`,
-            `DEVICE: ${inBrowser ? navigator.userAgent : 'SSR'}`,
-            `ONLINE: ${inBrowser ? navigator.onLine : 'n/a'}`,
-            `ERRORS: ${errorCount}`,
-            '---'
-        ].join('\n');
-        return `${header}\n${this.getRecentLogsText()}`;
-    },
+  getReport(): string {
+    const inBrowser = typeof window !== "undefined";
+    const header = [
+      "--- LOG REPORT ---",
+      `DATE: ${new Date().toISOString()}`,
+      `VERSION: ${this.appVersion}`,
+      `URL: ${inBrowser ? scrubUrl(window.location.href) : "SSR"}`,
+      `DEVICE: ${inBrowser ? navigator.userAgent : "SSR"}`,
+      `ONLINE: ${inBrowser ? navigator.onLine : "n/a"}`,
+      `ERRORS: ${errorCount}`,
+      "---",
+    ].join("\n");
+    return `${header}\n${this.getRecentLogsText()}`;
+  },
 
-    clear() {
-        logs = [];
-        errorCount = 0;
-        if (typeof window !== 'undefined') {
-            sessionStore.remove(SESSION_STORAGE_KEY);
-        }
+  clear() {
+    logs = [];
+    errorCount = 0;
+    if (typeof window !== "undefined") {
+      sessionStore.remove(SESSION_STORAGE_KEY);
     }
+  },
 };

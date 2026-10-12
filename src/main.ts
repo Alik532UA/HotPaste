@@ -1,8 +1,8 @@
-import { mount } from 'svelte'
-import './app.css'
-import './styles/fonts.css'
-import App from './App.svelte'
-import BetaChecklist from './lib/components/beta/BetaChecklist.svelte'
+import { mount } from "svelte";
+import "./app.css";
+import "./styles/fonts.css";
+import App from "./App.svelte";
+import BetaChecklist from "./lib/components/beta/BetaChecklist.svelte";
 
 /**
  * АДРЕСА СЛУЖБОВОЇ СТОРІНКИ (BETA-CHECKLIST § 4).
@@ -33,12 +33,14 @@ import BetaChecklist from './lib/components/beta/BetaChecklist.svelte'
  * не публікує. Скрипт над `build/` (§ 5.5) з тієї ж причини незастосовний:
  * перевіряти в зібраному HTML нічого, бо HTML один на обидві сторінки.
  */
-const CHECKLIST_PARAM = 'beta-test-checklists'
+const CHECKLIST_PARAM = "beta-test-checklists";
 
-const showsChecklist = new URLSearchParams(window.location.search).has(CHECKLIST_PARAM)
+const showsChecklist = new URLSearchParams(window.location.search).has(
+  CHECKLIST_PARAM,
+);
 
 const app = mount(showsChecklist ? BetaChecklist : App, {
-  target: document.getElementById('app')!,
-})
+  target: document.getElementById("app")!,
+});
 
-export default app
+export default app;

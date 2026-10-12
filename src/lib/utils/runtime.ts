@@ -26,13 +26,13 @@
  */
 
 interface TauriWindow {
-	__TAURI_INTERNALS__?: unknown;
-	__TAURI__?: unknown;
+  __TAURI_INTERNALS__?: unknown;
+  __TAURI__?: unknown;
 }
 
 /** `true` у вікні застосунку, `false` у браузері та під час тестів у node. */
 export function isTauri(): boolean {
-	if (typeof window === 'undefined') return false;
-	const w = window as unknown as TauriWindow;
-	return !!w.__TAURI_INTERNALS__ || !!w.__TAURI__;
+  if (typeof window === "undefined") return false;
+  const w = window as unknown as TauriWindow;
+  return !!w.__TAURI_INTERNALS__ || !!w.__TAURI__;
 }

@@ -42,43 +42,43 @@ export const CHECK_EVERY_MS = 30 * 60 * 1000;
 export const MIN_GAP_MS = 60 * 1000;
 
 export interface UpdateHost {
-	now(): number;
-	/** Офлайн — не привід питати: відповіді все одно не буде. */
-	online(): boolean;
-	/** Власне запит до сервера: у житті це `registration.update()`. */
-	update(): void;
+  now(): number;
+  /** Офлайн — не привід питати: відповіді все одно не буде. */
+  online(): boolean;
+  /** Власне запит до сервера: у житті це `registration.update()`. */
+  update(): void;
 }
 
 export interface UpdateSchedule {
-	/** Спробувати спитати. Повертає, чи справді пішли. */
-	tick(): boolean;
+  /** Спробувати спитати. Повертає, чи справді пішли. */
+  tick(): boolean;
 }
 
 export function createUpdateSchedule(host: UpdateHost): UpdateSchedule {
-	/*
-	 * `null`, а НЕ `0`, і це не смак.
-	 *
-	 * Тут стояло `let lastAt = 0` з умовою `lastAt !== 0 && …`, тобто нуль
-	 * означав «ще не питали». Але нуль — це ще й дійсна мітка часу, тож якщо
-	 * перший запит випадав рівно на неї, наступний тік не бачив проміжку й
-	 * ішов одразу — саме той подвійний запит, проти якого проміжок і стоїть.
-	 *
-	 * У житті `Date.now()` нуля не віддає, тож вада латентна. Але вона робить
-	 * функцію неправдивою для частини входів, а перевірка, підігнана під
-	 * «беріть час не з нуля», перевіряла б не правило, а зручний випадок.
-	 */
-	let lastAt: number | null = null;
+  /*
+   * `null`, а НЕ `0`, і це не смак.
+   *
+   * Тут стояло `let lastAt = 0` з умовою `lastAt !== 0 && …`, тобто нуль
+   * означав «ще не питали». Але нуль — це ще й дійсна мітка часу, тож якщо
+   * перший запит випадав рівно на неї, наступний тік не бачив проміжку й
+   * ішов одразу — саме той подвійний запит, проти якого проміжок і стоїть.
+   *
+   * У житті `Date.now()` нуля не віддає, тож вада латентна. Але вона робить
+   * функцію неправдивою для частини входів, а перевірка, підігнана під
+   * «беріть час не з нуля», перевіряла б не правило, а зручний випадок.
+   */
+  let lastAt: number | null = null;
 
-	return {
-		tick() {
-			if (!host.online()) return false;
+  return {
+    tick() {
+      if (!host.online()) return false;
 
-			const now = host.now();
-			if (lastAt !== null && now - lastAt < MIN_GAP_MS) return false;
+      const now = host.now();
+      if (lastAt !== null && now - lastAt < MIN_GAP_MS) return false;
 
-			lastAt = now;
-			host.update();
-			return true;
-		}
-	};
+      lastAt = now;
+      host.update();
+      return true;
+    },
+  };
 }

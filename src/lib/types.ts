@@ -47,14 +47,14 @@ export interface Card {
   confirmCount?: number;
 }
 
-export type TabType = 'snippets' | 'keyboard';
+export type TabType = "snippets" | "keyboard";
 
 export interface ShortcutInfo {
   name: string;
   path: string;
-  type?: 'local' | 'running' | 'system' | 'url' | 'start' | 'commands';
+  type?: "local" | "running" | "system" | "url" | "start" | "commands";
   icon?: string | null;
-  displayMode?: 'icon' | 'text' | 'both' | 'none';
+  displayMode?: "icon" | "text" | "both" | "none";
   customLabel?: string;
   /** Number of presses required to confirm action (1 = instant) */
   confirmCount?: number;
@@ -147,11 +147,11 @@ export interface AppConfig {
   /** Saved card sizes: { cardFilePath: { width, height } } */
   cardSizes: Record<string, { width: number; height: number }>;
   /** Default display mode for Snippets tabs */
-  defaultModeSnippets: 'full' | 'minimal';
+  defaultModeSnippets: "full" | "minimal";
   /** Default display mode for Keyboard tabs */
-  defaultModeKeyboard: 'full' | 'minimal';
+  defaultModeKeyboard: "full" | "minimal";
   /** Mode toggle hotkey: [Space] and [F11], only [Space], or only [F11] */
-  toggleModeHotkey: 'space_f11' | 'space' | 'f11';
+  toggleModeHotkey: "space_f11" | "space" | "f11";
   /** Whether the app should start on Windows startup */
   autostartEnabled: boolean;
   /** Global hotkey to show/hide the app (e.g. "Win", "Alt+Space", "F1") */
@@ -169,19 +169,19 @@ export interface AppConfig {
 export const DEFAULT_CONFIG: AppConfig = {
   scale: 1.0,
   cardSizes: {},
-  defaultModeSnippets: 'full',
-  defaultModeKeyboard: 'minimal',
-  toggleModeHotkey: 'space',
+  defaultModeSnippets: "full",
+  defaultModeKeyboard: "minimal",
+  toggleModeHotkey: "space",
   autostartEnabled: true,
-  triggerKey: 'Win',
-  fontFamily: 'e-Ukraine',
-  fontMd: 'Arsenal',
-  fontTxt: 'IBM Plex Mono',
-  fontHotkey: 'Cascadia Mono',
+  triggerKey: "Win",
+  fontFamily: "e-Ukraine",
+  fontMd: "Arsenal",
+  fontTxt: "IBM Plex Mono",
+  fontHotkey: "Cascadia Mono",
 };
 
 /** Config filename used in each tab directory */
-export const CONFIG_FILENAME = '_hotpaste.json';
+export const CONFIG_FILENAME = "_hotpaste.json";
 
 /** CSS variable for action zone width (right side of card) */
-export const ACTION_ZONE_WIDTH = '80%';
+export const ACTION_ZONE_WIDTH = "80%";

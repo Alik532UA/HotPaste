@@ -1,5 +1,5 @@
-import { logService } from './logService.svelte';
-import { isTauri } from '../utils/runtime';
+import { logService } from "./logService.svelte";
+import { isTauri } from "../utils/runtime";
 
 /**
  * ОНОВЛЕННЯ ВСТАНОВЛЕНОГО ЗАСТОСУНКУ.
@@ -29,9 +29,9 @@ import { isTauri } from '../utils/runtime';
  */
 
 export type DesktopUpdate =
-	| { kind: 'none' }
-	| { kind: 'unavailable'; reason: string }
-	| { kind: 'ready'; version: string; install: () => Promise<void> };
+  | { kind: "none" }
+  | { kind: "unavailable"; reason: string }
+  | { kind: "ready"; version: string; install: () => Promise<void> };
 
 /**
  * Чи є оновлення для встановленого застосунку.
@@ -40,45 +40,45 @@ export type DesktopUpdate =
  * його зовсім інший шлях.
  */
 export async function checkDesktopUpdate(): Promise<DesktopUpdate> {
-	if (!isTauri()) {
-		return { kind: 'unavailable', reason: 'не застосунок' };
-	}
+  if (!isTauri()) {
+    return { kind: "unavailable", reason: "не застосунок" };
+  }
 
-	try {
-		const { check } = await import('@tauri-apps/plugin-updater');
-		const update = await check();
+  try {
+    const { check } = await import("@tauri-apps/plugin-updater");
+    const update = await check();
 
-		if (!update) {
-			return { kind: 'none' };
-		}
+    if (!update) {
+      return { kind: "none" };
+    }
 
-		return {
-			kind: 'ready',
-			version: update.version,
-			install: async () => {
-				logService.info('Update', `Downloading ${update.version}…`);
-				await update.downloadAndInstall();
-				/*
-				 * Після встановлення потрібен перезапуск, і робить його
-				 * `relaunch()` із плагіна процесів — той самий, який доти
-				 * викликали ЗАМІСТЬ оновлення.
-				 *
-				 * У Windows `installMode: "passive"` показує смужку прогресу
-				 * інсталятора й закриває застосунок сам, тож цей рядок
-                 * виконується не завжди — і саме тому він тут останній.
-				 */
-				const { relaunch } = await import('@tauri-apps/plugin-process');
-				await relaunch();
-			}
-		};
-	} catch (error) {
-		/*
-		 * Сюди потрапляє і «немає мережі», і «канал не налаштований у цій
-		 * збірці». Розрізняти їх тут нема з чого — плагін віддає рядок, — та й
-		 * не треба: наслідок однаковий, і він не «все гаразд».
-		 */
-		const reason = error instanceof Error ? error.message : String(error);
-		logService.warn('Update', `Updater unavailable: ${reason}`);
-		return { kind: 'unavailable', reason };
-	}
+    return {
+      kind: "ready",
+      version: update.version,
+      install: async () => {
+        logService.info("Update", `Downloading ${update.version}…`);
+        await update.downloadAndInstall();
+        /*
+         * Після встановлення потрібен перезапуск, і робить його
+         * `relaunch()` із плагіна процесів — той самий, який доти
+         * викликали ЗАМІСТЬ оновлення.
+         *
+         * У Windows `installMode: "passive"` показує смужку прогресу
+         * інсталятора й закриває застосунок сам, тож цей рядок
+         * виконується не завжди — і саме тому він тут останній.
+         */
+        const { relaunch } = await import("@tauri-apps/plugin-process");
+        await relaunch();
+      },
+    };
+  } catch (error) {
+    /*
+     * Сюди потрапляє і «немає мережі», і «канал не налаштований у цій
+     * збірці». Розрізняти їх тут нема з чого — плагін віддає рядок, — та й
+     * не треба: наслідок однаковий, і він не «все гаразд».
+     */
+    const reason = error instanceof Error ? error.message : String(error);
+    logService.warn("Update", `Updater unavailable: ${reason}`);
+    return { kind: "unavailable", reason };
+  }
 }

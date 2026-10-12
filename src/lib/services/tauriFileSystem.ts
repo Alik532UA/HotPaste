@@ -3,398 +3,448 @@
  * Uses @tauri-apps/plugin-fs and @tauri-apps/api/path.
  */
 
-import type { IFileSystemService, RestoreState } from './fileSystem';
-import type { Tab, Card, HotPasteConfig } from '../types';
-import { CONFIG_FILENAME } from '../types';
-import { HotPasteConfigSchema } from '../schemas/config';
-import * as fs from '@tauri-apps/plugin-fs';
-import * as path from '@tauri-apps/api/path';
-import { invoke } from '@tauri-apps/api/core';
-import { open as openDialog } from '@tauri-apps/plugin-dialog';
-import { logService } from './logService.svelte';
+import type { IFileSystemService, RestoreState } from "./fileSystem";
+import type { Tab, Card, HotPasteConfig } from "../types";
+import { CONFIG_FILENAME } from "../types";
+import { HotPasteConfigSchema } from "../schemas/config";
+import * as fs from "@tauri-apps/plugin-fs";
+import * as path from "@tauri-apps/api/path";
+import { invoke } from "@tauri-apps/api/core";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import { logService } from "./logService.svelte";
 
 export class TauriFileSystemService implements IFileSystemService {
-    private customRoot: string | null = null;
-    private isCustomPath = false;
+  private customRoot: string | null = null;
+  private isCustomPath = false;
 
-    private async getApi() {
-        return { fs, path };
-    }
+  private async getApi() {
+    return { fs, path };
+  }
 
-    async setProjectRoot(pathStr: string | null): Promise<boolean> {
-        this.customRoot = pathStr;
-        this.isCustomPath = false; // Internal project roots are relative to HotPaste documents folder
-        if (pathStr) {
-            // Ensure directory exists
-            try {
-                const { fs } = await this.getApi();
-                const fullPath = await this.resolvePath('__root__');
-                if (!(await fs.exists(fullPath))) {
-                    await fs.mkdir(fullPath, { recursive: true });
-                }
-                return true;
-            } catch (err) {
-                logService.error('TauriFS', `Failed to set project root: ${err}`);
-                return false;
-            }
+  async setProjectRoot(pathStr: string | null): Promise<boolean> {
+    this.customRoot = pathStr;
+    this.isCustomPath = false; // Internal project roots are relative to HotPaste documents folder
+    if (pathStr) {
+      // Ensure directory exists
+      try {
+        const { fs } = await this.getApi();
+        const fullPath = await this.resolvePath("__root__");
+        if (!(await fs.exists(fullPath))) {
+          await fs.mkdir(fullPath, { recursive: true });
         }
         return true;
+      } catch (err) {
+        logService.error("TauriFS", `Failed to set project root: ${err}`);
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private async resolvePath(pathStr: string): Promise<string> {
+    const { path } = await this.getApi();
+
+    let fullBase: string;
+    if (this.isCustomPath && this.customRoot) {
+      fullBase = this.customRoot;
+    } else {
+      const base = await path.documentDir();
+      if (this.customRoot) {
+        fullBase = await path.join(base, "HotPaste", this.customRoot);
+      } else {
+        fullBase = await path.join(base, "HotPaste");
+      }
     }
 
-    private async resolvePath(pathStr: string): Promise<string> {
-        const { path } = await this.getApi();
-        
-        let fullBase: string;
-        if (this.isCustomPath && this.customRoot) {
-            fullBase = this.customRoot;
-        } else {
-            const base = await path.documentDir();
-            if (this.customRoot) {
-                fullBase = await path.join(base, 'HotPaste', this.customRoot);
-            } else {
-                fullBase = await path.join(base, 'HotPaste');
-            }
-        }
-
-        if (pathStr === '__root__') return fullBase;
-        if (pathStr.startsWith('__root__/')) {
-            return await path.join(fullBase, pathStr.replace('__root__/', ''));
-        }
-        return await path.join(fullBase, pathStr);
+    if (pathStr === "__root__") return fullBase;
+    if (pathStr.startsWith("__root__/")) {
+      return await path.join(fullBase, pathStr.replace("__root__/", ""));
     }
+    return await path.join(fullBase, pathStr);
+  }
 
-    async requestAccess(): Promise<boolean> {
-        try {
-            const selected = await openDialog({
-                directory: true,
-                multiple: false,
-                title: 'Виберіть папку для HotPaste'
-            });
+  async requestAccess(): Promise<boolean> {
+    try {
+      const selected = await openDialog({
+        directory: true,
+        multiple: false,
+        title: "Виберіть папку для HotPaste",
+      });
 
-            if (selected && typeof selected === 'string') {
-                this.customRoot = selected;
-                this.isCustomPath = true;
-                logService.info('TauriFS', `Selected custom directory: ${selected}`);
-                return true;
-            }
-
-            // If cancelled, keep current or default
-            if (!this.customRoot) {
-                const { fs } = await this.getApi();
-                const root = await this.resolvePath('__root__');
-                if (!(await fs.exists(root))) {
-                    await fs.mkdir(root, { recursive: true });
-                }
-            }
-            return !!this.customRoot;
-        } catch (err) {
-            logService.error('TauriFS', `Tauri FS access error: ${err}`);
-            return false;
-        }
-    }
-
-    hasAccess(): boolean {
+      if (selected && typeof selected === "string") {
+        this.customRoot = selected;
+        this.isCustomPath = true;
+        logService.info("TauriFS", `Selected custom directory: ${selected}`);
         return true;
-    }
+      }
 
-    /*
-     * Відновлювати нічого: тека застосунку — це завжди
-     * `Документи/HotPaste`, і дозволу на неї браузер не питає. Три методи
-     * нижче існують заради спільного інтерфейсу з браузерною версією, де
-     * дескриптор теки живе в IndexedDB й потребує дозволу окремо.
-     */
-    async tryRestoreAccess(): Promise<RestoreState> {
-        return 'granted';
-    }
-
-    async restoreAccessWithGesture(): Promise<boolean> {
-        return true;
-    }
-
-    pendingRootName(): string {
-        return '';
-    }
-
-    getRootName(): string {
-        if (this.isCustomPath && this.customRoot) {
-            return this.customRoot.split(/[/\\]/).pop() || this.customRoot;
+      // If cancelled, keep current or default
+      if (!this.customRoot) {
+        const { fs } = await this.getApi();
+        const root = await this.resolvePath("__root__");
+        if (!(await fs.exists(root))) {
+          await fs.mkdir(root, { recursive: true });
         }
-        return 'Documents/HotPaste';
+      }
+      return !!this.customRoot;
+    } catch (err) {
+      logService.error("TauriFS", `Tauri FS access error: ${err}`);
+      return false;
     }
+  }
 
-    /**
-     * Показати теку вкладки у провіднику.
-     *
-     * ЧЕРЕЗ КОМАНДУ `reveal_in_project`, а не через плагін оболонки. Доти тут
-     * було два шляхи, і кожен вимагав дозволу, ширшого за потребу:
-     *
-     *  * `Command.create('explorer', [fullPath])` — у можливостях це
-     *    `shell:allow-execute` з аргументом `.+`, тобто «запустити explorer із
-     *    будь-чим». `explorer` радо запускає передане, якщо це програма;
-     *  * запасний `open('file:///…')` — схема `file:` в `shell:allow-open`,
-     *    тобто те саме коротшим шляхом.
-     *
-     * Потреба ж вузька: показати теку, яка завжди лежить у
-     * `Документи/HotPaste`. Тепер межу перевіряє Rust за файловою системою, а
-     * обидва широкі дозволи прибрані з можливостей.
-     *
-     * Запасного шляху немає навмисно: обидва колишні вели в те саме місце
-     * тією самою командою, тож другий не лікував нічого — він лише робив
-     * відмову тихішою.
-     */
-    async openExplorer(pathStr: string): Promise<void> {
-        try {
-            const fullPath = await this.resolvePath(pathStr);
-            await invoke('reveal_in_project', { path: fullPath });
-        } catch (err) {
-            logService.error('TauriFS', `Failed to reveal in explorer: ${err}`);
+  hasAccess(): boolean {
+    return true;
+  }
+
+  /*
+   * Відновлювати нічого: тека застосунку — це завжди
+   * `Документи/HotPaste`, і дозволу на неї браузер не питає. Три методи
+   * нижче існують заради спільного інтерфейсу з браузерною версією, де
+   * дескриптор теки живе в IndexedDB й потребує дозволу окремо.
+   */
+  async tryRestoreAccess(): Promise<RestoreState> {
+    return "granted";
+  }
+
+  async restoreAccessWithGesture(): Promise<boolean> {
+    return true;
+  }
+
+  pendingRootName(): string {
+    return "";
+  }
+
+  getRootName(): string {
+    if (this.isCustomPath && this.customRoot) {
+      return this.customRoot.split(/[/\\]/).pop() || this.customRoot;
+    }
+    return "Documents/HotPaste";
+  }
+
+  /**
+   * Показати теку вкладки у провіднику.
+   *
+   * ЧЕРЕЗ КОМАНДУ `reveal_in_project`, а не через плагін оболонки. Доти тут
+   * було два шляхи, і кожен вимагав дозволу, ширшого за потребу:
+   *
+   *  * `Command.create('explorer', [fullPath])` — у можливостях це
+   *    `shell:allow-execute` з аргументом `.+`, тобто «запустити explorer із
+   *    будь-чим». `explorer` радо запускає передане, якщо це програма;
+   *  * запасний `open('file:///…')` — схема `file:` в `shell:allow-open`,
+   *    тобто те саме коротшим шляхом.
+   *
+   * Потреба ж вузька: показати теку, яка завжди лежить у
+   * `Документи/HotPaste`. Тепер межу перевіряє Rust за файловою системою, а
+   * обидва широкі дозволи прибрані з можливостей.
+   *
+   * Запасного шляху немає навмисно: обидва колишні вели в те саме місце
+   * тією самою командою, тож другий не лікував нічого — він лише робив
+   * відмову тихішою.
+   */
+  async openExplorer(pathStr: string): Promise<void> {
+    try {
+      const fullPath = await this.resolvePath(pathStr);
+      await invoke("reveal_in_project", { path: fullPath });
+    } catch (err) {
+      logService.error("TauriFS", `Failed to reveal in explorer: ${err}`);
+    }
+  }
+
+  async readDirectory(): Promise<Tab[]> {
+    const { fs } = await this.getApi();
+    const rootPath = await this.resolvePath("__root__");
+    const entries = await fs.readDir(rootPath);
+
+    const tabs: Tab[] = [];
+    const rootFiles: Card[] = [];
+    const rootConfig = await this.readConfig("__root__");
+
+    for (const entry of entries as any[]) {
+      const name = entry.name || "";
+      if (entry.isDirectory) {
+        const config = await this.readConfig(name);
+        const rootTabMeta = rootConfig.tabs?.[name] || {};
+        const subfolders: string[] = [];
+        const cards = await this.readCardsFromDirectoryRecursive(
+          name,
+          "",
+          config,
+          subfolders,
+        );
+
+        if (
+          cards.length > 0 ||
+          (config.tab && Object.keys(config.tab).length > 0) ||
+          rootTabMeta
+        ) {
+          tabs.push({
+            name:
+              rootTabMeta.displayName ||
+              config.tab?.displayName ||
+              this.cleanName(name),
+            displayName:
+              rootTabMeta.displayName || config.tab?.displayName || null,
+            hotkey: "",
+            cards,
+            subfolders: [...new Set(subfolders)].sort(),
+            path: name,
+            icon: rootTabMeta.icon || config.tab?.icon || null,
+            color: rootTabMeta.color || config.tab?.color || null,
+            type: config.tab?.type || rootTabMeta.type || "snippets",
+            assignments:
+              config.tab?.assignments || rootTabMeta.assignments || {},
+          });
         }
-    }
-
-    async readDirectory(): Promise<Tab[]> {
-        const { fs } = await this.getApi();
-        const rootPath = await this.resolvePath('__root__');
-        const entries = await fs.readDir(rootPath);
-        
-        const tabs: Tab[] = [];
-        const rootFiles: Card[] = [];
-        const rootConfig = await this.readConfig('__root__');
-
-        for (const entry of (entries as any[])) {
-            const name = entry.name || '';
-            if (entry.isDirectory) {
-                const config = await this.readConfig(name);
-                const rootTabMeta = rootConfig.tabs?.[name] || {};
-                const subfolders: string[] = [];
-                const cards = await this.readCardsFromDirectoryRecursive(name, '', config, subfolders);
-
-                if (cards.length > 0 || (config.tab && Object.keys(config.tab).length > 0) || rootTabMeta) {
-                    tabs.push({
-                        name: rootTabMeta.displayName || config.tab?.displayName || this.cleanName(name),
-                        displayName: rootTabMeta.displayName || config.tab?.displayName || null,
-                        hotkey: '',
-                        cards,
-                        subfolders: [...new Set(subfolders)].sort(),
-                        path: name,
-                        icon: rootTabMeta.icon || config.tab?.icon || null,
-                        color: rootTabMeta.color || config.tab?.color || null,
-                        type: config.tab?.type || rootTabMeta.type || 'snippets',
-                        assignments: config.tab?.assignments || rootTabMeta.assignments || {},
-                    });
-                }
-            } else if (entry.isFile) {
-                const ext = this.getExtension(name);
-                const SUPPORTED_EXTENSIONS = ['.txt', '.md'];
-                if (SUPPORTED_EXTENSIONS.includes(ext) && name !== CONFIG_FILENAME) {
-                    const content = await this.readFileInternal(`__root__/${name}`);
-                    const cardConfig = rootConfig.cards?.[name] || {};
-                    rootFiles.push({
-                        id: `__root__/${name}`,
-                        name: cardConfig.displayName || this.cleanName(name),
-                        displayName: cardConfig.displayName || null,
-                        content,
-                        hotkey: cardConfig.hotkey || '',
-                        isCustomHotkey: cardConfig.hotkey !== undefined,
-                        filePath: `__root__/${name}`,
-                        fileName: name,
-                        extension: ext,
-                        subfolder: null,
-                        icon: cardConfig.icon || null,
-                        color: cardConfig.color || null,
-                        borderColor: cardConfig.borderColor || null,
-                        strikethrough: cardConfig.strikethrough || [],
-                        size: 0,
-                        lastModified: Date.now(),
-                    });
-                }
-            }
+      } else if (entry.isFile) {
+        const ext = this.getExtension(name);
+        const SUPPORTED_EXTENSIONS = [".txt", ".md"];
+        if (SUPPORTED_EXTENSIONS.includes(ext) && name !== CONFIG_FILENAME) {
+          const content = await this.readFileInternal(`__root__/${name}`);
+          const cardConfig = rootConfig.cards?.[name] || {};
+          rootFiles.push({
+            id: `__root__/${name}`,
+            name: cardConfig.displayName || this.cleanName(name),
+            displayName: cardConfig.displayName || null,
+            content,
+            hotkey: cardConfig.hotkey || "",
+            isCustomHotkey: cardConfig.hotkey !== undefined,
+            filePath: `__root__/${name}`,
+            fileName: name,
+            extension: ext,
+            subfolder: null,
+            icon: cardConfig.icon || null,
+            color: cardConfig.color || null,
+            borderColor: cardConfig.borderColor || null,
+            strikethrough: cardConfig.strikethrough || [],
+            size: 0,
+            lastModified: Date.now(),
+          });
         }
+      }
+    }
 
-        const tabOrder = rootConfig.tab?.tabOrder || [];
-        tabs.sort((a, b) => {
-            const indexA = tabOrder.indexOf(a.path);
-            const indexB = tabOrder.indexOf(b.path);
-            if (indexA !== -1 && indexB !== -1) return indexA - indexB;
-            return a.path.localeCompare(b.path);
-        });
+    const tabOrder = rootConfig.tab?.tabOrder || [];
+    tabs.sort((a, b) => {
+      const indexA = tabOrder.indexOf(a.path);
+      const indexB = tabOrder.indexOf(b.path);
+      if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+      return a.path.localeCompare(b.path);
+    });
 
-        if (rootFiles.length > 0) {
-            tabs.unshift({
-                name: rootConfig.tab?.displayName || 'Файли',
-                displayName: rootConfig.tab?.displayName || null,
-                hotkey: '',
-                cards: rootFiles,
-                subfolders: [],
-                path: '__root__',
-                icon: rootConfig.tab?.icon || null,
-                color: rootConfig.tab?.color || null,
-                type: rootConfig.tab?.type || 'snippets',
-                assignments: rootConfig.tab?.assignments || {},
-            });
+    if (rootFiles.length > 0) {
+      tabs.unshift({
+        name: rootConfig.tab?.displayName || "Файли",
+        displayName: rootConfig.tab?.displayName || null,
+        hotkey: "",
+        cards: rootFiles,
+        subfolders: [],
+        path: "__root__",
+        icon: rootConfig.tab?.icon || null,
+        color: rootConfig.tab?.color || null,
+        type: rootConfig.tab?.type || "snippets",
+        assignments: rootConfig.tab?.assignments || {},
+      });
+    }
+
+    return tabs;
+  }
+
+  private async readCardsFromDirectoryRecursive(
+    tabDir: string,
+    currentSubDir: string,
+    config: HotPasteConfig,
+    subfolders: string[],
+  ): Promise<Card[]> {
+    const { fs } = await this.getApi();
+    const relativePath = currentSubDir ? `${tabDir}/${currentSubDir}` : tabDir;
+    const fullDirPath = await this.resolvePath(relativePath);
+    const entries = await fs.readDir(fullDirPath);
+    const cards: Card[] = [];
+
+    for (const entry of entries as any[]) {
+      const entryName = entry.name || "";
+      if (entry.isFile) {
+        const ext = this.getExtension(entryName);
+        const SUPPORTED_EXTENSIONS = [".txt", ".md"];
+        if (
+          SUPPORTED_EXTENSIONS.includes(ext) &&
+          entryName !== CONFIG_FILENAME
+        ) {
+          const relativeFilePath = currentSubDir
+            ? `${currentSubDir}/${entryName}`
+            : entryName;
+          const fullRelativePath = `${tabDir}/${relativeFilePath}`;
+
+          const content = await this.readFileInternal(fullRelativePath);
+          const cardConfig = config.cards?.[relativeFilePath] || {};
+          const absolutePath = await this.resolvePath(fullRelativePath);
+          const stat = await fs.stat(absolutePath);
+
+          cards.push({
+            id: fullRelativePath,
+            name: cardConfig.displayName || this.cleanName(entryName),
+            displayName: cardConfig.displayName || null,
+            content,
+            hotkey: cardConfig.hotkey || "",
+            isCustomHotkey: cardConfig.hotkey !== undefined,
+            filePath: fullRelativePath,
+            fileName: entryName,
+            extension: ext,
+            subfolder: currentSubDir || null,
+            icon: cardConfig.icon || null,
+            color: cardConfig.color || null,
+            borderColor: cardConfig.borderColor || null,
+            strikethrough: cardConfig.strikethrough || [],
+            size: stat.size,
+            lastModified:
+              stat.mtime instanceof Date
+                ? stat.mtime.getTime()
+                : stat.mtime || Date.now(),
+          });
         }
-
-        return tabs;
+      } else if (entry.isDirectory) {
+        const subDir = currentSubDir
+          ? `${currentSubDir}/${entryName}`
+          : entryName;
+        subfolders.push(subDir);
+        const subCards = await this.readCardsFromDirectoryRecursive(
+          tabDir,
+          subDir,
+          config,
+          subfolders,
+        );
+        cards.push(...subCards);
+      }
     }
+    return cards;
+  }
 
-    private async readCardsFromDirectoryRecursive(
-        tabDir: string, 
-        currentSubDir: string, 
-        config: HotPasteConfig,
-        subfolders: string[]
-    ): Promise<Card[]> {
-        const { fs } = await this.getApi();
-        const relativePath = currentSubDir ? `${tabDir}/${currentSubDir}` : tabDir;
-        const fullDirPath = await this.resolvePath(relativePath);
-        const entries = await fs.readDir(fullDirPath);
-        const cards: Card[] = [];
+  async readFile(path: string): Promise<string> {
+    return this.readFileInternal(path);
+  }
 
-        for (const entry of (entries as any[])) {
-            const entryName = entry.name || '';
-            if (entry.isFile) {
-                const ext = this.getExtension(entryName);
-                const SUPPORTED_EXTENSIONS = ['.txt', '.md'];
-                if (SUPPORTED_EXTENSIONS.includes(ext) && entryName !== CONFIG_FILENAME) {
-                    const relativeFilePath = currentSubDir ? `${currentSubDir}/${entryName}` : entryName;
-                    const fullRelativePath = `${tabDir}/${relativeFilePath}`;
-                    
-                    const content = await this.readFileInternal(fullRelativePath);
-                    const cardConfig = config.cards?.[relativeFilePath] || {};
-                    const absolutePath = await this.resolvePath(fullRelativePath);
-                    const stat = await fs.stat(absolutePath);
+  async readFileAsBlob(pathStr: string): Promise<Blob> {
+    const { fs } = await this.getApi();
+    const fullPath = await this.resolvePath(pathStr);
+    const bytes = await fs.readFile(fullPath);
 
-                    cards.push({
-                        id: fullRelativePath,
-                        name: cardConfig.displayName || this.cleanName(entryName),
-                        displayName: cardConfig.displayName || null,
-                        content,
-                        hotkey: cardConfig.hotkey || '',
-                        isCustomHotkey: cardConfig.hotkey !== undefined,
-                        filePath: fullRelativePath,
-                        fileName: entryName,
-                        extension: ext,
-                        subfolder: currentSubDir || null,
-                        icon: cardConfig.icon || null,
-                        color: cardConfig.color || null,
-                        borderColor: cardConfig.borderColor || null,
-                        strikethrough: cardConfig.strikethrough || [],
-                        size: stat.size,
-                        lastModified: stat.mtime instanceof Date ? stat.mtime.getTime() : (stat.mtime || Date.now()),
-                    });
-                }
-            } else if (entry.isDirectory) {
-                const subDir = currentSubDir ? `${currentSubDir}/${entryName}` : entryName;
-                subfolders.push(subDir);
-                const subCards = await this.readCardsFromDirectoryRecursive(tabDir, subDir, config, subfolders);
-                cards.push(...subCards);
-            }
-        }
-        return cards;
+    const ext = pathStr.split(".").pop()?.toLowerCase();
+    const mime =
+      ext === "ico"
+        ? "image/x-icon"
+        : ext === "svg"
+          ? "image/svg+xml"
+          : "image/png";
+
+    return new Blob([bytes], { type: mime });
+  }
+
+  async writeFile(
+    pathStr: string,
+    content: string | Uint8Array,
+  ): Promise<void> {
+    const { fs } = await this.getApi();
+    const fullPath = await this.resolvePath(pathStr);
+    let data: Uint8Array;
+    if (typeof content === "string") {
+      const encoder = new TextEncoder();
+      data = encoder.encode(content);
+    } else {
+      data = content;
     }
+    await fs.writeFile(fullPath, data);
+  }
 
-    async readFile(path: string): Promise<string> {
-        return this.readFileInternal(path);
+  async deleteFile(pathStr: string): Promise<void> {
+    const { fs } = await this.getApi();
+    const fullPath = await this.resolvePath(pathStr);
+    await fs.remove(fullPath);
+  }
+
+  async renameFile(pathStr: string, newName: string): Promise<void> {
+    const { fs } = await this.getApi();
+    const fullPath = await this.resolvePath(pathStr);
+    const parentDir = fullPath.split(/[/\\]/).slice(0, -1).join("/");
+    const newFullPath = `${parentDir}/${newName}`;
+    await fs.rename(fullPath, newFullPath);
+  }
+
+  async createDirectory(name: string): Promise<void> {
+    const { fs } = await this.getApi();
+    const fullPath = await this.resolvePath(name);
+    await fs.mkdir(fullPath, { recursive: true });
+  }
+
+  async deleteDirectory(pathStr: string): Promise<void> {
+    const { fs } = await this.getApi();
+    const fullPath = await this.resolvePath(pathStr);
+    await fs.remove(fullPath, { recursive: true });
+  }
+
+  async renameDirectory(oldPathStr: string, newName: string): Promise<void> {
+    const { fs, path } = await this.getApi();
+    const oldFullPath = await this.resolvePath(oldPathStr);
+    const parentDir = await path.dirname(oldFullPath);
+    const newFullPath = await path.join(parentDir, newName);
+    await fs.rename(oldFullPath, newFullPath);
+  }
+
+  async copyFile(pathStr: string, newName: string): Promise<void> {
+    const { fs } = await this.getApi();
+    const fullPath = await this.resolvePath(pathStr);
+    const parentDir = fullPath.split(/[/\\]/).slice(0, -1).join("/");
+    const newFullPath = `${parentDir}/${newName}`;
+    await fs.copyFile(fullPath, newFullPath);
+  }
+
+  async moveFile(pathStr: string, targetTabPath: string): Promise<void> {
+    const { fs } = await this.getApi();
+    const fullPath = await this.resolvePath(pathStr);
+    const fileName = fullPath.split(/[/\\]/).pop()!;
+    const targetTabFullPath = await this.resolvePath(targetTabPath);
+    const newFullPath = `${targetTabFullPath}/${fileName}`;
+    await fs.rename(fullPath, newFullPath);
+  }
+
+  async readConfig(tabPath: string): Promise<HotPasteConfig> {
+    try {
+      const configPath =
+        tabPath === "__root__"
+          ? CONFIG_FILENAME
+          : `${tabPath}/${CONFIG_FILENAME}`;
+      const content = await this.readFile(configPath);
+      const raw = JSON.parse(content);
+      const result = HotPasteConfigSchema.safeParse(raw);
+      return result.success ? result.data : { tab: {}, cards: {} };
+    } catch {
+      return { tab: {}, cards: {} };
     }
+  }
 
-    async readFileAsBlob(pathStr: string): Promise<Blob> {
-        const { fs } = await this.getApi();
-        const fullPath = await this.resolvePath(pathStr);
-        const bytes = await fs.readFile(fullPath);
-        
-        const ext = pathStr.split('.').pop()?.toLowerCase();
-        const mime = ext === 'ico' ? 'image/x-icon' : ext === 'svg' ? 'image/svg+xml' : 'image/png';
-        
-        return new Blob([bytes], { type: mime });
-    }
+  async writeConfig(tabPath: string, config: HotPasteConfig): Promise<void> {
+    const configPath =
+      tabPath === "__root__"
+        ? CONFIG_FILENAME
+        : `${tabPath}/${CONFIG_FILENAME}`;
+    await this.writeFile(configPath, JSON.stringify(config, null, 2));
+  }
 
-    async writeFile(pathStr: string, content: string | Uint8Array): Promise<void> {
-        const { fs } = await this.getApi();
-        const fullPath = await this.resolvePath(pathStr);
-        let data: Uint8Array;
-        if (typeof content === 'string') {
-            const encoder = new TextEncoder();
-            data = encoder.encode(content);
-        } else {
-            data = content;
-        }
-        await fs.writeFile(fullPath, data);
-    }
+  private async readFileInternal(pathStr: string): Promise<string> {
+    const { fs } = await this.getApi();
+    const fullPath = await this.resolvePath(pathStr);
+    const bytes = await fs.readFile(fullPath);
+    const decoder = new TextDecoder();
+    return decoder.decode(bytes);
+  }
 
-    async deleteFile(pathStr: string): Promise<void> {
-        const { fs } = await this.getApi();
-        const fullPath = await this.resolvePath(pathStr);
-        await fs.remove(fullPath);
-    }
-
-    async renameFile(pathStr: string, newName: string): Promise<void> {
-        const { fs } = await this.getApi();
-        const fullPath = await this.resolvePath(pathStr);
-        const parentDir = fullPath.split(/[/\\]/).slice(0, -1).join('/');
-        const newFullPath = `${parentDir}/${newName}`;
-        await fs.rename(fullPath, newFullPath);
-    }
-
-    async createDirectory(name: string): Promise<void> {
-        const { fs } = await this.getApi();
-        const fullPath = await this.resolvePath(name);
-        await fs.mkdir(fullPath, { recursive: true });
-    }
-
-    async deleteDirectory(pathStr: string): Promise<void> {
-        const { fs } = await this.getApi();
-        const fullPath = await this.resolvePath(pathStr);
-        await fs.remove(fullPath, { recursive: true });
-    }
-
-    async renameDirectory(oldPathStr: string, newName: string): Promise<void> {
-        const { fs, path } = await this.getApi();
-        const oldFullPath = await this.resolvePath(oldPathStr);
-        const parentDir = await path.dirname(oldFullPath);
-        const newFullPath = await path.join(parentDir, newName);
-        await fs.rename(oldFullPath, newFullPath);
-    }
-
-    async copyFile(pathStr: string, newName: string): Promise<void> {
-        const { fs } = await this.getApi();
-        const fullPath = await this.resolvePath(pathStr);
-        const parentDir = fullPath.split(/[/\\]/).slice(0, -1).join('/');
-        const newFullPath = `${parentDir}/${newName}`;
-        await fs.copyFile(fullPath, newFullPath);
-    }
-
-    async moveFile(pathStr: string, targetTabPath: string): Promise<void> {
-        const { fs } = await this.getApi();
-        const fullPath = await this.resolvePath(pathStr);
-        const fileName = fullPath.split(/[/\\]/).pop()!;
-        const targetTabFullPath = await this.resolvePath(targetTabPath);
-        const newFullPath = `${targetTabFullPath}/${fileName}`;
-        await fs.rename(fullPath, newFullPath);
-    }
-
-    async readConfig(tabPath: string): Promise<HotPasteConfig> {
-        try {
-            const configPath = tabPath === '__root__' ? CONFIG_FILENAME : `${tabPath}/${CONFIG_FILENAME}`;
-            const content = await this.readFile(configPath);
-            const raw = JSON.parse(content);
-            const result = HotPasteConfigSchema.safeParse(raw);
-            return result.success ? result.data : { tab: {}, cards: {} };
-        } catch {
-            return { tab: {}, cards: {} };
-        }
-    }
-
-    async writeConfig(tabPath: string, config: HotPasteConfig): Promise<void> {
-        const configPath = tabPath === '__root__' ? CONFIG_FILENAME : `${tabPath}/${CONFIG_FILENAME}`;
-        await this.writeFile(configPath, JSON.stringify(config, null, 2));
-    }
-
-    private async readFileInternal(pathStr: string): Promise<string> {
-        const { fs } = await this.getApi();
-        const fullPath = await this.resolvePath(pathStr);
-        const bytes = await fs.readFile(fullPath);
-        const decoder = new TextDecoder();
-        return decoder.decode(bytes);
-    }
-
-    private getExtension(f: string): string { const i = f.lastIndexOf('.'); return i >= 0 ? f.slice(i).toLowerCase() : ''; }
-    private cleanName(n: string): string { const i = n.lastIndexOf('.'); const w = i >= 0 ? n.slice(0, i) : n; return w.replace(/^\d+[\_\-\s]+/, '') || w; }
+  private getExtension(f: string): string {
+    const i = f.lastIndexOf(".");
+    return i >= 0 ? f.slice(i).toLowerCase() : "";
+  }
+  private cleanName(n: string): string {
+    const i = n.lastIndexOf(".");
+    const w = i >= 0 ? n.slice(0, i) : n;
+    return w.replace(/^\d+[\_\-\s]+/, "") || w;
+  }
 }

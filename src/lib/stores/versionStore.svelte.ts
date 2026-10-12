@@ -18,13 +18,29 @@ let needsManualRestart = $state(false);
 let installer = $state<null | (() => Promise<void>)>(null);
 
 export const versionStore = {
-    get serverVersion() { return serverVersion; },
-    get isUpdateAvailable() { return isUpdateAvailable; },
-    get needsManualRestart() { return needsManualRestart; },
-    get installer() { return installer; },
+  get serverVersion() {
+    return serverVersion;
+  },
+  get isUpdateAvailable() {
+    return isUpdateAvailable;
+  },
+  get needsManualRestart() {
+    return needsManualRestart;
+  },
+  get installer() {
+    return installer;
+  },
 
-    setVersion(v: string) { serverVersion = v; },
-    setUpdate(status: boolean) { isUpdateAvailable = status; },
-    setManualRestart(status: boolean) { needsManualRestart = status; },
-    setInstaller(fn: null | (() => Promise<void>)) { installer = fn; }
+  setVersion(v: string) {
+    serverVersion = v;
+  },
+  setUpdate(status: boolean) {
+    isUpdateAvailable = status;
+  },
+  setManualRestart(status: boolean) {
+    needsManualRestart = status;
+  },
+  setInstaller(fn: null | (() => Promise<void>)) {
+    installer = fn;
+  },
 };

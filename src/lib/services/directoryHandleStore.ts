@@ -1,4 +1,4 @@
-import { logService } from './logService.svelte';
+import { logService } from "./logService.svelte";
 
 /**
  * ТЕКА, ОБРАНА ОДНОГО РАЗУ, ПЕРЕЖИВАЄ ПЕРЕЗАВАНТАЖЕННЯ.
@@ -30,67 +30,73 @@ import { logService } from './logService.svelte';
  * різні екрани.
  */
 
-const DB_NAME = 'hotpaste';
+const DB_NAME = "hotpaste";
 const DB_VERSION = 1;
-const STORE = 'handles';
-const KEY = 'root-directory';
+const STORE = "handles";
+const KEY = "root-directory";
 
 function openDatabase(): Promise<IDBDatabase | null> {
-	if (typeof indexedDB === 'undefined') return Promise.resolve(null);
+  if (typeof indexedDB === "undefined") return Promise.resolve(null);
 
-	return new Promise((resolve) => {
-		const request = indexedDB.open(DB_NAME, DB_VERSION);
+  return new Promise((resolve) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
 
-		request.onupgradeneeded = () => {
-			const db = request.result;
-			if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE);
-		};
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE);
+    };
 
-		/*
-		 * Відмова тут — НЕ поломка застосунку: у приватному режимі частини
-		 * браузерів IndexedDB недоступна зовсім. Наслідок рівно той, що був
-		 * доти: теку доведеться обрати заново.
-		 */
-		request.onerror = () => {
-			logService.warn('FileSystem', `IndexedDB unavailable: ${request.error?.message}`);
-			resolve(null);
-		};
-		request.onsuccess = () => resolve(request.result);
-		request.onblocked = () => resolve(null);
-	});
+    /*
+     * Відмова тут — НЕ поломка застосунку: у приватному режимі частини
+     * браузерів IndexedDB недоступна зовсім. Наслідок рівно той, що був
+     * доти: теку доведеться обрати заново.
+     */
+    request.onerror = () => {
+      logService.warn(
+        "FileSystem",
+        `IndexedDB unavailable: ${request.error?.message}`,
+      );
+      resolve(null);
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onblocked = () => resolve(null);
+  });
 }
 
 function transact<T>(
-	mode: IDBTransactionMode,
-	run: (store: IDBObjectStore) => IDBRequest<T>
+  mode: IDBTransactionMode,
+  run: (store: IDBObjectStore) => IDBRequest<T>,
 ): Promise<T | null> {
-	return openDatabase().then(
-		(db) =>
-			new Promise<T | null>((resolve) => {
-				if (!db) return resolve(null);
-				try {
-					const request = run(db.transaction(STORE, mode).objectStore(STORE));
-					request.onsuccess = () => resolve(request.result ?? null);
-					request.onerror = () => resolve(null);
-				} catch (error) {
-					logService.warn('FileSystem', `IndexedDB access failed: ${error}`);
-					resolve(null);
-				}
-			})
-	);
+  return openDatabase().then(
+    (db) =>
+      new Promise<T | null>((resolve) => {
+        if (!db) return resolve(null);
+        try {
+          const request = run(db.transaction(STORE, mode).objectStore(STORE));
+          request.onsuccess = () => resolve(request.result ?? null);
+          request.onerror = () => resolve(null);
+        } catch (error) {
+          logService.warn("FileSystem", `IndexedDB access failed: ${error}`);
+          resolve(null);
+        }
+      }),
+  );
 }
 
 /** Запам'ятати обрану теку. Мовчазна відмова означає «доведеться обрати ще раз». */
-export async function saveDirectoryHandle(handle: FileSystemDirectoryHandle): Promise<void> {
-	await transact('readwrite', (store) => store.put(handle, KEY));
+export async function saveDirectoryHandle(
+  handle: FileSystemDirectoryHandle,
+): Promise<void> {
+  await transact("readwrite", (store) => store.put(handle, KEY));
 }
 
 /** Дескриптор із минулого сеансу, або `null`. */
 export async function loadDirectoryHandle(): Promise<FileSystemDirectoryHandle | null> {
-	const handle = await transact<FileSystemDirectoryHandle>('readonly', (store) =>
-		store.get(KEY)
-	);
-	return handle ?? null;
+  const handle = await transact<FileSystemDirectoryHandle>(
+    "readonly",
+    (store) => store.get(KEY),
+  );
+  return handle ?? null;
 }
 
 /**
@@ -101,5 +107,5 @@ export async function loadDirectoryHandle(): Promise<FileSystemDirectoryHandle |
  * відновлення, яка ніколи не спрацює.
  */
 export async function clearDirectoryHandle(): Promise<void> {
-	await transact('readwrite', (store) => store.delete(KEY));
+  await transact("readwrite", (store) => store.delete(KEY));
 }
