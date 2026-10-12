@@ -17,7 +17,7 @@ permissions:
 # би щойно доданий гейт, не завершується ніколи. Гейт при цьому виглядає
 # робочим — він просто не виконувався жодного разу.
 concurrency:
-  group: pages
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 jobs:
   build-and-deploy:
@@ -37,11 +37,15 @@ jobs:
       - name: Типи
         run: npm run check
 
+      - name: Лінтинг
+        if: ${{ !cancelled() }}
+        run: npm run lint
+
       # `!cancelled()` на кожному гейті: інакше перше падіння ховає решту, і
       # замість повного списку проблем приходить по одній за прогін.
       - name: Юніт-перевірки
         if: ${{ !cancelled() }}
-        run: npm test -- --run
+        run: npm run test -- --run
 
       - name: Збірка
         id: build
