@@ -5,6 +5,7 @@
     import { fsState } from "../stores/fileSystemState.svelte";
     import { t } from "../i18n";
     import { isTauri as isTauriRuntime } from '../utils/runtime';
+    import { sanitizeHtml } from "../security/sanitize";
 
     interface Props {
         onConnect?: () => void | Promise<void>;
@@ -138,7 +139,7 @@
         </div>
 
         <p class="hint" data-testid="connect-hint">
-            {@html t.app.connectHint}
+            {@html sanitizeHtml(t.app.connectHint)}
         </p>
 
         <!-- Keyboard hints -->

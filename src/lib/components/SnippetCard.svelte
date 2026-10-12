@@ -635,7 +635,7 @@
         >
           {#if card.extension === ".md"}
             <div class="markdown-body">
-              {@html renderedMarkdown}
+              {@html sanitize(renderedMarkdown)}
             </div>
           {:else}
             {#each lines as line, i}

@@ -2,6 +2,7 @@
     import type { ComponentType } from 'svelte';
     import { ChevronDown, Check } from 'lucide-svelte';
     import { fade, fly } from 'svelte/transition';
+    import { sanitizeSvg } from '../../security/sanitize';
 
     interface Option {
         id: string;
@@ -89,9 +90,9 @@
                 {/if}
                 {#if opt.originIcon}
                     <span class="origin-tag">
-                        {@html opt.originIcon
+                        {@html sanitizeSvg(opt.originIcon
                             .replace('<svg', '<svg preserveAspectRatio="xMidYMid slice"')
-                            .replace(/width="(\d+)"\s+height="(\d+)"/, (match, w, h) => `viewBox="0 0 ${w} ${h}"`)
+                            .replace(/width="(\d+)"\s+height="(\d+)"/, (match, w, h) => `viewBox="0 0 ${w} ${h}"`))
                         }
                     </span>
                 {/if}
