@@ -21,6 +21,11 @@ export const en = {
   },
   errors: {
     rendering: "Rendering error",
+    validation: "Validation error",
+    notFound: "Resource not found",
+    network: "Network error",
+    auth: "Authentication error",
+    unexpected: "Unexpected error",
   },
   app: {
     title: "HotPaste",

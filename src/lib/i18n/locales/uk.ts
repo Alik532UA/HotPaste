@@ -21,6 +21,11 @@ export const uk = {
   },
   errors: {
     rendering: "Помилка відображення",
+    validation: "Помилка валідації",
+    notFound: "Ресурс не знайдено",
+    network: "Мережевий збій",
+    auth: "Помилка автентифікації",
+    unexpected: "Непередбачувана помилка",
   },
   app: {
     title: "HotPaste",

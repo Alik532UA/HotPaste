@@ -1,6 +1,8 @@
 <script lang="ts">
   import { AlertOctagon, RefreshCcw } from "lucide-svelte";
   import { t } from "../../i18n";
+  import { errorToMessageKey } from "../../errors";
+  import { logService } from "../../services/logService.svelte";
   import type { Snippet } from "svelte";
 
   interface Props {
@@ -8,10 +10,22 @@
   }
 
   let { children }: Props = $props();
+
+  function getErrorMessage(error: unknown): string {
+    const key = errorToMessageKey(error);
+    const shortKey = key.replace("errors.", "") as keyof typeof t.errors;
+    return (
+      (t.errors as any)?.[shortKey] ||
+      t.errors?.rendering ||
+      "Критична помилка додатку"
+    );
+  }
 </script>
 
 {#if children}
-  <svelte:boundary>
+  <svelte:boundary
+    onerror={(e) => logService.error("boundary", "Unhandled render error", e)}
+  >
     <div class="boundary-wrapper">
       {@render children()}
     </div>
@@ -21,19 +35,19 @@
           <div class="icon-wrapper">
             <AlertOctagon size={48} strokeWidth={1.5} />
           </div>
-          
-          <h1 data-testid="global-error-title">{t.errors?.rendering || "Критична помилка додатку"}</h1>
-          <p class="description" data-testid="global-error-desc">
-            Виникла непередбачувана помилка під час роботи інтерфейсу.
-          </p>
-          
-          {#if error && typeof error === 'object' && 'message' in error}
-            <div class="error-details" data-testid="global-error-details">
-              <code>{(error as any).message}</code>
-            </div>
-          {/if}
 
-          <button class="reset-btn" onclick={reset} data-testid="btn-global-error-retry">
+          <h1 data-testid="global-error-title">
+            {t.errors?.rendering || "Критична помилка додатку"}
+          </h1>
+          <p class="description" data-testid="global-error-desc">
+            {getErrorMessage(error)}
+          </p>
+
+          <button
+            class="reset-btn"
+            onclick={reset}
+            data-testid="btn-global-error-retry"
+          >
             <RefreshCcw size={18} />
             <span>{t.common?.retry || "Спробувати знову"}</span>
           </button>
@@ -110,24 +124,6 @@
     font-size: 0.95rem;
     margin-bottom: 24px;
     line-height: 1.6;
-  }
-
-  .error-details {
-    background: color-mix(in srgb, var(--color-danger) 5%, transparent);
-    border: 1px solid color-mix(in srgb, var(--color-danger) 20%, transparent);
-    border-radius: 12px;
-    padding: 16px;
-    margin-bottom: 32px;
-    text-align: left;
-    overflow-x: auto;
-  }
-
-  code {
-    font-family: var(--font-mono);
-    font-size: 0.85rem;
-    color: var(--color-danger);
-    white-space: pre-wrap;
-    word-break: break-all;
   }
 
   .reset-btn {

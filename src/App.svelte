@@ -200,6 +200,23 @@
     adaptiveHeader.update();
   });
 
+  // Global error listeners (ERROR-HANDLING-v10 § 5)
+  $effect(() => {
+    const onRejection = (event: PromiseRejectionEvent) => {
+      logService.error('unhandled-promise', 'Unhandled promise rejection', event.reason);
+    };
+    const onError = (event: ErrorEvent) => {
+      logService.error('window-error', `${event.message} at ${event.filename}:${event.lineno}`, event.error);
+    };
+
+    window.addEventListener('unhandledrejection', onRejection);
+    window.addEventListener('error', onError);
+    return () => {
+      window.removeEventListener('unhandledrejection', onRejection);
+      window.removeEventListener('error', onError);
+    };
+  });
+
   onMount(() => {
     if (isTauri) {
       document.documentElement.classList.add("is-tauri");
