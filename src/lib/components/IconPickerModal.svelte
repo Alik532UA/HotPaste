@@ -282,7 +282,7 @@
 
   .icons-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(44px, 100%), 1fr));
     gap: 6px;
   }
 
@@ -315,7 +315,7 @@
 
   .emoji-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(54px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(54px, 100%), 1fr));
     gap: 8px;
   }
 

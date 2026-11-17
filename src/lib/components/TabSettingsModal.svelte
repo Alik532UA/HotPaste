@@ -293,7 +293,7 @@
 
   .color-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(32px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(32px, 100%), 1fr));
     gap: 8px;
     align-items: center;
   }

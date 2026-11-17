@@ -726,7 +726,7 @@
 
   .mode-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
     margin-top: 8px;
   }
@@ -811,7 +811,7 @@
 
   .program-container.grid-mode {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(140px, 100%), 1fr));
     gap: 12px;
   }
   .program-container.list-mode { display: flex; flex-direction: column; gap: 8px; }

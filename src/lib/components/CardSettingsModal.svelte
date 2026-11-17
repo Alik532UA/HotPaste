@@ -586,7 +586,7 @@
 
   .color-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(28px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(28px, 100%), 1fr));
     gap: 8px;
     padding: 8px 0;
   }

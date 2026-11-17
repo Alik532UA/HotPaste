@@ -346,7 +346,7 @@
 
 	h1 {
 		margin: 0;
-		font-size: clamp(1.3rem, 4vw, 1.9rem);
+		font-size: clamp(1.3rem, 1.1rem + 1vw, 1.9rem);
 	}
 
 	.beta__intro,
