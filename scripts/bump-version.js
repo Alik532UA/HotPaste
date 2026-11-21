@@ -50,12 +50,9 @@ try {
          */
         const cargoLockPath = "src-tauri/Cargo.lock";
         let locked = false;
-        try {
-            console.log("📦 Синхронізація Cargo.lock...");
-            execSync("cd src-tauri && cargo update --workspace", { stdio: "inherit" });
+        if (false) {
+            execSync("cd src-tauri && cargo update --workspace --offline", { stdio: "inherit" });
             locked = true;
-        } catch {
-            console.warn("⚠️ cargo недоступний — правлю Cargo.lock текстом.");
         }
 
         if (!locked && fs.existsSync(cargoLockPath)) {
